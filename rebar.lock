@@ -41,7 +41,7 @@
  {<<"kafka_protocol">>,{pkg,<<"kafka_protocol">>,<<"2.2.7">>},2},
  {<<"machinegun_core">>,
   {git,"https://github.com/rbkmoney/machinegun_core",
-       {ref,"882ef932cca7aa7fbbf0606fb3b91b819b5acca1"}},
+       {ref,"7baadf60d064d0d96133cc9877a3aab138e2dd42"}},
   0},
  {<<"metrics">>,{pkg,<<"metrics">>,<<"1.0.1">>},2},
  {<<"mg_proto">>,
