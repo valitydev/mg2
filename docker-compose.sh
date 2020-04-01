@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# Copyright 2017 RBKmoney
+# Copyright 2020 RBKmoney
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -38,17 +38,17 @@ services:
       - kafka3
 
   riakdb:
-    image: dr.rbkmoney.com/basho/riak-kv:ubuntu-2.1.4-1
+    image: dr2.rbkmoney.com/rbkmoney/riak-base:b61e6fcc5ba7e7378548d0e0b8d4d8a464b27c67
     environment:
       - CLUSTER_NAME=riakkv
     labels:
       - "com.basho.riak.cluster.name=riakkv"
     volumes:
-      - ./test/riak_user.conf:/etc/riak/user.conf:ro
+      - ./test_resources/riak_user.conf:/etc/riak/user.conf:ro
       - schemas:/etc/riak/schemas
   member1:
     &member-node
-    image: dr.rbkmoney.com/basho/riak-kv:ubuntu-2.1.4-1
+    image: dr2.rbkmoney.com/rbkmoney/riak-base:b61e6fcc5ba7e7378548d0e0b8d4d8a464b27c67
     labels:
       - "com.basho.riak.cluster.name=riakkv"
     links:
@@ -59,7 +59,7 @@ services:
       - CLUSTER_NAME=riakkv
       - COORDINATOR_NODE=riakdb
     volumes:
-      - ./test/riak_user.conf:/etc/riak/user.conf:ro
+      - ./test_resources/riak_user.conf:/etc/riak/user.conf:ro
   member2:
     <<: *member-node
 
@@ -92,7 +92,7 @@ services:
   consul1: &consul-server
     image: consul:${CONSUL_VERSION}
     volumes:
-      - ./test/consul.json:/etc/consul/consul.json
+      - ./test_resources/consul.json:/etc/consul/consul.json
     hostname: consul1
     command:
       agent -server -config-dir=/etc/consul
