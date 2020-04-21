@@ -38,14 +38,12 @@ pack(opaque, Opaque) ->
 pack(integer, Integer) when is_integer(Integer) ->
     Integer; % TODO check size
 pack(timestamp_s, Timestamp) when is_integer(Timestamp) ->
-    {ok, TimestampBin} = rfc3339:format(Timestamp, second),
-    TimestampBin;
+    genlib_rfc3339:format(Timestamp, second);
 pack(timestamp_ns, Timestamp) when is_integer(Timestamp) ->
-    {ok, TimestampBin} = rfc3339:format(Timestamp, nanosecond),
-    TimestampBin;
+    genlib_rfc3339:format(Timestamp, nanosecond);
 pack(datetime, Datetime) when is_tuple(Datetime) ->
-    {ok, DatetimeBin} = rfc3339:format(Datetime),
-    DatetimeBin;
+    Seconds = genlib_time:daytime_to_unixtime(Datetime),
+    genlib_rfc3339:format_relaxed(Seconds, second);
 pack({list, T}, Values) ->
     [pack(T, Value) || Value <- Values];
 
@@ -250,11 +248,9 @@ unpack(opaque, Opaque) ->
 unpack(integer, Integer) when is_integer(Integer) ->
     Integer; % TODO check size
 unpack(timestamp_s, Timestamp) when is_binary(Timestamp) ->
-    {ok, Result} = rfc3339:to_time(Timestamp, second),
-    Result;
+    genlib_rfc3339:parse(Timestamp, second);
 unpack(timestamp_ns, Timestamp) when is_binary(Timestamp) ->
-    {ok, Result} = rfc3339:to_time(Timestamp, nanosecond),
-    Result;
+    genlib_rfc3339:parse(Timestamp, nanosecond);
 unpack(datetime, Datetime) when is_binary(Datetime) ->
     parse_datetime(Datetime);
 unpack({list, T}, Values) ->
@@ -490,7 +486,6 @@ unpack_opaque(Arg) ->
 -spec parse_datetime(binary()) ->
     calendar:datetime().
 parse_datetime(Datetime) ->
-    case rfc3339:parse(Datetime) of
-        {ok, {Date, Time, _, TZ}} when TZ == undefined; TZ == 0 ->
-            {Date, Time}
-    end.
+    true = genlib_rfc3339:is_utc(Datetime),
+    Seconds = genlib_rfc3339:parse(Datetime, second),
+    genlib_time:unixtime_to_daytime(Seconds).

@@ -22,7 +22,6 @@
         kernel,
         stdlib,
         genlib,
-        rfc3339,
         mg_proto,
         woody,
         erl_health,
