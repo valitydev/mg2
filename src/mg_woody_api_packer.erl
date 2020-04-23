@@ -40,7 +40,11 @@ pack(integer, Integer) when is_integer(Integer) ->
 pack(timestamp_s, Timestamp) when is_integer(Timestamp) ->
     genlib_rfc3339:format(Timestamp, second);
 pack(timestamp_ns, Timestamp) when is_integer(Timestamp) ->
-    genlib_rfc3339:format(Timestamp, nanosecond);
+    %% Actually rfc3339:format/2 force conversion of nanoseconds
+    %% to microseconds, while system formatter does not,
+    %% so force microseconds here for backward compatibility
+    Micros = erlang:convert_time_unit(Timestamp, nanosecond, microsecond),
+    genlib_rfc3339:format_relaxed(Micros, microsecond);
 pack(datetime, Datetime) when is_tuple(Datetime) ->
     Seconds = genlib_time:daytime_to_unixtime(Datetime),
     genlib_rfc3339:format_relaxed(Seconds, second);
