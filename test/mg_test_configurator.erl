@@ -31,8 +31,7 @@
     woody_server := machinegun_woody_api:woody_server(),
     event_sink_ns := event_sink_ns(),
     namespaces := #{mg_core:ns() => events_machines()},
-    quotas => [mg_core_quota_worker:options()],
-    health_check => erl_health:check()
+    quotas => [mg_core_quota_worker:options()]
 }.
 
 -type processor() :: mg_woody_api_processor:options().
@@ -45,7 +44,6 @@ construct_child_specs(#{
     namespaces    := Namespaces
 } = Config) ->
     Quotas       = maps:get(quotas, Config, []),
-    HealthChecks = maps:get(health_check, Config, #{}),
 
     QuotasChSpec        = quotas_child_specs(Quotas, quota),
     EventSinkChSpec     = event_sink_ns_child_spec(EventSinkNS, event_sink),
@@ -54,7 +52,6 @@ construct_child_specs(#{
         woody_server,
         #{
             woody_server => WoodyServer,
-            health_check => HealthChecks,
             automaton    => api_automaton_options (Namespaces, EventSinkNS),
             event_sink   => api_event_sink_options(Namespaces, EventSinkNS),
             pulse        => mg_woody_api_test_pulse

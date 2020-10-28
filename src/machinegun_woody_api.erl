@@ -42,11 +42,11 @@
 -type event_sink() :: mg_woody_api_event_sink:options().
 
 -type options() :: #{
+    pulse := module(),
+    automaton := automaton(),
+    event_sink := event_sink(),
     woody_server := woody_server(),
-    health_check := erl_health:check(),
-    automaton    := automaton(),
-    event_sink   := event_sink(),
-    pulse        := module()
+    additional_routes => woody_server_thrift_http_handler:route(any())
 }.
 
 -spec child_spec(term(), options()) ->
@@ -54,12 +54,11 @@
 child_spec(ID, Options) ->
     #{
         woody_server := WoodyConfig,
-        health_check := HealthCheck,
         automaton    := Automaton,
         event_sink   := EventSink,
         pulse        := PulseHandler
     } = Options,
-    HealthRoute = erl_health_handle:get_route(enable_health_logging(HealthCheck)),
+    AdditionalRoutes = maps:get(additional_routes, Options, []),
     woody_server:child_spec(
         ID,
         #{
@@ -75,12 +74,6 @@ child_spec(ID, Options) ->
                 mg_woody_api_automaton :handler(Automaton),
                 mg_woody_api_event_sink:handler(EventSink)
             ],
-            additional_routes => [HealthRoute]
+            additional_routes => AdditionalRoutes
         }
     ).
-
--spec enable_health_logging(erl_health:check()) ->
-    erl_health:check().
-enable_health_logging(Check) ->
-    EvHandler = {erl_health_event_handler, []},
-    maps:map(fun (_, V = {_, _, _}) -> #{runner => V, event_handler => EvHandler} end, Check).

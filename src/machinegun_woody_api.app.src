@@ -24,7 +24,6 @@
         genlib,
         mg_proto,
         woody,
-        erl_health,
         machinegun_core
     ]},
     {env, []},
