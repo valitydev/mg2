@@ -46,7 +46,7 @@
     automaton := automaton(),
     event_sink := event_sink(),
     woody_server := woody_server(),
-    additional_routes => woody_server_thrift_http_handler:route(any())
+    additional_routes => [woody_server_thrift_http_handler:route(any())]
 }.
 
 -spec child_spec(term(), options()) ->
