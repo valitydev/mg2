@@ -27,8 +27,7 @@
 %%
 -type options() :: woody_client:options().
 
--spec processor_child_spec(options()) ->
-    supervisor:child_spec().
+-spec processor_child_spec(options()) -> supervisor:child_spec().
 processor_child_spec(Options) ->
     woody_client:child_spec(Options).
 
@@ -45,7 +44,7 @@ process_signal(Options, ReqCtx, Deadline, {Signal, Machine}) ->
             ReqCtx,
             Deadline,
             'ProcessSignal',
-            [mg_woody_api_packer:pack(signal_args, {Signal, Machine})]
+            {mg_woody_api_packer:pack(signal_args, {Signal, Machine})}
         ),
     mg_woody_api_packer:unpack(signal_result, SignalResult).
 
@@ -61,11 +60,13 @@ process_call(Options, ReqCtx, Deadline, {Call, Machine}) ->
             ReqCtx,
             Deadline,
             'ProcessCall',
-            [mg_woody_api_packer:pack(call_args, {Call, Machine})]
+            {mg_woody_api_packer:pack(call_args, {Call, Machine})}
         ),
     mg_woody_api_packer:unpack(call_result, CallResult).
 
--spec process_repair(Options, ReqCtx, Deadline, RepairArgs) -> mg_core_events_machine:repair_result() when
+-spec process_repair(Options, ReqCtx, Deadline, RepairArgs) ->
+    mg_core_events_machine:repair_result()
+when
     Options :: options(),
     ReqCtx :: mg_core_events_machine:request_context(),
     Deadline :: mg_core_deadline:deadline(),
@@ -77,7 +78,7 @@ process_repair(Options, ReqCtx, Deadline, {Args, Machine}) ->
             ReqCtx,
             Deadline,
             'ProcessRepair',
-            [mg_woody_api_packer:pack(repair_args, {Args, Machine})]
+            {mg_woody_api_packer:pack(repair_args, {Args, Machine})}
         ),
     case RepairResult of
         {ok, Result} ->
@@ -86,13 +87,21 @@ process_repair(Options, ReqCtx, Deadline, {Args, Machine}) ->
             {error, {failed, mg_woody_api_packer:unpack(repair_error, Error)}}
     end.
 
--spec call_processor(options(), mg_core_events_machine:request_context(), mg_core_deadline:deadline(), atom(), list(_)) ->
-    {ok, term()} | {error, mg_proto_state_processing_thrift:'RepairFailed'()}.
+-spec call_processor(
+    options(),
+    mg_core_events_machine:request_context(),
+    mg_core_deadline:deadline(),
+    atom(),
+    woody:args()
+) -> {ok, term()} | {error, mg_proto_state_processing_thrift:'RepairFailed'()}.
 call_processor(Options, ReqCtx, Deadline, Function, Args) ->
     % TODO сделать нормально!
     {ok, TRef} = timer:kill_after(call_duration_limit(Options, Deadline) + 3000),
     try
-        WoodyContext = mg_woody_api_utils:set_deadline(Deadline, request_context_to_woody_context(ReqCtx)),
+        WoodyContext = mg_woody_api_utils:set_deadline(
+            Deadline,
+            request_context_to_woody_context(ReqCtx)
+        ),
         woody_client:call(
             {{mg_proto_state_processing_thrift, 'Processor'}, Function, Args},
             Options,
@@ -104,9 +113,9 @@ call_processor(Options, ReqCtx, Deadline, Function, Args) ->
         {exception, Reason} ->
             {error, Reason}
     catch
-        error:Reason={woody_error, {_, resource_unavailable, _}} ->
+        error:Reason = {woody_error, {_, resource_unavailable, _}} ->
             throw({transient, {processor_unavailable, Reason}});
-        error:Reason={woody_error, {_, result_unknown, _}} ->
+        error:Reason = {woody_error, {_, result_unknown, _}} ->
             throw({transient, {processor_unavailable, Reason}})
     after
         {ok, cancel} = timer:cancel(TRef)
@@ -124,7 +133,8 @@ call_duration_limit(Options, undefined) ->
     TransportOptions = maps:get(transport_opts, Options, #{}),
     %% use default values from hackney:request/5 options
     ConnectTimeout = maps:get(connect_timeout, TransportOptions, 8000),
-    SendTimeout = maps:get(connect_timeout, TransportOptions, 5000),  % not documented option
+    % not documented option
+    SendTimeout = maps:get(connect_timeout, TransportOptions, 5000),
     RecvTimeout = maps:get(recv_timeout, TransportOptions, 5000),
     RecvTimeout + ConnectTimeout + SendTimeout;
 call_duration_limit(_Options, Deadline) ->

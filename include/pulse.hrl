@@ -1,4 +1,3 @@
-
 -record(woody_request_handle_error, {
     namespace :: mg_core:ns(),
     machine_ref :: mg_core_events_machine:ref(),

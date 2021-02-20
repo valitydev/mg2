@@ -27,7 +27,6 @@
 %% mg_pulse handler
 %%
 
--spec handle_beat(undefined, term()) ->
-    ok.
+-spec handle_beat(undefined, term()) -> ok.
 handle_beat(_, _) ->
     ok.

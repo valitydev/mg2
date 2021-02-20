@@ -17,94 +17,93 @@
 -module(mg_stress_SUITE).
 -include_lib("common_test/include/ct.hrl").
 
--export([all             /0]).
--export([init_per_suite  /1]).
--export([end_per_suite   /1]).
+-export([all/0]).
+-export([init_per_suite/1]).
+-export([end_per_suite/1]).
 
 -export([stress_test/1]).
 
 -define(NS, <<"NS">>).
 -define(ES_ID, <<"test_event_sink">>).
 
+-type test_name() :: atom().
+-type config() :: [{atom(), _}].
 
--type test_name () :: atom().
--type config    () :: [{atom(), _}].
-
-
--spec all() ->
-    [test_name()].
+-spec all() -> [test_name()].
 all() ->
     [
         stress_test
     ].
 
--spec init_per_suite(config()) ->
-    config().
+-spec init_per_suite(config()) -> config().
 init_per_suite(C) ->
     Config = mg_woody_api_config(C),
     Apps = mg_ct_helper:start_applications([
-        {hackney      , [{use_default_pool, false}]},
+        {hackney, [{use_default_pool, false}]},
         machinegun_woody_api
     ]),
-    CallFunc =
-        fun({Args, _Machine}) ->
-            case Args of
-                <<"event">> -> {Args, {{#{}, <<>>}, [{#{}, <<"event_body">>}]}, #{timer => undefined, tag => undefined}};
-                _           -> {Args, {{#{}, <<>>}, []}, #{timer => undefined, tag => undefined}}
-            end
+    CallFunc = fun({Args, _Machine}) ->
+        case Args of
+            <<"event">> ->
+                {Args, {{#{}, <<>>}, [{#{}, <<"event_body">>}]}, #{
+                    timer => undefined,
+                    tag => undefined
+                }};
+            _ ->
+                {Args, {{#{}, <<>>}, []}, #{timer => undefined, tag => undefined}}
         end
-    ,
-    SignalFunc =
-        fun({Args, _Machine}) ->
-            case Args of
-                _ -> mg_test_processor:default_result(signal, Args)
-            end
+    end,
+
+    SignalFunc = fun({Args, _Machine}) ->
+        case Args of
+            _ -> mg_test_processor:default_result(signal, Args)
         end
-    ,
+    end,
+
     {ok, ProcessorPid} = mg_test_processor:start(
         {0, 0, 0, 0},
         8023,
-        #{processor => {"/processor", #{
-            signal => SignalFunc,
-            call   => CallFunc
-        }}},
+        #{
+            processor =>
+                {"/processor", #{
+                    signal => SignalFunc,
+                    call => CallFunc
+                }}
+        },
         Config
     ),
 
     [
-        {apps              , Apps                             },
-        {automaton_options , #{
+        {apps, Apps},
+        {automaton_options, #{
             url => "http://localhost:8022",
             ns => ?NS,
             retry_strategy => mg_core_retry:new_strategy({exponential, 5, 2, 1000})
         }},
-        {event_sink_options, "http://localhost:8022"          },
-        {processor_pid     , ProcessorPid                     }
-    |
-        C
+        {event_sink_options, "http://localhost:8022"},
+        {processor_pid, ProcessorPid}
+        | C
     ].
 
--spec end_per_suite(config()) ->
-    ok.
+-spec end_per_suite(config()) -> ok.
 end_per_suite(C) ->
     ok = proc_lib:stop(?config(processor_pid, C)),
     mg_ct_helper:stop_applications(?config(apps, C)).
 
--spec mg_woody_api_config(config()) ->
-    map().
+-spec mg_woody_api_config(config()) -> map().
 mg_woody_api_config(_C) ->
     #{
         woody_server => #{
-            ip     => {0,0,0,0,0,0,0,0},
-            port   => 8022,
+            ip => {0, 0, 0, 0, 0, 0, 0, 0},
+            port => 8022,
             limits => #{},
             transport_opts => #{num_acceptors => 100}
         },
         namespaces => #{
             ?NS => #{
-                storage    => mg_core_storage_memory,
-                processor  => #{
-                    url            => <<"http://localhost:8023/processor">>,
+                storage => mg_core_storage_memory,
+                processor => #{
+                    url => <<"http://localhost:8023/processor">>,
                     transport_opts => #{pool => ns, max_connections => 100}
                 },
                 default_processing_timeout => 5000,
@@ -112,7 +111,9 @@ mg_woody_api_config(_C) ->
                     timers => #{}
                 },
                 retries => #{},
-                event_sinks => [{mg_core_events_sink_machine, #{name => default, machine_id => ?ES_ID}}],
+                event_sinks => [
+                    {mg_core_events_sink_machine, #{name => default, machine_id => ?ES_ID}}
+                ],
                 event_stash_size => 10
             }
         },
@@ -121,7 +122,6 @@ mg_woody_api_config(_C) ->
             default_processing_timeout => 5000
         }
     }.
-
 
 -spec stress_test(config()) -> _.
 stress_test(C) ->
@@ -133,8 +133,7 @@ stress_test(C) ->
     ok = timer:sleep(TestTimeout),
     ok = mg_ct_helper:stop_wait_all(Processes, shutdown, 2000).
 
--spec stress_test_start_processes(term(), mg_core:id()) ->
-    _.
+-spec stress_test_start_processes(term(), mg_core:id()) -> _.
 stress_test_start_processes(C, ID) ->
     Pid =
         erlang:spawn_link(
@@ -149,20 +148,17 @@ stress_test_start_processes(C, ID) ->
 %%
 %% utils
 %%
--spec start_machine(config(), mg_core:id()) ->
-    _.
+-spec start_machine(config(), mg_core:id()) -> _.
 start_machine(C, ID) ->
     mg_automaton_client:start(automaton_options(C), ID, ID).
 
--spec create(config(), mg_core:id()) ->
-    _.
+-spec create(config(), mg_core:id()) -> _.
 create(C, ID) ->
     create_event(<<"event">>, C, ID),
     timer:sleep(1000),
     create(C, ID).
 
--spec create_event(binary(), config(), mg_core:id()) ->
-    _.
+-spec create_event(binary(), config(), mg_core:id()) -> _.
 create_event(Event, C, ID) ->
     Event = mg_automaton_client:call(automaton_options(C), {id, ID}, Event).
 

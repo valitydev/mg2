@@ -32,12 +32,11 @@
 %%
 -type options() :: #{mg_core:ns() => ns_options()}.
 -type ns_options() :: #{
-    machine    := mg_core_events_machine:options(),
+    machine := mg_core_events_machine:options(),
     modernizer => mg_core_events_modernizer:options()
 }.
 
--spec handler(options()) ->
-    mg_woody_api_utils:woody_handler().
+-spec handler(options()) -> mg_woody_api_utils:woody_handler().
 handler(Options) ->
     {"/v1/automaton", {{mg_proto_state_processing_thrift, 'Automaton'}, {?MODULE, Options}}}.
 
@@ -47,22 +46,30 @@ handler(Options) ->
 -spec handle_function(woody:func(), woody:args(), woody_context:ctx(), options()) ->
     {ok, _Result} | no_return().
 
-handle_function('Start', [NS, ID_, Args], WoodyContext, Options) ->
-    ID = unpack(id, ID_),
+handle_function('Start', {NS, IDIn, Args}, WoodyContext, Options) ->
+    ID = unpack(id, IDIn),
     ReqCtx = mg_woody_api_utils:woody_context_to_opaque(WoodyContext),
     Deadline = get_deadline(NS, WoodyContext, Options),
     ok = mg_woody_api_utils:handle_error(
-            #{namespace => NS, machine_ref => {id, ID}, request_context => ReqCtx, deadline => Deadline},
-            fun() ->
-                mg_core_events_machine:start(
-                    get_machine_options(NS, Options), ID, unpack(args, Args), ReqCtx, Deadline
-                )
-            end,
-            pulse(NS, Options)
-        ),
+        #{
+            namespace => NS,
+            machine_ref => {id, ID},
+            request_context => ReqCtx,
+            deadline => Deadline
+        },
+        fun() ->
+            mg_core_events_machine:start(
+                get_machine_options(NS, Options),
+                ID,
+                unpack(args, Args),
+                ReqCtx,
+                Deadline
+            )
+        end,
+        pulse(NS, Options)
+    ),
     {ok, ok};
-
-handle_function('Repair', [MachineDesc, Args], WoodyContext, Options) ->
+handle_function('Repair', {MachineDesc, Args}, WoodyContext, Options) ->
     ReqCtx = mg_woody_api_utils:woody_context_to_opaque(WoodyContext),
     {NS, Ref, Range} = unpack(machine_descriptor, MachineDesc),
     Deadline = get_deadline(NS, WoodyContext, Options),
@@ -71,7 +78,12 @@ handle_function('Repair', [MachineDesc, Args], WoodyContext, Options) ->
             #{namespace => NS, machine_ref => Ref, request_context => ReqCtx, deadline => Deadline},
             fun() ->
                 mg_core_events_machine:repair(
-                    get_machine_options(NS, Options), Ref, unpack(args, Args), Range, ReqCtx, Deadline
+                    get_machine_options(NS, Options),
+                    Ref,
+                    unpack(args, Args),
+                    Range,
+                    ReqCtx,
+                    Deadline
                 )
             end,
             pulse(NS, Options)
@@ -82,23 +94,24 @@ handle_function('Repair', [MachineDesc, Args], WoodyContext, Options) ->
         {error, {failed, Reason}} ->
             woody_error:raise(business, pack(repair_error, Reason))
     end;
-
-handle_function('SimpleRepair', [NS, Ref_], WoodyContext, Options) ->
+handle_function('SimpleRepair', {NS, RefIn}, WoodyContext, Options) ->
     Deadline = get_deadline(NS, WoodyContext, Options),
     ReqCtx = mg_woody_api_utils:woody_context_to_opaque(WoodyContext),
-    Ref = unpack(ref, Ref_),
+    Ref = unpack(ref, RefIn),
     ok = mg_woody_api_utils:handle_error(
-            #{namespace => NS, machine_ref => Ref, request_context => ReqCtx, deadline => Deadline},
-            fun() ->
-                mg_core_events_machine:simple_repair(
-                    get_machine_options(NS, Options), Ref, ReqCtx, Deadline
-                )
-            end,
-            pulse(NS, Options)
-        ),
+        #{namespace => NS, machine_ref => Ref, request_context => ReqCtx, deadline => Deadline},
+        fun() ->
+            mg_core_events_machine:simple_repair(
+                get_machine_options(NS, Options),
+                Ref,
+                ReqCtx,
+                Deadline
+            )
+        end,
+        pulse(NS, Options)
+    ),
     {ok, ok};
-
-handle_function('Call', [MachineDesc, Args], WoodyContext, Options) ->
+handle_function('Call', {MachineDesc, Args}, WoodyContext, Options) ->
     ReqCtx = mg_woody_api_utils:woody_context_to_opaque(WoodyContext),
     {NS, Ref, Range} = unpack(machine_descriptor, MachineDesc),
     Deadline = get_deadline(NS, WoodyContext, Options),
@@ -107,14 +120,18 @@ handle_function('Call', [MachineDesc, Args], WoodyContext, Options) ->
             #{namespace => NS, machine_ref => Ref, request_context => ReqCtx, deadline => Deadline},
             fun() ->
                 mg_core_events_machine:call(
-                    get_machine_options(NS, Options), Ref, unpack(args, Args), Range, ReqCtx, Deadline
+                    get_machine_options(NS, Options),
+                    Ref,
+                    unpack(args, Args),
+                    Range,
+                    ReqCtx,
+                    Deadline
                 )
             end,
             pulse(NS, Options)
         ),
     {ok, pack(call_response, Response)};
-
-handle_function('GetMachine', [MachineDesc], WoodyContext, Options) ->
+handle_function('GetMachine', {MachineDesc}, WoodyContext, Options) ->
     ReqCtx = mg_woody_api_utils:woody_context_to_opaque(WoodyContext),
     {NS, Ref, Range} = unpack(machine_descriptor, MachineDesc),
     Deadline = get_deadline(NS, WoodyContext, Options),
@@ -123,40 +140,48 @@ handle_function('GetMachine', [MachineDesc], WoodyContext, Options) ->
             #{namespace => NS, machine_ref => Ref, request_context => ReqCtx, deadline => Deadline},
             fun() ->
                 mg_core_events_machine:get_machine(
-                    get_machine_options(NS, Options), Ref, Range
+                    get_machine_options(NS, Options),
+                    Ref,
+                    Range
                 )
             end,
             pulse(NS, Options)
         ),
     {ok, pack(machine, History)};
-
-handle_function('Remove', [NS, ID_], WoodyContext, Options) ->
-    ID = unpack(id, ID_),
+handle_function('Remove', {NS, IDIn}, WoodyContext, Options) ->
+    ID = unpack(id, IDIn),
     Deadline = get_deadline(NS, WoodyContext, Options),
     ReqCtx = mg_woody_api_utils:woody_context_to_opaque(WoodyContext),
     ok = mg_woody_api_utils:handle_error(
-            #{namespace => NS, machine_ref => ID, request_context => ReqCtx, deadline => Deadline},
-            fun() ->
-                mg_core_events_machine:remove(
-                    get_machine_options(NS, Options), ID, ReqCtx, Deadline
-                )
-            end,
-            pulse(NS, Options)
-        ),
+        #{namespace => NS, machine_ref => ID, request_context => ReqCtx, deadline => Deadline},
+        fun() ->
+            mg_core_events_machine:remove(
+                get_machine_options(NS, Options),
+                ID,
+                ReqCtx,
+                Deadline
+            )
+        end,
+        pulse(NS, Options)
+    ),
     {ok, ok};
-
-handle_function('Modernize', [MachineDesc], WoodyContext, Options) ->
+handle_function('Modernize', {MachineDesc}, WoodyContext, Options) ->
     {NS, Ref, Range} = unpack(machine_descriptor, MachineDesc),
     Deadline = get_deadline(NS, WoodyContext, Options),
     ReqCtx = mg_woody_api_utils:woody_context_to_opaque(WoodyContext),
     mg_woody_api_utils:handle_error(
         #{namespace => NS, machine_ref => Ref, request_context => ReqCtx, deadline => Deadline},
-        fun () ->
+        fun() ->
             case get_ns_options(NS, Options) of
                 #{modernizer := ModernizerOptions, machine := MachineOptions} ->
-                    {ok, mg_core_events_modernizer:modernize_machine(
-                        ModernizerOptions, MachineOptions, WoodyContext, Ref, Range
-                    )};
+                    {ok,
+                        mg_core_events_modernizer:modernize_machine(
+                            ModernizerOptions,
+                            MachineOptions,
+                            WoodyContext,
+                            Ref,
+                            Range
+                        )};
                 #{} ->
                     % TODO
                     % Тут нужно отдельное исключение конечно.
@@ -169,13 +194,11 @@ handle_function('Modernize', [MachineDesc], WoodyContext, Options) ->
 %%
 %% local
 %%
--spec get_machine_options(mg_core:ns(), options()) ->
-    mg_core_events_machine:options().
+-spec get_machine_options(mg_core:ns(), options()) -> mg_core_events_machine:options().
 get_machine_options(Namespace, Options) ->
     maps:get(machine, get_ns_options(Namespace, Options)).
 
--spec get_ns_options(mg_core:ns(), options()) ->
-    ns_options().
+-spec get_ns_options(mg_core:ns(), options()) -> ns_options().
 get_ns_options(Namespace, Options) ->
     try
         maps:get(Namespace, Options)
@@ -184,24 +207,22 @@ get_ns_options(Namespace, Options) ->
             throw({logic, namespace_not_found})
     end.
 
--spec pulse(mg_core:ns(), options()) ->
-    mg_core_pulse:handler().
+-spec pulse(mg_core:ns(), options()) -> mg_core_pulse:handler().
 pulse(Namespace, Options) ->
     try get_machine_options(Namespace, Options) of
         #{machines := #{pulse := Pulse}} ->
             Pulse
-    catch throw:{logic, namespace_not_found} ->
-        undefined
+    catch
+        throw:{logic, namespace_not_found} ->
+            undefined
     end.
 
--spec get_deadline(mg_core:ns(), woody_context:ctx(), options()) ->
-    mg_core_deadline:deadline().
+-spec get_deadline(mg_core:ns(), woody_context:ctx(), options()) -> mg_core_deadline:deadline().
 get_deadline(Namespace, WoodyContext, Options) ->
     DefaultTimeout = default_processing_timeout(Namespace, Options),
     mg_woody_api_utils:get_deadline(WoodyContext, mg_core_deadline:from_timeout(DefaultTimeout)).
 
--spec default_processing_timeout(mg_core:ns(), options()) ->
-    timeout().
+-spec default_processing_timeout(mg_core:ns(), options()) -> timeout().
 default_processing_timeout(Namespace, Options) ->
     try get_machine_options(Namespace, Options) of
         #{default_processing_timeout := V} -> V

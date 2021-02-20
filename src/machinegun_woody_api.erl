@@ -30,11 +30,11 @@
 -export_type([woody_server/0]).
 
 -type woody_server() :: #{
-    ip             := tuple(),
-    port           := inet:port_number(),
+    ip := tuple(),
+    port := inet:port_number(),
     transport_opts => woody_server_thrift_http_handler:transport_opts(),
-    protocol_opts  => woody_server_thrift_http_handler:protocol_opts(),
-    limits         => woody_server_thrift_http_handler:handler_limits()
+    protocol_opts => woody_server_thrift_http_handler:protocol_opts(),
+    limits => woody_server_thrift_http_handler:handler_limits()
 }.
 
 -type automaton() :: mg_woody_api_automaton:options().
@@ -49,29 +49,28 @@
     additional_routes => [woody_server_thrift_http_handler:route(any())]
 }.
 
--spec child_spec(term(), options()) ->
-    supervisor:child_spec().
+-spec child_spec(term(), options()) -> supervisor:child_spec().
 child_spec(ID, Options) ->
     #{
         woody_server := WoodyConfig,
-        automaton    := Automaton,
-        event_sink   := EventSink,
-        pulse        := PulseHandler
+        automaton := Automaton,
+        event_sink := EventSink,
+        pulse := PulseHandler
     } = Options,
     AdditionalRoutes = maps:get(additional_routes, Options, []),
     woody_server:child_spec(
         ID,
         #{
-            protocol       => thrift,
-            transport      => http,
-            ip             => maps:get(ip             , WoodyConfig),
-            port           => maps:get(port           , WoodyConfig),
-            transport_opts => maps:get(transport_opts , WoodyConfig, #{}),
-            protocol_opts  => maps:get(protocol_opts  , WoodyConfig, #{}),
-            event_handler  => {mg_woody_api_event_handler, PulseHandler},
-            handler_limits => maps:get(limits         , WoodyConfig, #{}),
-            handlers       => [
-                mg_woody_api_automaton :handler(Automaton),
+            protocol => thrift,
+            transport => http,
+            ip => maps:get(ip, WoodyConfig),
+            port => maps:get(port, WoodyConfig),
+            transport_opts => maps:get(transport_opts, WoodyConfig, #{}),
+            protocol_opts => maps:get(protocol_opts, WoodyConfig, #{}),
+            event_handler => {mg_woody_api_event_handler, PulseHandler},
+            handler_limits => maps:get(limits, WoodyConfig, #{}),
+            handlers => [
+                mg_woody_api_automaton:handler(Automaton),
                 mg_woody_api_event_sink:handler(EventSink)
             ],
             additional_routes => AdditionalRoutes

@@ -27,7 +27,7 @@
 
 % woody
 -export_type([woody_handlers/0]).
--export_type([woody_handler /0]).
+-export_type([woody_handler/0]).
 
 %%
 %% API
@@ -44,25 +44,29 @@
 %% Woody
 %%
 -type woody_handlers() :: [woody_handler()].
--type woody_handler () :: _.
+-type woody_handler() :: _.
 
-
--spec handle_error(ctx(), fun(() -> R), pulse()) ->
-    R.
+-spec handle_error(ctx(), fun(() -> R), pulse()) -> R.
 handle_error(Ctx, F, Pulse) ->
     try
         F()
-    catch throw:Error:ST ->
-        Exception = {throw, Error, ST},
-        #{namespace := NS, machine_ref := Ref, request_context := ReqCtx, deadline := Deadline} = Ctx,
-        ok = mg_core_pulse:handle_beat(Pulse, #woody_request_handle_error{
-            namespace = NS,
-            machine_ref = Ref,
-            request_context = ReqCtx,
-            deadline = Deadline,
-            exception = Exception
-        }),
-        handle_error(Error, ST)
+    catch
+        throw:Error:ST ->
+            Exception = {throw, Error, ST},
+            #{
+                namespace := NS,
+                machine_ref := Ref,
+                request_context := ReqCtx,
+                deadline := Deadline
+            } = Ctx,
+            ok = mg_core_pulse:handle_beat(Pulse, #woody_request_handle_error{
+                namespace = NS,
+                machine_ref = Ref,
+                request_context = ReqCtx,
+                deadline = Deadline,
+                exception = Exception
+            }),
+            handle_error(Error, ST)
     end.
 
 -spec handle_error(mg_core_machine:thrown_error() | {logic, namespace_not_found}, [_StackItem]) ->
@@ -80,46 +84,44 @@ handle_error(UnknownError, ST) ->
     erlang:raise(error, UnknownError, ST).
 
 -spec handle_logic_error(_) -> _.
-handle_logic_error(machine_not_found)       -> #mg_stateproc_MachineNotFound      {};
-handle_logic_error(machine_already_exist)   -> #mg_stateproc_MachineAlreadyExists {};
-handle_logic_error(machine_failed)          -> #mg_stateproc_MachineFailed        {};
+handle_logic_error(machine_not_found) -> #mg_stateproc_MachineNotFound{};
+handle_logic_error(machine_already_exist) -> #mg_stateproc_MachineAlreadyExists{};
+handle_logic_error(machine_failed) -> #mg_stateproc_MachineFailed{};
 handle_logic_error(machine_already_working) -> #mg_stateproc_MachineAlreadyWorking{};
-handle_logic_error(namespace_not_found)     -> #mg_stateproc_NamespaceNotFound    {};
-handle_logic_error(event_sink_not_found)    -> #mg_stateproc_EventSinkNotFound    {};
+handle_logic_error(namespace_not_found) -> #mg_stateproc_NamespaceNotFound{};
+handle_logic_error(event_sink_not_found) -> #mg_stateproc_EventSinkNotFound{};
 % TODO обработать случай создания машины c некорректным ID в рамках thrift
-handle_logic_error({invalid_machine_id, _}) -> #mg_stateproc_MachineNotFound      {}.
+handle_logic_error({invalid_machine_id, _}) -> #mg_stateproc_MachineNotFound{}.
 
 %%
 %% packer to opaque
 %%
--spec opaque_to_woody_context(mg_core_storage:opaque()) ->
-    woody_context:ctx().
+-spec opaque_to_woody_context(mg_core_storage:opaque()) -> woody_context:ctx().
 opaque_to_woody_context([1, RPCID, ContextMeta]) ->
     #{
-        rpc_id   => opaque_to_woody_rpc_id(RPCID),
-        meta     => ContextMeta,
-        deadline => undefined %% FIXME
+        rpc_id => opaque_to_woody_rpc_id(RPCID),
+        meta => ContextMeta,
+        %% FIXME
+        deadline => undefined
     };
 opaque_to_woody_context([1, RPCID]) ->
     #{
-        rpc_id   => opaque_to_woody_rpc_id(RPCID),
-        deadline => undefined %% FIXME
+        rpc_id => opaque_to_woody_rpc_id(RPCID),
+        %% FIXME
+        deadline => undefined
     }.
 
--spec woody_context_to_opaque(woody_context:ctx()) ->
-    mg_core_storage:opaque().
+-spec woody_context_to_opaque(woody_context:ctx()) -> mg_core_storage:opaque().
 woody_context_to_opaque(#{rpc_id := RPCID, meta := ContextMeta}) ->
     [1, woody_rpc_id_to_opaque(RPCID), ContextMeta];
 woody_context_to_opaque(#{rpc_id := RPCID}) ->
     [1, woody_rpc_id_to_opaque(RPCID)].
 
--spec woody_rpc_id_to_opaque(woody:rpc_id()) ->
-    mg_core_storage:opaque().
+-spec woody_rpc_id_to_opaque(woody:rpc_id()) -> mg_core_storage:opaque().
 woody_rpc_id_to_opaque(#{span_id := SpanID, trace_id := TraceID, parent_id := ParentID}) ->
     [SpanID, TraceID, ParentID].
 
--spec opaque_to_woody_rpc_id(mg_core_storage:opaque()) ->
-    woody:rpc_id().
+-spec opaque_to_woody_rpc_id(mg_core_storage:opaque()) -> woody:rpc_id().
 opaque_to_woody_rpc_id([SpanID, TraceID, ParentID]) ->
     #{span_id => SpanID, trace_id => TraceID, parent_id => ParentID}.
 
@@ -137,8 +139,7 @@ get_deadline(Context, Default) ->
             mg_core_deadline:from_unixtime_ms(woody_deadline:to_unixtime_ms(Deadline))
     end.
 
--spec set_deadline(mg_core_deadline:deadline(), woody_context:ctx()) ->
-    woody_context:ctx().
+-spec set_deadline(mg_core_deadline:deadline(), woody_context:ctx()) -> woody_context:ctx().
 set_deadline(undefined, Context) ->
     Context;
 set_deadline(Deadline, Context) ->

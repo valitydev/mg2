@@ -39,19 +39,21 @@
 
 -type processor_functions() :: #{
     signal => processor_signal_function(),
-    call   => processor_call_function(),
+    call => processor_call_function(),
     repair => processor_repair_function()
 }.
 
 -type modernizer_function() ::
-    fun((mg_core_events_modernizer:machine_event()) -> mg_events_modernizer:modernized_event_body()).
+    fun(
+        (mg_core_events_modernizer:machine_event()) -> mg_events_modernizer:modernized_event_body()
+    ).
 
 -type modernizer_functions() :: #{
     modernize => modernizer_function()
 }.
 
 -type options() :: #{
-    processor  => {string(), processor_functions()},
+    processor => {string(), processor_functions()},
     modernizer => {string(), modernizer_functions()}
 }.
 
@@ -62,8 +64,7 @@
 %%
 %% API
 %%
--spec start(host_address(), integer(), options(), any()) ->
-    mg_core_utils:gen_start_ret().
+-spec start(host_address(), integer(), options(), any()) -> mg_core_utils:gen_start_ret().
 start(Host, Port, Options, MgWoodyApiConfig) ->
     case start_link(Host, Port, Options, MgWoodyApiConfig) of
         {ok, ProcessorPid} ->
@@ -73,28 +74,34 @@ start(Host, Port, Options, MgWoodyApiConfig) ->
             ErrorOrIgnore
     end.
 
--spec start_link(host_address(), integer(), options(), any()) ->
-    mg_core_utils:gen_start_ret().
+-spec start_link(host_address(), integer(), options(), any()) -> mg_core_utils:gen_start_ret().
 start_link(Host, Port, Options, MgWoodyApiConfig) ->
     Flags = #{strategy => one_for_all},
     ChildsSpecs = [
         woody_server:child_spec(
             ?MODULE,
             #{
-                ip            => Host,
-                port          => Port,
+                ip => Host,
+                port => Port,
                 event_handler => {mg_woody_api_event_handler, mg_woody_api_test_pulse},
-                handlers      => maps:values(maps:map(
-                    fun
-                        (processor, {Path, Functions}) ->
-                            {Path, {{mg_proto_state_processing_thrift, 'Processor'}, {?MODULE, Functions}}};
-                        (modernizer, {Path, Functions}) ->
-                            {Path, {{mg_proto_state_processing_thrift, 'Modernizer'}, {?MODULE, Functions}}}
-                    end,
-                    Options
-                ))
+                handlers => maps:values(
+                    maps:map(
+                        fun
+                            (processor, {Path, Functions}) ->
+                                {Path,
+                                    {{mg_proto_state_processing_thrift, 'Processor'},
+                                        {?MODULE, Functions}}};
+                            (modernizer, {Path, Functions}) ->
+                                {Path,
+                                    {{mg_proto_state_processing_thrift, 'Modernizer'},
+                                        {?MODULE, Functions}}}
+                        end,
+                        Options
+                    )
+                )
             }
-        ) | mg_test_configurator:construct_child_specs(MgWoodyApiConfig)
+        )
+        | mg_test_configurator:construct_child_specs(MgWoodyApiConfig)
     ],
     mg_core_utils_supervisor_wrapper:start_link(Flags, ChildsSpecs).
 
@@ -103,20 +110,19 @@ start_link(Host, Port, Options, MgWoodyApiConfig) ->
 %%
 -spec handle_function(woody:func(), woody:args(), woody_context:ctx(), functions()) ->
     {ok, _Result} | no_return().
-handle_function('ProcessSignal', [Args], _WoodyContext, Functions) ->
+handle_function('ProcessSignal', {Args}, _WoodyContext, Functions) ->
     UnpackedArgs = mg_woody_api_packer:unpack(signal_args, Args),
     Result = invoke_function(signal, Functions, UnpackedArgs),
     {ok, mg_woody_api_packer:pack(signal_result, Result)};
-handle_function('ProcessCall', [Args], _WoodyContext, Functions) ->
+handle_function('ProcessCall', {Args}, _WoodyContext, Functions) ->
     UnpackedArgs = mg_woody_api_packer:unpack(call_args, Args),
     Result = invoke_function(call, Functions, UnpackedArgs),
     {ok, mg_woody_api_packer:pack(call_result, Result)};
-handle_function('ProcessRepair', [Args], _WoodyContext, Functions) ->
+handle_function('ProcessRepair', {Args}, _WoodyContext, Functions) ->
     UnpackedArgs = mg_woody_api_packer:unpack(repair_args, Args),
     Result = invoke_function(repair, Functions, UnpackedArgs),
     {ok, mg_woody_api_packer:pack(repair_result, Result)};
-
-handle_function('ModernizeEvent', [Args], _WoodyContext, Functions) ->
+handle_function('ModernizeEvent', {Args}, _WoodyContext, Functions) ->
     MachineEvent = mg_woody_api_packer:unpack(machine_event, Args),
     Result = invoke_function(modernize, Functions, MachineEvent),
     {ok, mg_woody_api_packer:pack(modernize_result, Result)}.
@@ -124,10 +130,11 @@ handle_function('ModernizeEvent', [Args], _WoodyContext, Functions) ->
 %%
 %% helpers
 %%
--spec invoke_function(signal,    functions(), term()) -> mg_core_events_machine:signal_result()
-                   ; (call,      functions(), term()) -> mg_core_events_machine:call_result()
-                   ; (repair,    functions(), term()) -> mg_core_events_machine:repair_result()
-                   ; (modernize, functions(), term()) -> mg_core_events_modernizer:modernized_event_body().
+-spec invoke_function
+    (signal, functions(), term()) -> mg_core_events_machine:signal_result();
+    (call, functions(), term()) -> mg_core_events_machine:call_result();
+    (repair, functions(), term()) -> mg_core_events_machine:repair_result();
+    (modernize, functions(), term()) -> mg_core_events_modernizer:modernized_event_body().
 invoke_function(Type, Functions, Args) ->
     case maps:find(Type, Functions) of
         {ok, Fun} ->
@@ -136,10 +143,11 @@ invoke_function(Type, Functions, Args) ->
             default_result(Type, Args)
     end.
 
--spec default_result(signal    , term()) -> mg_core_events_machine:signal_result()
-                  ; (call      , term()) -> mg_core_events_machine:call_result()
-                  ; (repair    , term()) -> mg_core_events_machine:repair_result()
-                  ; (modernize , term()) -> mg_core_events_modernizer:modernized_event_body().
+-spec default_result
+    (signal, term()) -> mg_core_events_machine:signal_result();
+    (call, term()) -> mg_core_events_machine:call_result();
+    (repair, term()) -> mg_core_events_machine:repair_result();
+    (modernize, term()) -> mg_core_events_modernizer:modernized_event_body().
 default_result(signal, _Args) ->
     {{default_content(), []}, #{timer => undefined, tag => undefined}};
 default_result(call, _Args) ->

@@ -19,12 +19,12 @@
 -include_lib("mg_proto/include/mg_proto_state_processing_thrift.hrl").
 
 %% tests descriptions
--export([all             /0]).
--export([groups          /0]).
--export([init_per_suite  /1]).
--export([end_per_suite   /1]).
--export([init_per_group  /2]).
--export([end_per_group   /2]).
+-export([all/0]).
+-export([groups/0]).
+-export([init_per_suite/1]).
+-export([end_per_suite/1]).
+-export([init_per_group/2]).
+-export([end_per_group/2]).
 
 -export([start_machine/1]).
 -export([no_modernize_avail/1]).
@@ -40,26 +40,23 @@
 -define(NS, <<"NS">>).
 -define(ID, <<"😠💢"/utf8>>).
 
--define(FIXED_ELEMENT  , #{<<"BLAZE">> => [<<"IT">>, 420, 6969]}).
--define(MODERN_FMT_VSN , 42).
+-define(FIXED_ELEMENT, #{<<"BLAZE">> => [<<"IT">>, 420, 6969]}).
+-define(MODERN_FMT_VSN, 42).
 
 -type group_name() :: atom().
--type test_name () :: atom().
--type config    () :: [{atom(), _}].
+-type test_name() :: atom().
+-type config() :: [{atom(), _}].
 
--spec all() ->
-    [test_name() | {group, group_name()}].
+-spec all() -> [test_name() | {group, group_name()}].
 all() ->
     [
         {group, legacy_activities},
         {group, modern_activities}
     ].
 
--spec groups() ->
-    [{group_name(), list(_), test_name() | {group, group_name()}}].
+-spec groups() -> [{group_name(), list(_), test_name() | {group, group_name()}}].
 groups() ->
     [
-
         {activities, [sequence], [
             count_elements,
             store_random_element,
@@ -82,13 +79,11 @@ groups() ->
             modernize_machine,
             {group, activities}
         ]}
-
     ].
 
 %%
 
--spec init_per_suite(config()) ->
-    config().
+-spec init_per_suite(config()) -> config().
 init_per_suite(C) ->
     % dbg:tracer(),
     % dbg:p(all, c),
@@ -99,22 +94,21 @@ init_per_suite(C) ->
     true = erlang:unlink(StoragePid),
     [{suite_apps, Apps}, {storage_name, ?MODULE} | C].
 
--spec end_per_suite(config()) ->
-    ok.
+-spec end_per_suite(config()) -> ok.
 end_per_suite(C) ->
     mg_ct_helper:stop_applications(?config(suite_apps, C)).
 
 %%
 
--spec init_per_group(group_name(), config()) ->
-    config().
+-spec init_per_group(group_name(), config()) -> config().
 init_per_group(Name = legacy_activities, C0) ->
     Config = mg_woody_api_config(Name, C0),
     C1 = start_mg_woody_api(Name, C0),
     {ok, ProcessorPid} = mg_test_processor:start(
-        {0, 0, 0, 0}, 8023,
+        {0, 0, 0, 0},
+        8023,
         genlib_map:compact(#{
-            processor  => {"/processor", #{call => fun legacy_call_handler/1}}
+            processor => {"/processor", #{call => fun legacy_call_handler/1}}
         }),
         Config
     ),
@@ -123,9 +117,10 @@ init_per_group(Name = modern_activities, C0) ->
     Config = mg_woody_api_config(Name, C0),
     C1 = start_mg_woody_api(Name, C0),
     {ok, ProcessorPid} = mg_test_processor:start(
-        {0, 0, 0, 0}, 8023,
+        {0, 0, 0, 0},
+        8023,
         genlib_map:compact(#{
-            processor  => {"/processor", #{call => fun modern_call_handler/1}},
+            processor => {"/processor", #{call => fun modern_call_handler/1}},
             modernizer => {"/modernizer", #{modernize => fun modernize_handler/1}}
         }),
         Config
@@ -134,8 +129,7 @@ init_per_group(Name = modern_activities, C0) ->
 init_per_group(activities, C) ->
     C.
 
--spec end_per_group(group_name(), config()) ->
-    ok.
+-spec end_per_group(group_name(), config()) -> ok.
 end_per_group(Name, C) when
     Name == legacy_activities;
     Name == modern_activities
@@ -145,37 +139,37 @@ end_per_group(Name, C) when
 end_per_group(_, _C) ->
     ok.
 
--spec start_mg_woody_api(group_name(), config()) ->
-    config().
+-spec start_mg_woody_api(group_name(), config()) -> config().
 start_mg_woody_api(Name, C) ->
     Apps = mg_ct_helper:start_applications([machinegun_woody_api]),
     [
-        {group_name        , Name},
-        {group_apps        , Apps},
-        {automaton_options , #{
-            url            => "http://localhost:8022",
-            ns             => ?NS
-        }} | C
+        {group_name, Name},
+        {group_apps, Apps},
+        {automaton_options, #{
+            url => "http://localhost:8022",
+            ns => ?NS
+        }}
+        | C
     ].
 
--spec mg_woody_api_config(atom(), config()) ->
-    map().
+-spec mg_woody_api_config(atom(), config()) -> map().
 mg_woody_api_config(Name, C) ->
     #{
         woody_server => #{
-            ip       => {0,0,0,0,0,0,0,0},
-            port     => 8022,
+            ip => {0, 0, 0, 0, 0, 0, 0, 0},
+            port => 8022,
             net_opts => [],
-            limits   => #{}
+            limits => #{}
         },
         namespaces => #{
             ?NS => maps:merge(
                 #{
-                    storage    => {mg_core_storage_memory, #{
-                        existing_storage_name => ?config(storage_name, C)}
-                    },
-                    processor  => #{
-                        url            => <<"http://localhost:8023/processor">>,
+                    storage =>
+                        {mg_core_storage_memory, #{
+                            existing_storage_name => ?config(storage_name, C)
+                        }},
+                    processor => #{
+                        url => <<"http://localhost:8023/processor">>,
                         transport_opts => #{pool => ns, max_connections => 100}
                     },
                     default_processing_timeout => 5000,
@@ -191,7 +185,7 @@ mg_woody_api_config(Name, C) ->
                         #{
                             modernizer => #{
                                 current_format_version => ?MODERN_FMT_VSN,
-                                handler                => #{url => <<"http://localhost:8023/modernizer">>}
+                                handler => #{url => <<"http://localhost:8023/modernizer">>}
                             }
                         }
                 end
@@ -207,7 +201,7 @@ mg_woody_api_config(Name, C) ->
 
 -type legacy_st() :: sets:set(mg_core_storage:opaque()).
 -type modern_st() :: #{integer() => [mg_core_storage:opaque()]}.
--type any_st()    :: {legacy, legacy_st()} | {modern, modern_st()}.
+-type any_st() :: {legacy, legacy_st()} | {modern, modern_st()}.
 
 -spec legacy_call_handler(mg_core_events_machine:call_args()) ->
     mg_core_events_machine:call_result().
@@ -252,7 +246,7 @@ null() ->
 -spec collapse_legacy(mg_core_events_machine:machine()) -> legacy_st().
 collapse_legacy(#{history := History}) ->
     lists:foldl(
-        fun (#{body := {_Metadata, Element}}, Set) ->
+        fun(#{body := {_Metadata, Element}}, Set) ->
             sets:add_element(Element, Set)
         end,
         sets:new(),
@@ -262,8 +256,8 @@ collapse_legacy(#{history := History}) ->
 -spec collapse_modern(mg_core_events_machine:machine()) -> modern_st().
 collapse_modern(#{history := History}) ->
     lists:foldl(
-        fun (#{body := {#{format_version := ?MODERN_FMT_VSN}, [Hash, Element]}}, St) ->
-            maps:update_with(Hash, fun (Es) -> [Element | Es] end, [Element], St)
+        fun(#{body := {#{format_version := ?MODERN_FMT_VSN}, [Hash, Element]}}, St) ->
+            maps:update_with(Hash, fun(Es) -> [Element | Es] end, [Element], St)
         end,
         #{},
         History
@@ -284,7 +278,7 @@ collapse(Machine, C) ->
 count({legacy, St}) ->
     sets:size(St);
 count({modern, St}) ->
-    maps:fold(fun (_, Es, Sum) -> Sum + length(Es) end, 0, St).
+    maps:fold(fun(_, Es, Sum) -> Sum + length(Es) end, 0, St).
 
 -spec lookup(mg_core_storage:opaque(), any_st()) -> boolean().
 lookup(Element, {legacy, St}) ->
@@ -304,54 +298,49 @@ lookup_by_hash(Hash, Element, St) ->
 
 %%
 
--spec start_machine(config()) ->
-    _.
+-spec start_machine(config()) -> _.
 start_machine(C) ->
     Options = ?config(automaton_options, C),
     ok = mg_automaton_client:start(Options, ?ID, ?ID).
 
--spec no_modernize_avail(config()) ->
-    _.
+-spec no_modernize_avail(config()) -> _.
 no_modernize_avail(C) ->
     Options = ?config(automaton_options, C),
     % TODO
     #mg_stateproc_NamespaceNotFound{} =
         (catch mg_automaton_client:modernize(Options, {id, ?ID}, {undefined, undefined, forward})).
 
--spec modernize_machine_part(config()) ->
-    _.
+-spec modernize_machine_part(config()) -> _.
 modernize_machine_part(C) ->
     Options = ?config(automaton_options, C),
     ok = mg_automaton_client:modernize(Options, {id, ?ID}, {undefined, 1, forward}).
 
--spec modernize_machine(config()) ->
-    _.
+-spec modernize_machine(config()) -> _.
 modernize_machine(C) ->
     Options = ?config(automaton_options, C),
     ok = mg_automaton_client:modernize(Options, {id, ?ID}, {undefined, undefined, forward}).
 
--spec count_elements(config()) ->
-    _.
+-spec count_elements(config()) -> _.
 count_elements(C) ->
     Options = ?config(automaton_options, C),
     Machine = mg_automaton_client:get_machine(Options, {id, ?ID}, {undefined, undefined, forward}),
     Count = count(collapse(Machine, C)),
     true = is_integer(Count) and (Count >= 0).
 
--spec store_fixed_element(config()) ->
-    _.
+-spec store_fixed_element(config()) -> _.
 store_fixed_element(C) ->
     Options = ?config(automaton_options, C),
     true = mg_automaton_client:call(Options, {id, ?ID}, [<<"store">>, ?FIXED_ELEMENT]).
 
--spec store_random_element(config()) ->
-    _.
+-spec store_random_element(config()) -> _.
 store_random_element(C) ->
     Options = ?config(automaton_options, C),
-    true = mg_automaton_client:call(Options, {id, ?ID}, [<<"store">>, [<<"BLARG">>, rand:uniform(1000000)]]).
+    true = mg_automaton_client:call(Options, {id, ?ID}, [
+        <<"store">>,
+        [<<"BLARG">>, rand:uniform(1000000)]
+    ]).
 
--spec lookup_fixed_element(config()) ->
-    _.
+-spec lookup_fixed_element(config()) -> _.
 lookup_fixed_element(C) ->
     Options = ?config(automaton_options, C),
     Machine = mg_automaton_client:get_machine(Options, {id, ?ID}, {undefined, undefined, forward}),
