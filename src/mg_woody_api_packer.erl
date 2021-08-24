@@ -156,10 +156,6 @@ pack(signal, timeout) ->
     {timeout, #mg_stateproc_TimeoutSignal{}};
 pack(signal, {init, Args}) ->
     {init, #mg_stateproc_InitSignal{arg = pack(args, Args)}};
-pack(signal, {repair, Args}) ->
-    {repair, #mg_stateproc_RepairSignal{
-        arg = pack(args, Args)
-    }};
 pack(call_response, CallResponse) ->
     pack(opaque, CallResponse);
 pack(repair_response, RepairResponse) ->
@@ -372,8 +368,6 @@ unpack(signal, {timeout, #mg_stateproc_TimeoutSignal{}}) ->
     timeout;
 unpack(signal, {init, #mg_stateproc_InitSignal{arg = Args}}) ->
     {init, unpack(args, Args)};
-unpack(signal, {repair, #mg_stateproc_RepairSignal{arg = Args}}) ->
-    {repair, unpack(args, Args)};
 unpack(call_response, CallResponse) ->
     unpack(opaque, CallResponse);
 unpack(repair_response, RepairResponse) ->
