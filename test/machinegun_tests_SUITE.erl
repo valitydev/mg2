@@ -151,7 +151,7 @@ init_per_group(C) ->
         | C
     ].
 
--spec default_signal_handler(mg_events_machine:signal_args()) -> mg_events_machine:signal_result().
+-spec default_signal_handler(mg_core_events_machine:signal_args()) -> mg_core_events_machine:signal_result().
 default_signal_handler({Args, _Machine}) ->
     case Args of
         {init, <<"fail">>} ->
@@ -171,7 +171,7 @@ default_signal_handler({Args, _Machine}) ->
             machinegun_test_processor:default_result(signal, Args)
     end.
 
--spec default_call_handler(mg_events_machine:call_args()) -> mg_events_machine:call_result().
+-spec default_call_handler(mg_core_events_machine:call_args()) -> mg_core_events_machine:call_result().
 default_call_handler({Args, #{history := History}}) ->
     Evs = [N || #{body := {_Metadata, N}} <- History],
     SetTimer = {set_timer, {timeout, 1}, {undefined, undefined, forward}, 30},
@@ -198,7 +198,7 @@ default_call_handler({Args, #{history := History}}) ->
             {Args, {null(), [content(<<"removed">>)]}, #{remove => remove}}
     end.
 
--spec default_repair_handler(mg_events_machine:repair_args()) -> mg_events_machine:repair_result().
+-spec default_repair_handler(mg_core_events_machine:repair_args()) -> mg_core_events_machine:repair_result().
 default_repair_handler({Args, _Machine}) ->
     case Args of
         <<"error">> ->
@@ -206,14 +206,14 @@ default_repair_handler({Args, _Machine}) ->
         <<"business_error">> ->
             erlang:throw(#mg_stateproc_RepairFailed{reason = {bin, <<"because">>}});
         _ ->
-            {Args, {null(), []}, #{}}
+            {ok, {Args, {null(), []}, #{}}}
     end.
 
--spec null() -> mg_events:content().
+-spec null() -> mg_core_events:content().
 null() ->
     content(null).
 
--spec content(mg_storage:opaque()) -> mg_events:content().
+-spec content(mg_core_storage:opaque()) -> mg_core_events:content().
 content(Body) ->
     {#{format_version => 42}, Body}.
 
@@ -355,7 +355,7 @@ machine_remove_by_action(C) ->
 start_machine(C, ID) ->
     start_machine(C, ID, ID).
 
--spec start_machine(config(), mg_core:id(), mg_event_machine:args()) -> ok.
+-spec start_machine(config(), mg_core:id(), mg_core_storage:opaque()) -> ok.
 start_machine(C, ID, Args) ->
     case catch machinegun_automaton_client:start(automaton_options(C), ID, Args) of
         ok ->

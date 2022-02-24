@@ -100,7 +100,9 @@ offset_bin_metric_test(_C) ->
     _ = [
         ok = test_beat(#mg_core_timer_lifecycle_created{
             namespace = ?NS,
-            target_timestamp = genlib_time:unow() + Offset
+            target_timestamp = genlib_time:unow() + Offset,
+            machine_id = <<"ID">>,
+            request_context = null
         })
      || Offset <- Offsets
     ].
@@ -112,7 +114,9 @@ fraction_and_queue_bin_metric_test(_C) ->
         ok = test_beat(#mg_core_worker_start_attempt{
             namespace = ?NS,
             msg_queue_len = Sample,
-            msg_queue_limit = 100
+            msg_queue_limit = 100,
+            machine_id = <<"ID">>,
+            request_context = null
         })
      || Sample <- Samples
     ].
@@ -124,7 +128,9 @@ duration_bin_metric_test(_C) ->
         ok = test_beat(#mg_core_machine_process_finished{
             namespace = ?NS,
             duration = Sample,
-            processor_impact = {init, []}
+            processor_impact = {init, []},
+            machine_id = <<"ID">>,
+            request_context = null
         })
      || Sample <- Samples
     ].
@@ -133,6 +139,6 @@ duration_bin_metric_test(_C) ->
 
 %% Metrics utils
 
--spec test_beat(mg_woody_api_pulse:beat()) -> ok.
+-spec test_beat(term()) -> ok.
 test_beat(Beat) ->
-    machinegun_pulse_hay:handle_beat(undefined, Beat).
+    machinegun_pulse_hay:handle_beat(#{}, Beat).
