@@ -8,7 +8,6 @@ services:
       args:
         OTP_VERSION: $OTP_VERSION
         THRIFT_VERSION: $THRIFT_VERSION
-        ELVIS_VERSION: $ELVIS_VERSION
     volumes:
       - .:$PWD
     hostname: $SERVICE_NAME

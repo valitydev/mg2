@@ -98,7 +98,7 @@ format:
 clean:
 	$(REBAR) clean
 
-distclean: clean-build-image
+distclean: clean-dev-image
 	rm -rf _build
 
 test: test_configurator eunit common-test
