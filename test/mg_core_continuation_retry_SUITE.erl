@@ -100,8 +100,7 @@ process_machine(_, _, {call, test}, _, ?REQ_CTX, _, State) ->
     true = ets:insert(?ETS_NS, {fail_count, 0}),
     {{reply, ok}, {continue, #{}}, State};
 process_machine(_, _, continuation, _, ?REQ_CTX, _, _State) ->
-    FailCount = get_fail_count(),
-    ok = update_fail_count(FailCount + 1),
+    ok = increment_fail_count(),
     throw({transient, not_yet}).
 
 %%
@@ -113,9 +112,9 @@ get_fail_count() ->
     [{fail_count, FailCount}] = ets:lookup(?ETS_NS, fail_count),
     FailCount.
 
--spec update_fail_count(non_neg_integer()) -> ok.
-update_fail_count(FailCount) ->
-    true = ets:insert(?ETS_NS, {fail_count, FailCount}),
+-spec increment_fail_count() -> ok.
+increment_fail_count() ->
+    _ = ets:update_counter(?ETS_NS, fail_count, 1),
     ok.
 
 -spec start_automaton(mg_core_machine:options()) -> pid().

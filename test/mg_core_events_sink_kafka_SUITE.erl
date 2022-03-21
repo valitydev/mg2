@@ -44,13 +44,13 @@
 -type test_name() :: atom().
 -type config() :: [{atom(), _}].
 
--spec all() -> [test_name()].
+-spec all() -> [test_name() | {group, group_name()}].
 all() ->
     [
         {group, main}
     ].
 
--spec groups() -> [{group_name(), list(_), test_name()}].
+-spec groups() -> [{group_name(), list(_), [test_name()]}].
 groups() ->
     [
         {main, [], [
@@ -88,7 +88,7 @@ init_per_suite(C) ->
 
 -spec end_per_suite(config()) -> ok.
 end_per_suite(C) ->
-    [application:stop(App) || App <- lists:reverse(?config(apps, C))].
+    mg_core_ct_helper:stop_applications(?config(apps, C)).
 
 %%
 %% tests
@@ -117,14 +117,14 @@ add_events(C) ->
     end,
     call_with_retry(F, mg_core_retry:new_strategy({linear, 10, 500})).
 
--spec read_all_events() -> ok.
+-spec read_all_events() -> [term()].
 read_all_events() ->
     {ok, PartitionsCount} = brod:get_partitions_count(?CLIENT, ?TOPIC),
     do_read_all(?BROKERS, ?TOPIC, PartitionsCount - 1, 0, []).
 
 -spec do_read_all([brod:endpoint()], brod:topic(), brod:partition(), brod:offset(), [
-    mg_core_event:event()
-]) -> ok.
+    mg_core_events:event()
+]) -> [term()].
 do_read_all(_Hosts, _Topic, Partition, _Offset, Result) when Partition < 0 ->
     lists:reverse(Result);
 do_read_all(Hosts, Topic, Partition, Offset, Result) ->
@@ -139,7 +139,7 @@ do_read_all(Hosts, Topic, Partition, Offset, Result) ->
             do_read_all(Hosts, Topic, Partition, NewOffset, NewRecords ++ Result)
     end.
 
--spec event_sink_options() -> mg_core_events_sink_machine:ns_options().
+-spec event_sink_options() -> mg_core_events_sink_kafka:options().
 event_sink_options() ->
     #{
         name => kafka,

@@ -178,7 +178,7 @@ handle_cast(Cast, _Rank, _Squad, _St) ->
 
 -type info() :: timeout.
 
--spec handle_info(info(), rank(), squad(), st()) -> {noreply, st()}.
+-spec handle_info(info(), rank(), squad(), st()) -> {stop, normal, st()}.
 handle_info(timeout, leader, _Squad, St) ->
     {stop, normal, St};
 handle_info(Info, _Rank, _Squad, _St) ->

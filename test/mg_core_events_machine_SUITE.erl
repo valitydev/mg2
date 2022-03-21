@@ -66,6 +66,9 @@
     call_handler => fun(
         (call(), aux_state(), [event()]) -> {term(), aux_state(), [event()], action()}
     ),
+    repair_handler => fun(
+        (call(), aux_state(), [event()]) -> {term(), aux_state(), [event()], action()}
+    ),
     sink_handler => fun((history()) -> ok)
 }.
 
@@ -155,8 +158,8 @@ get_events_test(_C) ->
     ).
 
 -spec assert_history_consistent
-    (history(), mg_core_events:history_range()) -> ok;
-    (history(), _Assertion :: {from | limit | direction, _}) -> ok.
+    (history(), mg_core_events:history_range()) -> boolean() | ok;
+    (history(), _Assertion :: {from | limit | direction, _}) -> boolean() | ok.
 assert_history_consistent(History, HRange = {From, Limit, Direction}) ->
     Result = lists:all(fun(Assert) -> assert_history_consistent(History, Assert) end, [
         {from, {From, Direction}},
@@ -225,10 +228,10 @@ continuation_repair_test(_C) ->
     },
     {Pid, Options} = start_automaton(ProcessorOptions, NS),
     ok = start(Options, MachineID, <<>>),
-    ?assertReceive({sink_events, [1]}),
+    _ = ?assertReceive({sink_events, [1]}),
     ?assertException(throw, {logic, machine_failed}, call(Options, MachineID, raise)),
     ok = repair(Options, MachineID, <<>>),
-    ?assertReceive({sink_events, [2, 3]}),
+    _ = ?assertReceive({sink_events, [2, 3]}),
     ?assertEqual([{1, 1}, {2, 2}, {3, 3}], get_history(Options, MachineID)),
     ok = stop_automaton(Pid).
 
@@ -380,7 +383,7 @@ delegate_request(#{name := Name, pulse := Pulse, storage := {Module, Options}}, 
 
 %% Utils
 
--spec start_automaton(options(), mg_core:ns()) -> pid().
+-spec start_automaton(options(), mg_core:ns()) -> {pid(), mg_core_events_machine:options()}.
 start_automaton(ProcessorOptions, NS) ->
     start_automaton(events_machine_options(ProcessorOptions, NS)).
 
@@ -402,7 +405,7 @@ events_machine_options(Options, NS) ->
     mg_core_events_machine:options()
 when
     BaseOptions :: mg_core_events_machine:options(),
-    StorageOptions :: mg_core_storage:storage_options().
+    StorageOptions :: map().
 events_machine_options(Base, StorageOptions, ProcessorOptions, NS) ->
     Scheduler = #{
         min_scan_delay => 1000,
@@ -514,7 +517,7 @@ extract_events(History) ->
 decode_machine(#{aux_state := EncodedAuxState, history := EncodedHistory}) ->
     {decode_aux_state(EncodedAuxState), decode_history(EncodedHistory)}.
 
--spec decode_aux_state(mg_core_events_machine:aux_state()) -> aux_state().
+-spec decode_aux_state(mg_core_events:content()) -> aux_state().
 decode_aux_state({#{format_version := 1}, EncodedAuxState}) ->
     decode(EncodedAuxState);
 decode_aux_state({#{}, <<>>}) ->

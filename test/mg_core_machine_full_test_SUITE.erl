@@ -90,7 +90,7 @@ full_test(_) ->
 
 %% TODO wait, simple_repair, kill, continuation
 -type id() :: pos_integer().
--type seq() :: pos_integer().
+-type seq() :: non_neg_integer().
 -type result() :: ok | failed | already_exist | not_found | already_working.
 -type state() :: not_exists | sleeping | failed.
 -type flow_action() :: sleep | fail | remove.
@@ -262,7 +262,9 @@ automaton_options() ->
         namespace => <<"test">>,
         processor => ?MODULE,
         storage => mg_core_storage_memory,
-        worker => #{registry => mg_core_procreg_gproc},
+        worker => #{
+            registry => mg_core_procreg_gproc
+        },
         pulse => ?MODULE
     }.
 

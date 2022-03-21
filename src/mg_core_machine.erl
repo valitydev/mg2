@@ -151,7 +151,7 @@
     pulse := mg_core_pulse:handler(),
     storage => storage_options(),
     processor => mg_core_utils:mod_opts(),
-    worker => mg_core_workers_manager:options(),
+    worker => mg_core_workers_manager:ns_options(),
     retries => retry_opt(),
     schedulers => schedulers_opt(),
     suicide_probability => suicide_probability(),

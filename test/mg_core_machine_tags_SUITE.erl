@@ -40,13 +40,13 @@
 -type test_name() :: atom().
 -type config() :: [{atom(), _}].
 
--spec all() -> [test_name()].
+-spec all() -> [{group, group_name()}].
 all() ->
     [
         {group, main}
     ].
 
--spec groups() -> [{group_name(), list(_), test_name()}].
+-spec groups() -> [{group_name(), list(_), [test_name()]}].
 groups() ->
     [
         {main, [sequence], [

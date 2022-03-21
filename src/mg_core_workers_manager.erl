@@ -31,6 +31,7 @@
 %% API
 -export_type([options/0]).
 -export_type([queue_limit/0]).
+-export_type([ns_options/0]).
 
 -export([child_spec/2]).
 -export([start_link/1]).
@@ -53,6 +54,14 @@
     sidecar => mg_core_utils:mod_opts()
 }.
 -type queue_limit() :: non_neg_integer().
+
+-type ns_options() :: #{
+    registry => mg_core_procreg:options(),
+    message_queue_len_limit => queue_limit(),
+    % all but `registry`
+    worker_options => mg_core_worker:options(),
+    sidecar => mg_core_utils:mod_opts()
+}.
 
 %% Internal types
 -type id() :: mg_core:id().

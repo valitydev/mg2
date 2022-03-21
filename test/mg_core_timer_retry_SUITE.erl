@@ -45,7 +45,7 @@
 -type group() :: {Name :: atom(), Opts :: list(), [test_name()]}.
 -type config() :: [{atom(), _}].
 
--spec all() -> [test_name()] | {group, atom()}.
+-spec all() -> [test_name()] | [{group, test_name()}].
 all() ->
     [
         {group, all}

@@ -50,7 +50,8 @@
 -type repair_result() :: mg_core_events_machine:repair_result().
 -type action() :: mg_core_events_machine:complex_action().
 -type event() :: term().
--type history() :: [{mg_core_events:id(), event()}].
+-type metadata() :: term().
+-type history() :: [{mg_core_events:id(), metadata(), event()}].
 -type aux_state() :: term().
 -type req_ctx() :: mg_core:request_context().
 -type deadline() :: mg_core_deadline:deadline().
@@ -169,7 +170,7 @@ modernize_event(_, _, #{event := #{body := {#{format_version := FV}, Data}}}) ->
 
 %% Utils
 
--spec start_automaton(options(), mg_core:ns()) -> pid().
+-spec start_automaton(options(), mg_core:ns()) -> {pid(), mg_core_events_machine:options()}.
 start_automaton(ProcessorOptions, NS) ->
     start_automaton(events_machine_options(ProcessorOptions, NS)).
 
@@ -245,7 +246,7 @@ get_history(Options, MachineID, HRange) ->
 
 -spec extract_events(history()) -> [event()].
 extract_events(History) ->
-    [Event || {_ID, Event} <- History].
+    [Event || {_ID, _Metadata, Event} <- History].
 
 %% Codecs
 
@@ -253,7 +254,7 @@ extract_events(History) ->
 decode_machine(#{aux_state := EncodedAuxState, history := EncodedHistory}) ->
     {decode_aux_state(EncodedAuxState), decode_history(EncodedHistory)}.
 
--spec decode_aux_state(mg_core_events_machine:aux_state()) -> aux_state().
+-spec decode_aux_state(mg_core_events:content()) -> aux_state().
 decode_aux_state({#{format_version := 1}, EncodedAuxState}) ->
     decode(EncodedAuxState);
 decode_aux_state({#{}, <<>>}) ->

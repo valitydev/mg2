@@ -126,7 +126,9 @@ automaton_options(NS) ->
         namespace => NS,
         processor => ?MODULE,
         storage => mg_core_ct_helper:build_storage(NS, mg_core_storage_memory),
-        worker => #{registry => mg_core_procreg_gproc},
+        worker => #{
+            registry => mg_core_procreg_gproc
+        },
         pulse => ?MODULE,
         retries => #{
             timers => {intervals, [1000, 1000, 1000, 1000, 1000]},
@@ -138,7 +140,7 @@ automaton_options(NS) ->
         }
     }.
 
--spec handle_beat(_, mg_core_pulse:beat()) -> ok.
+-spec handle_beat(_, mg_core_pulse:beat()) -> no_return().
 handle_beat(_, _Event) ->
     erlang:error(logging_oops).
 

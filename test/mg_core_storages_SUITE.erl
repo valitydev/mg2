@@ -55,14 +55,14 @@ all() ->
         {group, riak}
     ].
 
--spec groups() -> [{group_name(), list(_), test_name()}].
+-spec groups() -> [{group_name(), list(_), [test_name()]}].
 groups() ->
     [
         {memory, [], tests()},
         {riak, [], tests()}
     ].
 
--spec tests() -> [{group_name(), list(_), test_name()}].
+-spec tests() -> [test_name()].
 tests() ->
     [
         base_test,
@@ -104,12 +104,11 @@ end_per_group(_, _C) ->
 base_test(C) ->
     Options = storage_options(?config(storage_type, C), <<"base_test">>),
     Pid = start_storage(Options),
-    base_test(1, Options),
+    base_test(<<"1">>, Options),
     ok = stop_storage(Pid).
 
 -spec base_test(mg_core:id(), mg_core_storage:options()) -> _.
-base_test(ID, Options) ->
-    Key = genlib:to_binary(ID),
+base_test(Key, Options) ->
     Value1 = #{<<"hello">> => <<"world">>},
     Value2 = [<<"hello">>, 1],
 
@@ -302,15 +301,15 @@ stress_test(C) ->
     ok = stop_wait_all(Processes, shutdown, 5000),
     ok = stop_storage(Pid).
 
--spec stress_test_start_process(term(), pos_integer(), mg_core_storage:options()) -> pid().
+-spec stress_test_start_process(integer(), pos_integer(), mg_core_storage:options()) -> pid().
 stress_test_start_process(ID, ProcessCount, Options) ->
     erlang:spawn_link(fun() -> stress_test_process(ID, ProcessCount, 0, Options) end).
 
--spec stress_test_process(term(), pos_integer(), integer(), mg_core_storage:options()) ->
+-spec stress_test_process(integer(), pos_integer(), integer(), mg_core_storage:options()) ->
     no_return().
 stress_test_process(ID, ProcessCount, RunCount, Options) ->
     % Добавляем смещение ID, чтобы не было пересечения ID машин
-    ok = base_test(ID, Options),
+    ok = base_test(erlang:integer_to_binary(ID), Options),
 
     receive
         {stop, Reason} ->
@@ -355,7 +354,7 @@ stop_wait(Pid, Reason, Timeout) ->
 
 %%
 
--spec storage_options(atom(), binary()) -> config().
+-spec storage_options(atom(), binary()) -> mg_core_storage:options().
 storage_options(riak, Namespace) ->
     {mg_core_storage_riak, #{
         name => storage,

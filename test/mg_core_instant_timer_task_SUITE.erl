@@ -109,9 +109,15 @@ without_shedulers_test(_C) ->
 %%
 -record(machine_state, {
     counter = 0 :: integer(),
-    timer = undefined :: {genlib_time:ts(), mg_core_machine:request_context()} | undefined
+    timer = undefined :: {genlib_time:ts(), mg_core:request_context()} | undefined
 }).
 -type machine_state() :: #machine_state{}.
+-type processor_result() ::
+    {
+        mg_core_machine:processor_reply_action(),
+        mg_core_machine:processor_flow_action(),
+        machine_state()
+    }.
 
 -spec pool_child_spec(_Options, atom()) -> supervisor:child_spec().
 pool_child_spec(_Options, Name) ->
@@ -125,7 +131,7 @@ pool_child_spec(_Options, Name) ->
     ID :: mg_core:id(),
     Impact :: mg_core_machine:processor_impact(),
     PCtx :: mg_core_machine:processing_context(),
-    ReqCtx :: mg_core_machine:request_context(),
+    ReqCtx :: mg_core:request_context(),
     Deadline :: mg_core_deadline:deadline(),
     MachineState :: mg_core_machine:machine_state(),
     Result :: mg_core_machine:processor_result().
@@ -136,9 +142,9 @@ process_machine(_, _, Impact, _, ReqCtx, _, EncodedState) ->
 
 -spec do_process_machine(
     mg_core_machine:processor_impact(),
-    mg_core_machine:request_context(),
+    mg_core:request_context(),
     machine_state()
-) -> mg_core_machine:processor_result().
+) -> processor_result().
 do_process_machine({init, Counter}, ?REQ_CTX, State) ->
     {{reply, ok}, sleep, State#machine_state{counter = Counter}};
 do_process_machine({call, get}, ?REQ_CTX, #machine_state{counter = Counter} = State) ->

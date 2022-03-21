@@ -39,13 +39,13 @@
 -type test_name() :: atom().
 -type config() :: [{atom(), _}].
 
--spec all() -> [test_name()].
+-spec all() -> [test_name() | {group, group_name()}].
 all() ->
     [
         {group, main}
     ].
 
--spec groups() -> [{group_name(), list(_), test_name()}].
+-spec groups() -> [{group_name(), list(_), [test_name()]}].
 groups() ->
     [
         {main, [sequence], [
@@ -63,7 +63,7 @@ init_per_suite(C) ->
     % dbg:tracer(), dbg:p(all, c),
     % dbg:tpl({mg_core_events_sink_machine, '_', '_'}, x),
     Apps = mg_core_ct_helper:start_applications([machinegun_core]),
-    Pid = start_event_sink(event_sink_options()),
+    Pid = start_event_sink(event_sink_ns_options()),
     true = erlang:unlink(Pid),
     {Events, _} = mg_core_events:generate_events_with_range(
         [{#{}, Body} || Body <- [1, 2, 3]],
@@ -90,7 +90,7 @@ add_events_test(C) ->
 -spec get_unexisted_event_test(config()) -> _.
 get_unexisted_event_test(_C) ->
     [] = mg_core_events_sink_machine:get_history(
-        event_sink_options(),
+        event_sink_ns_options(),
         ?ES_ID,
         {42, undefined, forward}
     ).
@@ -128,7 +128,7 @@ get_history(_C) ->
     HRange = {undefined, undefined, forward},
     % _ = ct:pal("~p", [PreparedEvents]),
     EventsSinkEvents = mg_core_events_sink_machine:get_history(
-        event_sink_options(),
+        event_sink_ns_options(),
         ?ES_ID,
         HRange
     ),
@@ -143,17 +143,25 @@ start_event_sink(Options) ->
         )
     ).
 
--spec event_sink_options() -> mg_core_events_sink_machine:ns_options().
-event_sink_options() ->
+-spec event_sink_ns_options() -> mg_core_events_sink_machine:ns_options().
+event_sink_ns_options() ->
     #{
-        name => machine,
-        machine_id => ?ES_ID,
         namespace => ?ES_ID,
         storage => mg_core_storage_memory,
-        worker => #{registry => mg_core_procreg_gproc},
+        worker => #{
+            registry => mg_core_procreg_gproc
+        },
         pulse => ?MODULE,
-        duplicate_search_batch => 1000,
+        default_processing_timeout => 1000,
         events_storage => mg_core_storage_memory
+    }.
+
+-spec event_sink_options() -> mg_core_events_sink_machine:options().
+event_sink_options() ->
+    NSOptions = event_sink_ns_options(),
+    NSOptions#{
+        name => machine,
+        machine_id => ?ES_ID
     }.
 
 -spec handle_beat(_, mg_core_pulse:beat()) -> ok.

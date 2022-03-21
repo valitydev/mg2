@@ -30,7 +30,7 @@
 
 -type options() :: #{
     namespace => mg_core:ns(),
-    worker => mg_core_workers_manager:options(),
+    worker => mg_core_workers_manager:ns_options(),
     storage => mg_core_machine:storage_options(),
     pulse => mg_core_pulse:handler(),
     retries => mg_core_machine:retry_opt()

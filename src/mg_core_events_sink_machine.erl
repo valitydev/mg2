@@ -48,7 +48,7 @@
     namespace := mg_core:ns(),
     machine_id := mg_core:id(),
     storage := storage_options(),
-    worker := mg_core_workers_manager:options(),
+    worker := mg_core_workers_manager:ns_options(),
     pulse := mg_core_pulse:handler(),
     events_storage := mg_core_storage:options(),
     default_processing_timeout := timeout()
@@ -56,7 +56,7 @@
 -type ns_options() :: #{
     namespace := mg_core:ns(),
     storage := storage_options(),
-    worker := mg_core_workers_manager:options(),
+    worker := mg_core_workers_manager:ns_options(),
     pulse := mg_core_pulse:handler(),
     events_storage := storage_options(),
     default_processing_timeout := timeout()

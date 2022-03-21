@@ -68,7 +68,7 @@ range_border_test(_C) ->
     [8, 7] = get_event_ids(EventsRange, {undefined, 2, backward}),
     [6, 7, 8] = get_event_ids(EventsRange, {5, 5, forward}).
 
--spec range_missing_params_test(config()) -> ok.
+-spec range_missing_params_test(config()) -> _.
 range_missing_params_test(_C) ->
     EventsRange = mg_core_dirange:forward(1, 8),
     [1, 2, 3] = get_event_ids(EventsRange, {undefined, 3, forward}),

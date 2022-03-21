@@ -4,15 +4,17 @@ log
 erl_crash.dump
 .tags*
 *.sublime-workspace
-.vscode/
 .DS_Store
+*~
 \#*
 .\#*
 .tags*
-Dockerfile
-docker-compose.yml
 rebar3.crashdump
 config/sys.config
 config/vm.args
 config/erl_inetrc
 _checkouts/
+
+# make stuff
+/.image.*
+Makefile.env

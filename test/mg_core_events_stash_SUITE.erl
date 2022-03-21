@@ -66,7 +66,10 @@ all() ->
 -spec init_per_suite(config()) -> config().
 init_per_suite(C) ->
     Apps = mg_core_ct_helper:start_applications([machinegun_core]),
-    {ok, StoragePid} = mg_core_storage_memory:start_link(#{name => ?MODULE}),
+    {ok, StoragePid} = mg_core_storage_memory:start_link(#{
+        name => ?MODULE,
+        pulse => undefined
+    }),
     true = erlang:unlink(StoragePid),
     [{apps, Apps} | C].
 
@@ -194,7 +197,8 @@ add_events(Handlers, _NS, _MachineID, Events, _ReqCtx, _Deadline) ->
 dummy_signal_handler(_Signal, AuxState, _Events) ->
     {AuxState, [], #{}}.
 
--spec dummy_call_handler(signal(), aux_state(), [event()]) -> {aux_state(), [event()], action()}.
+-spec dummy_call_handler(signal(), aux_state(), [event()]) ->
+    {ok, aux_state(), [event()], action()}.
 dummy_call_handler(_Signal, AuxState, _Events) ->
     {ok, AuxState, [], #{}}.
 
@@ -296,11 +300,11 @@ call(Options, MachineID, Args) ->
     ),
     decode(Result).
 
--spec get_history(options(), mg_core:id()) -> ok.
+-spec get_history(options(), mg_core:id()) -> [event()].
 get_history(Options, MachineID) ->
     get_history(Options, MachineID, {undefined, undefined, forward}).
 
--spec get_history(options(), mg_core:id(), mg_core_events:history_range()) -> ok.
+-spec get_history(options(), mg_core:id(), mg_core_events:history_range()) -> [event()].
 get_history(Options, MachineID, HRange) ->
     MgOptions = events_machine_options(Options),
     Machine = mg_core_events_machine:get_machine(MgOptions, {id, MachineID}, HRange),
@@ -313,7 +317,7 @@ get_history(Options, MachineID, HRange) ->
 decode_machine(#{aux_state := EncodedAuxState, history := EncodedHistory}) ->
     {decode_aux_state(EncodedAuxState), decode_events(EncodedHistory)}.
 
--spec decode_aux_state(mg_core_events_machine:aux_state()) -> aux_state().
+-spec decode_aux_state(mg_core_events:content()) -> aux_state().
 decode_aux_state({#{format_version := 1}, EncodedAuxState}) ->
     decode(EncodedAuxState);
 decode_aux_state({#{}, <<>>}) ->

@@ -169,6 +169,8 @@ conjoin_test(_) ->
     ?assertError(badarg, mg_core_dirange:conjoin(bw(10, 10), fw(1, 9))),
     ?assertError(badarg, mg_core_dirange:conjoin(bw(10, 9), bw(9, 1))).
 
+%% Used to suppress warning for mg_core_dirange:intersect/2 error assertion
+-dialyzer({nowarn_function, intersect_test/1}).
 -spec intersect_test(config()) -> _.
 intersect_test(_) ->
     ?assertEqual({empty(), empty(), empty()}, mg_core_dirange:intersect(empty(), fw(1, 10))),
@@ -259,8 +261,10 @@ unify_test(_) ->
                 begin
                     RU = mg_core_dirange:unify(R0, R1),
                     conjunction([
-                        {no_smaller_than_r0, mg_core_dirange:size(RU) >= mg_core_dirange:size(R0)},
-                        {no_smaller_than_r1, mg_core_dirange:size(RU) >= mg_core_dirange:size(R1)}
+                        {no_smaller_than_r0,
+                            equals(mg_core_dirange:size(RU) >= mg_core_dirange:size(R0), true)},
+                        {no_smaller_than_r1,
+                            equals(mg_core_dirange:size(RU) >= mg_core_dirange:size(R1), true)}
                     ])
                 end
             )
@@ -351,7 +355,8 @@ nonempty_range() ->
 
 -spec check_property(proper:test()) -> boolean().
 check_property(Property) ->
-    proper:quickcheck(Property, [{numtests, 1000}, nocolors]).
+    OuterTest = proper:test_to_outer_test(Property),
+    proper:quickcheck(OuterTest, [{numtests, 1000}, nocolors]).
 
 %%
 

@@ -51,7 +51,7 @@ all() ->
         {group, with_consuela}
     ].
 
--spec groups() -> [{group_name(), list(_), test_name()}].
+-spec groups() -> [{group_name(), list(_), [test_name()]}].
 groups() ->
     [
         {with_gproc, [], [{group, base}]},
@@ -226,7 +226,9 @@ automaton_options(C) ->
         namespace => <<"test">>,
         processor => ?MODULE,
         storage => mg_core_storage_memory,
-        worker => #{registry => ?config(registry, C)},
+        worker => #{
+            registry => ?config(registry, C)
+        },
         pulse => ?MODULE,
         schedulers => #{
             timers => Scheduler,
