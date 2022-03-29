@@ -401,7 +401,7 @@ decode_ts_offset(Timestamp0) ->
 
 -spec decode_delay(number()) -> number().
 decode_delay(DelayMs) ->
-    DelayMs / 1000.
+    erlang:convert_time_unit(DelayMs, millisecond, native).
 
 -spec calc_queue_usage(non_neg_integer(), mg_core_workers_manager:queue_limit()) -> float().
 calc_queue_usage(Len, 0) ->
