@@ -69,6 +69,7 @@
 -export([riak_client_search_finish_test/1]).
 -export([riak_client_delete_start_test/1]).
 -export([riak_client_delete_finish_test/1]).
+-export([events_sink_kafka_sent_test/1]).
 
 -define(NS, <<"NS">>).
 -define(ID, <<"ID">>).
@@ -82,53 +83,56 @@
 
 -spec all() -> [test_name() | {group, group_name()}].
 all() ->
-    [
-        machine_lifecycle_loaded_test,
-        machine_lifecycle_unloaded_test,
-        machine_lifecycle_created_test,
-        machine_lifecycle_removed_test,
-        machine_lifecycle_failed_test,
-        machine_lifecycle_committed_suicide_test,
-        machine_lifecycle_loading_error_test,
-        machine_lifecycle_transient_error_test,
-        machine_process_started_test,
-        machine_process_finished_test,
-        timer_lifecycle_created_test,
-        timer_lifecycle_rescheduled_test,
-        timer_lifecycle_rescheduling_error_test,
-        timer_lifecycle_removed_test,
-        timer_process_started_test,
-        timer_process_finished_test,
-        scheduler_search_success_test,
-        scheduler_search_error_test,
-        scheduler_task_error_test,
-        scheduler_new_tasks_test,
-        scheduler_task_started_test,
-        scheduler_task_finished_test,
-        scheduler_quota_reserved_test,
-        worker_call_attempt_test,
-        worker_start_attempt_test,
-        storage_get_start_test,
-        storage_get_finish_test,
-        storage_put_start_test,
-        storage_put_finish_test,
-        storage_search_start_test,
-        storage_search_finish_test,
-        storage_delete_start_test,
-        storage_delete_finish_test,
-        riak_client_get_start_test,
-        riak_client_get_finish_test,
-        riak_client_put_start_test,
-        riak_client_put_finish_test,
-        riak_client_search_start_test,
-        riak_client_search_finish_test,
-        riak_client_delete_start_test,
-        riak_client_delete_finish_test
-    ].
+    [{group, default_group}].
 
--spec groups() -> [{group_name(), list(_), test_name()}].
+-spec groups() -> [{group_name(), list(_), [test_name()]}].
 groups() ->
-    [].
+    [
+        {default_group, [parallel], [
+            machine_lifecycle_loaded_test,
+            machine_lifecycle_unloaded_test,
+            machine_lifecycle_created_test,
+            machine_lifecycle_removed_test,
+            machine_lifecycle_failed_test,
+            machine_lifecycle_committed_suicide_test,
+            machine_lifecycle_loading_error_test,
+            machine_lifecycle_transient_error_test,
+            machine_process_started_test,
+            machine_process_finished_test,
+            timer_lifecycle_created_test,
+            timer_lifecycle_rescheduled_test,
+            timer_lifecycle_rescheduling_error_test,
+            timer_lifecycle_removed_test,
+            timer_process_started_test,
+            timer_process_finished_test,
+            scheduler_search_success_test,
+            scheduler_search_error_test,
+            scheduler_task_error_test,
+            scheduler_new_tasks_test,
+            scheduler_task_started_test,
+            scheduler_task_finished_test,
+            scheduler_quota_reserved_test,
+            worker_call_attempt_test,
+            worker_start_attempt_test,
+            storage_get_start_test,
+            storage_get_finish_test,
+            storage_put_start_test,
+            storage_put_finish_test,
+            storage_search_start_test,
+            storage_search_finish_test,
+            storage_delete_start_test,
+            storage_delete_finish_test,
+            riak_client_get_start_test,
+            riak_client_get_finish_test,
+            riak_client_put_start_test,
+            riak_client_put_finish_test,
+            riak_client_search_start_test,
+            riak_client_search_finish_test,
+            riak_client_delete_start_test,
+            riak_client_delete_finish_test,
+            events_sink_kafka_sent_test
+        ]}
+    ].
 
 %%
 %% starting/stopping
@@ -663,6 +667,38 @@ riak_client_delete_finish_test(_C) ->
             Acc#{BucketIdx => BucketHit}
         end,
         #{},
+        Buckets
+    ).
+
+-spec events_sink_kafka_sent_test(config()) -> _.
+events_sink_kafka_sent_test(_C) ->
+    Buckets = test_millisecond_buckets(),
+    Name = kafka,
+    _ = maps:fold(
+        fun(DurationMs, BucketIdx, {Counter, BucketAcc}) ->
+            ok = test_beat(#mg_core_events_sink_kafka_sent{
+                name = Name,
+                namespace = ?NS,
+                machine_id = <<"ID">>,
+                request_context = null,
+                deadline = undefined,
+                encode_duration = erlang:convert_time_unit(DurationMs, millisecond, native),
+                send_duration = erlang:convert_time_unit(DurationMs, millisecond, native),
+                data_size = 0,
+                partition = 0,
+                offset = 0
+            }),
+            ?assertEqual(prometheus_counter:value(mg_events_sink_produced_total, [?NS, Name]), Counter),
+            {BucketsHits, _} =
+                prometheus_histogram:value(mg_events_sink_kafka_produced_duration_seconds, [?NS, Name, encode]),
+            {BucketsHits, _} =
+                prometheus_histogram:value(mg_events_sink_kafka_produced_duration_seconds, [?NS, Name, send]),
+            BucketHit = lists:nth(BucketIdx, BucketsHits),
+            %% Check that bucket under index BucketIdx received one hit
+            ?assertEqual(maps:get(BucketIdx, BucketAcc, 0) + 1, BucketHit),
+            {Counter + 1, BucketAcc#{BucketIdx => BucketHit}}
+        end,
+        {1, #{}},
         Buckets
     ).
 
