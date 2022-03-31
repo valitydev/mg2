@@ -28,7 +28,7 @@
 -type meta() :: machinegun_log:meta().
 -type beat() :: machinegun_pulse:beat().
 -type log_msg() :: machinegun_log:log_msg().
--type options() :: machinegun_pulse:options().
+-type options() :: woody_event_handler:options().
 
 %%
 %% mg_pulse handler
@@ -52,7 +52,7 @@ handle_beat(Options, Beat) ->
 ]).
 
 -spec format_beat(beat(), options()) -> log_msg() | undefined.
-format_beat(#woody_request_handle_error{exception = {_, Reason, _}} = Beat, _Options) ->
+format_beat(#woody_request_handle_error{exception = {_, Reason, _}} = Beat, _WoodyOptions) ->
     Context = ?BEAT_TO_META(woody_request_handle_error, Beat),
     LogLevel =
         case Reason of
@@ -63,9 +63,8 @@ format_beat(#woody_request_handle_error{exception = {_, Reason, _}} = Beat, _Opt
                 warning
         end,
     {LogLevel, {"request handling failed ~p", [Reason]}, Context};
-format_beat(#woody_event{event = Event, rpc_id = RPCID, event_meta = EventMeta}, Options) ->
+format_beat(#woody_event{event = Event, rpc_id = RPCID, event_meta = EventMeta}, WoodyOptions) ->
     Level = woody_event_handler:get_event_severity(Event, EventMeta),
-    WoodyOptions = maps:get(woody_event_handler_options, Options, #{}),
     Msg = woody_event_handler:format_event(Event, EventMeta, RPCID, WoodyOptions),
     WoodyMetaFields = [event, service, function, type, metadata, url, deadline, role, execution_duration_ms],
     WoodyMeta = woody_event_handler:format_meta(Event, EventMeta, WoodyMetaFields),

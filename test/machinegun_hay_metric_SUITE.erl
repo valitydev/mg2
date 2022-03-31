@@ -17,7 +17,6 @@
 -module(machinegun_hay_metric_SUITE).
 
 -include_lib("common_test/include/ct.hrl").
--include_lib("stdlib/include/assert.hrl").
 -include_lib("machinegun_core/include/pulse.hrl").
 
 %% tests descriptions
@@ -33,7 +32,6 @@
 -export([duration_bin_metric_test/1]).
 
 -define(NS, <<"NS">>).
--define(ID, <<"ID">>).
 
 %%
 %% tests descriptions
@@ -141,4 +139,4 @@ duration_bin_metric_test(_C) ->
 
 -spec test_beat(term()) -> ok.
 test_beat(Beat) ->
-    machinegun_pulse_hay:handle_beat(#{}, Beat).
+    machinegun_pulse_hay:handle_beat(#{enabled => true}, Beat).

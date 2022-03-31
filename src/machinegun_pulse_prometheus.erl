@@ -24,7 +24,7 @@
 
 %% internal types
 -type beat() :: machinegun_pulse:beat().
--type options() :: machinegun_pulse:options().
+-type options() :: #{}.
 -type metric_name() :: prometheus_metric:name().
 -type metric_label_value() :: term().
 

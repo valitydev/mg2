@@ -43,6 +43,7 @@
     | #mg_core_riak_client_delete_finish{}.
 
 -type options() :: #{
+    hay_options => machinegun_pulse_hay:options(),
     woody_event_handler_options => woody_event_handler:options()
 }.
 
@@ -55,6 +56,6 @@
 
 -spec handle_beat(options(), beat()) -> ok.
 handle_beat(Options, Beat) ->
-    ok = machinegun_pulse_log:handle_beat(Options, Beat),
-    ok = machinegun_pulse_hay:handle_beat(Options, Beat),
-    ok = machinegun_pulse_prometheus:handle_beat(Options, Beat).
+    ok = machinegun_pulse_log:handle_beat(maps:get(woody_event_handler_options, Options, #{}), Beat),
+    ok = machinegun_pulse_hay:handle_beat(maps:get(hay_options, Options, #{}), Beat),
+    ok = machinegun_pulse_prometheus:handle_beat(#{}, Beat).

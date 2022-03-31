@@ -28,15 +28,22 @@
 -type beat() :: machinegun_pulse:beat().
 -type impact_tag() :: atom().
 -type bin_type() :: machinegun_hay_utils:bin_type().
--type options() :: machinegun_pulse:options().
+
+-type options() :: #{
+    enabled => boolean()
+}.
+
+-export_type([options/0]).
 
 %%
 %% mg_pulse handler
 %%
 
 -spec handle_beat(options(), beat()) -> ok.
-handle_beat(_Options, Beat) ->
-    ok = push(create_metric(Beat)).
+handle_beat(#{enabled := true}, Beat) ->
+    ok = push(create_metric(Beat));
+handle_beat(_Options, _Beat) ->
+    ok.
 
 %% Internals
 

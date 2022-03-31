@@ -31,7 +31,6 @@
 -export([exist_workers_test/1]).
 
 -define(NS, <<"NS">>).
--define(ID, <<"ID">>).
 
 %%
 %% tests descriptions
@@ -63,21 +62,19 @@ groups() ->
 %%
 -spec init_per_suite(config()) -> config().
 init_per_suite(C) ->
-    Apps = machinegun_ct_helper:start_applications([
-        gproc,
-        consuela
-    ]),
-    [{suite_apps, Apps} | C].
+    C.
 
 -spec end_per_suite(config()) -> ok.
-end_per_suite(C) ->
-    machinegun_ct_helper:stop_applications(?config(suite_apps, C)).
+end_per_suite(_C) ->
+    ok.
 
 -spec init_per_group(group_name(), config()) -> config().
 init_per_group(with_gproc, C) ->
-    [{registry, mg_core_procreg_gproc} | C];
+    Apps = machinegun_ct_helper:start_applications([gproc]),
+    [{group_apps, Apps}, {registry, mg_core_procreg_gproc} | C];
 init_per_group(with_consuela, C) ->
-    [{registry, {mg_core_procreg_consuela, #{}}} | C];
+    Apps = machinegun_ct_helper:start_applications([consuela]),
+    [{group_apps, Apps}, {registry, {mg_core_procreg_consuela, #{}}} | C];
 init_per_group(base, C) ->
     Config = machinegun_config(C),
     Apps = machinegun_ct_helper:start_applications([
@@ -118,7 +115,7 @@ end_per_group(base, C) ->
     ok = proc_lib:stop(?config(processor_pid, C)),
     machinegun_ct_helper:stop_applications(?config(apps, C));
 end_per_group(_, C) ->
-    C.
+    machinegun_ct_helper:stop_applications(?config(group_apps, C)).
 
 -spec machinegun_config(config()) -> list().
 machinegun_config(C) ->
@@ -151,7 +148,10 @@ machinegun_config(C) ->
             registry => registry(C),
             default_processing_timeout => 5000
         }},
-        {pulse, {machinegun_pulse, #{}}}
+        {pulse,
+            {machinegun_pulse, #{
+                hay_options => #{enabled => true}
+            }}}
     ].
 
 -spec registry(config()) -> mg_core_procreg:options().

@@ -14,6 +14,31 @@
 # limitations under the License.
 #
 
+### This is one and only file to configure machinegun service.
+###
+### Configuration is specific for a single instance of machinegun, it's up to
+### you to ensure that each instance is configured properly. This usually boils
+### down to sharing namespaces configuration between instances and assigning
+### proper nodenames so that instances could see and communicate with each
+### other over Erlang distribution.
+###
+### If you find some configuration knobs are missing here do not hesitate to
+### send a PR.
+###
+### Notes:
+###
+### * Configuration string support environment variable interpolation.
+###
+###     The syntax is `${VARNAME}` where `VARNAME` is the name of referenced
+###     environment variable. If referenced the variable MUST be defined,
+###     otherwise it's a configuration error. There is no special handling of
+###     variable values: empty variable for example will be interpolated as
+###     empty string.
+###
+###     For example, given `HOST_IP=10.0.42.42` one could define:
+###       dist_node_name: machinegun@${HOST_IP}
+###
+
 # Name of the service.
 #
 # Defaults to: 'machinegun'.
@@ -34,6 +59,8 @@ service_name: machinegun
 #     dist_node_name:
 #       namepart: blarg
 #       hostpart: fqdn
+dist_node_name:
+    hostpart: hostname
 
 # Erlang VM options.
 erlang:
@@ -42,7 +69,7 @@ erlang:
     #
     # Must be set, there's no default.
     secret_cookie_file: "config/cookie"
-    ipv6: false
+    ipv6: true
     disable_dns_cache: false
 
 # API server options.
@@ -52,26 +79,28 @@ woody_server:
     http_keep_alive_timeout: 60s
 
 # Distributed machine registry settings.
+#
 # Do not set if you plan to run machinegun in a non-distributed fashion,
 # for example in a development or testing scenarios.
-# consuela:
-#     presence:
-#         check_interval: 5s
-#         tags:
-#             - production
-#     registry:
-#         nodename: mhost1
-#         session_ttl: 30s
-#         session_renewal_interval: 10s
-#     discovery: {}
+consuela:
+    presence:
+        check_interval: 5s
+        tags:
+            - production
+    registry:
+        nodename: mhost1
+        session_ttl: 30s
+        session_renewal_interval: 10s
+    discovery: {}
 
-# # Consul client settings.
-# # Required when distributed machine registry is enabled.
-# consul:
-#     url: http://localhost:8500
-#     acl_token_file: config/consul.token
-#     connect_timeout: 200ms
-#     recv_timeout: 1s
+# Consul client settings.
+#
+# Required when distributed machine registry is enabled.
+consul:
+    url: http://localhost:8500
+    acl_token_file: config/consul.token
+    connect_timeout: 200ms
+    recv_timeout: 1s
 
 limits:
     process_heap: 2M # heap limit
@@ -136,20 +165,20 @@ namespaces:
                 http_keep_alive_timeout: 10s
 snowflake_machine_id: 1
 # memory storage backend
-storage:
-    type: memory
-## riak storage backend
 # storage:
-#     type: riak
-#     host: "127.0.0.1"
-#     port: 8080
-#     pool:
-#        size: 100
-#        queue_max: 1000
-#     connect_timeout: 5S
-#     request_timeout: 10S
-#     index_query_timeout: 10S
-#     batch_concurrency_limit: 50
+#     type: memory
+# riak storage backend
+storage:
+    type: riak
+    host: riak-mg
+    port: 8078
+    pool:
+        size: 100
+        queue_max: 1000
+    connect_timeout: 5s
+    request_timeout: 10s
+    index_query_timeout: 10s
+    batch_concurrency_limit: 50
 
 ## kafka settings example
 kafka:

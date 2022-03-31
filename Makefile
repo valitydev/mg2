@@ -101,12 +101,12 @@ clean:
 distclean: clean-dev-image
 	rm -rf _build
 
-test: test_configurator eunit common-test
+test: test-configurator eunit common-test
 
 cover-report:
 	$(REBAR) cover
 
-test_configurator:
+test-configurator:
 	$(MAKE) $(FILE_PERMISSIONS)
 	ERL_LIBS=_build/default/lib ./rel_scripts/configurator.escript config/config.yaml config
 
