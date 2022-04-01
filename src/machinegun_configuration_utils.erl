@@ -59,9 +59,13 @@
 -type yaml_config_path() :: [atom()].
 -type yaml_string() :: binary().
 
--type vm_args() :: [{vm_flag_name(), vm_flag_value()} | vm_flag_name()].
+-type vm_args() :: [
+    {vm_flag_name(), vm_flag_value()}
+    | {vm_flag_name(), vm_flag_value(), vm_flag_value()}
+    | vm_flag_name()
+].
 -type vm_flag_name() :: atom() | binary().
--type vm_flag_value() :: atom() | binary() | integer().
+-type vm_flag_value() :: atom() | iodata() | integer().
 
 -type sys_config() :: [{atom, term()}].
 -type erl_inetrc() :: [{atom, term()}].
@@ -110,8 +114,8 @@ print_sys_config(SysConfig) ->
 print_vm_args(VMArgs) ->
     lists:map(
         fun
-            ({Arg, Value}) ->
-                [genlib:to_binary(Arg), $\s, genlib:to_binary(Value), $\n];
+            (Arg) when is_tuple(Arg) ->
+                [[[genlib:to_binary(A), $\s] || A <- tuple_to_list(Arg)], $\n];
             (Arg) when not is_tuple(Arg) ->
                 [genlib:to_binary(Arg), $\n]
         end,

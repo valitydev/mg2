@@ -62,6 +62,20 @@ service_name: machinegun
 dist_node_name:
     hostpart: hostname
 
+# Mode and allocation of ports for Erlang distribution.
+#
+# No defaults here, default behaviour is dictated by ERTS.
+# Examples:
+# * disable EMPD altogether and set a fixed port both for listening and
+#   communicating with remote nodes:
+#     dist_port:
+#         mode: static
+#         port: 31337
+dist_port:
+    mode: epmd
+    # Which ports to pick from when setting up a distribution listener?
+    range: [31337, 31340]
+
 # Erlang VM options.
 erlang:
     # Path to a file which holds Erlang distribution cookie.

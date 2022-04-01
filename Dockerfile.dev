@@ -1,6 +1,7 @@
 ARG OTP_VERSION
 
 FROM docker.io/library/erlang:${OTP_VERSION}
+SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 
 ARG THRIFT_VERSION
 ARG BUILDARCH
@@ -10,4 +11,4 @@ RUN wget -q -O- "https://github.com/valitydev/thrift/releases/download/${THRIFT_
 
 ENV CHARSET=UTF-8
 ENV LANG=C.UTF-8
-CMD /bin/bash
+CMD ["/bin/bash"]

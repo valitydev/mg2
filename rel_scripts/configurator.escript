@@ -564,7 +564,7 @@ procreg(YamlConfig) ->
 vm_args(YamlConfig, ERLInetrcFilename) ->
     Flags = [
         node_name(YamlConfig),
-        {'-kernel', iolist_to_binary(["inetrc '\"", ERLInetrcFilename, "\"'"])},
+        {'-kernel', 'inetrc', ["'\"", ERLInetrcFilename, "\"'"]},
         {'+c', true},
         {'+C', single_time_warp},
         %% Do not burn CPU circles, go sleep
@@ -580,7 +580,8 @@ vm_args(YamlConfig, ERLInetrcFilename) ->
     ProtoFlags = conf_if([erlang, ipv6], YamlConfig, [
         {'-proto_dist', inet6_tcp}
     ]),
-    Flags ++ ProtoFlags.
+    DistFlags = conf_with([dist_port], YamlConfig, [], fun dist_flags/1),
+    Flags ++ ProtoFlags ++ DistFlags.
 
 cookie(YamlConfig) ->
     ?C:contents(?C:conf([erlang, secret_cookie_file], YamlConfig)).
@@ -631,6 +632,35 @@ guess_host_addr(YamlConfig) ->
 
 address_family_preference(YamlConfig) ->
     conf_with([erlang, ipv6], YamlConfig, inet, fun (true) -> inet6; (false) -> inet end).
+
+dist_flags(Config) ->
+    case ?C:conf([mode], Config, <<"epmd">>) of
+        <<"static">> ->
+            Port = ?C:conf([port], Config),
+            [
+                {'-start_epmd', false},
+                {'-erl_epmd_port', Port}
+            ];
+        <<"epmd">> ->
+            conf_with([range], Config, [], fun (Range) ->
+                {Min, Max} = port_range(Range),
+                [
+                    {'-kernel', 'inet_dist_listen_min', Min},
+                    {'-kernel', 'inet_dist_listen_max', Max}
+                ]
+            end)
+    end.
+
+port_range(Config) ->
+    case lists:sort(Config) of
+        [Min, Max] when
+            is_integer(Min), Min > 0, Min < 65536,
+            is_integer(Max), Max > 0, Max < 65536
+        ->
+            {Min, Max};
+        _ ->
+            erlang:throw({'bad port range', Config})
+    end.
 
 %%
 %% erl_inetrc

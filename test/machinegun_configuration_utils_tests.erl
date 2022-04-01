@@ -7,6 +7,31 @@
 
 -spec test() -> _.
 
+-spec print_vm_args_test_() -> [testgen()].
+print_vm_args_test_() ->
+    [
+        ?_assertEqual(
+            <<"">>,
+            iolist_to_binary(machinegun_configuration_utils:print_vm_args([]))
+        ),
+        ?_assertEqual(
+            <<
+                "+c true \n"
+                "+C single_time_warp \n"
+                "-kernel inet_dist_listen_min 1337 \n"
+                "-kernel inet_dist_listen_max 31337 \n"
+            >>,
+            iolist_to_binary(
+                machinegun_configuration_utils:print_vm_args([
+                    {'+c', true},
+                    {'+C', "single_time_warp"},
+                    {'-kernel', 'inet_dist_listen_min', 1337},
+                    {'-kernel', 'inet_dist_listen_max', 31337}
+                ])
+            )
+        )
+    ].
+
 -spec time_interval_test_() -> [testgen()].
 time_interval_test_() ->
     [
