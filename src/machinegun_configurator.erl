@@ -201,7 +201,7 @@ event_sink_namespace_options(#{storage := Storage} = EventSinkNS, Pulse) ->
         worker => worker_manager_options(EventSinkNS)
     }.
 
--spec worker_manager_options(map()) -> mg_core_workers_manager:options().
+-spec worker_manager_options(map()) -> mg_core_workers_manager:ns_options().
 worker_manager_options(Config) ->
     maps:merge(
         #{

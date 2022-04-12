@@ -33,9 +33,6 @@
     {env, []},
     {modules, []},
     {mod, {machinegun, []}},
-    {maintainers, [
-        "Andrey Mayorov <a.mayorov@rbkmoney.com>"
-    ]},
     {licenses, []},
     {links, []}
 ]}.
