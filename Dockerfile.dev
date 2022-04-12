@@ -4,4 +4,4 @@ FROM docker.io/library/erlang:${OTP_VERSION}
 
 ENV CHARSET=UTF-8
 ENV LANG=C.UTF-8
-CMD /bin/bash
+CMD ["/bin/bash"]

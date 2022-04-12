@@ -3,7 +3,7 @@
  {<<"certifi">>,{pkg,<<"certifi">>,<<"2.6.1">>},2},
  {<<"consuela">>,
   {git,"https://github.com/valitydev/consuela",
-       {ref,"d11610295be5ed5c4b6c0b2ba259a35d5e00b29c"}},
+       {ref,"fa35f3d5fdd215ef39f39a524749a9d19fb2c996"}},
   0},
  {<<"cowlib">>,{pkg,<<"cowlib">>,<<"2.11.0">>},1},
  {<<"crc32cer">>,{pkg,<<"crc32cer">>,<<"0.1.8">>},2},
