@@ -92,7 +92,7 @@ logger(YamlConfig) ->
     OutType = ?C:atom(?C:conf([logging, out_type], YamlConfig, <<"file">>)),
     Out =
         case OutType of
-            file -> #{type => file, file => FullLogname};
+            file -> #{type => file, file => ?C:string(FullLogname)};
             stdout -> #{type => standard_io}
         end,
     [
