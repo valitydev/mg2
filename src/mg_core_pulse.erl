@@ -35,6 +35,7 @@
     | #mg_core_timer_lifecycle_removed{}
     % Scheduler handling
     | #mg_core_scheduler_task_add_error{}
+    | #mg_core_scheduler_search_success{}
     | #mg_core_scheduler_search_error{}
     | #mg_core_scheduler_task_error{}
     | #mg_core_scheduler_new_tasks{}
@@ -70,7 +71,16 @@
     | #mg_core_storage_delete_start{}
     | #mg_core_storage_delete_finish{}
     % Event sink operations
-    | #mg_core_events_sink_kafka_sent{}.
+    | #mg_core_events_sink_kafka_sent{}
+    % Riak client call handling
+    | #mg_core_riak_client_get_start{}
+    | #mg_core_riak_client_get_finish{}
+    | #mg_core_riak_client_put_start{}
+    | #mg_core_riak_client_put_finish{}
+    | #mg_core_riak_client_search_start{}
+    | #mg_core_riak_client_search_finish{}
+    | #mg_core_riak_client_delete_start{}
+    | #mg_core_riak_client_delete_finish{}.
 
 -type handler() :: mg_core_utils:mod_opts() | undefined.
 

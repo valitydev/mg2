@@ -9,6 +9,8 @@ services:
     volumes:
       - .:$PWD
     hostname: $SERVICE_NAME
+    cap_add:
+      - NET_ADMIN
     depends_on:
       - riakdb
       - member1

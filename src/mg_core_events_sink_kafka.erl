@@ -95,7 +95,7 @@ produce(Client, Topic, Key, Batch) ->
 -spec do_produce(brod:client(), brod:topic(), brod:key(), brod:batch_input()) ->
     {ok, brod:partition(), brod:offset()} | {error, Reason :: any()}.
 do_produce(Client, Topic, PartitionKey, Batch) ->
-    case brod:get_partitions_count(Client, Topic) of
+    try brod:get_partitions_count(Client, Topic) of
         {ok, PartitionsCount} ->
             Partition = partition(PartitionsCount, PartitionKey),
             case brod:produce_sync_offset(Client, Topic, Partition, PartitionKey, Batch) of
@@ -106,11 +106,21 @@ do_produce(Client, Topic, PartitionKey, Batch) ->
             end;
         {error, _Reason} = Error ->
             Error
+    catch
+        exit:Reason ->
+            {error, {exit, Reason}}
     end.
 
 -spec handle_produce_error(atom()) -> no_return().
 handle_produce_error(timeout) ->
     erlang:throw({transient, timeout});
+handle_produce_error({exit, {Reasons = [_ | _], _}}) ->
+    case lists:any(fun is_connectivity_reason/1, Reasons) of
+        true ->
+            erlang:throw({transient, {event_sink_unavailable, {connect_failed, Reasons}}});
+        false ->
+            erlang:error({?MODULE, {unexpected, Reasons}})
+    end;
 handle_produce_error({producer_down, Reason}) ->
     erlang:throw({transient, {event_sink_unavailable, {producer_down, Reason}}});
 handle_produce_error(Reason) ->
@@ -151,6 +161,29 @@ handle_produce_error(Reason) ->
         error ->
             erlang:error({?MODULE, {unexpected, Reason}})
     end.
+
+-spec is_connectivity_reason(
+    {inet:hostname(), {inet:posix() | {failed_to_upgrade_to_ssl, _SSLError}, _ST}}
+) ->
+    boolean().
+is_connectivity_reason({_, {timeout, _ST}}) ->
+    true;
+is_connectivity_reason({_, {econnrefused, _ST}}) ->
+    true;
+is_connectivity_reason({_, {ehostunreach, _ST}}) ->
+    true;
+is_connectivity_reason({_, {enetunreach, _ST}}) ->
+    true;
+is_connectivity_reason({_, {nxdomain, _ST}}) ->
+    true;
+is_connectivity_reason({_, {{failed_to_upgrade_to_ssl, _SSLError}, _ST}}) ->
+    true;
+is_connectivity_reason({_, {{_, closed}, _ST}}) ->
+    true;
+is_connectivity_reason({_, {{_, timeout}, _ST}}) ->
+    true;
+is_connectivity_reason(_Reason) ->
+    false.
 
 -spec batch_size(brod:batch_input()) -> non_neg_integer().
 batch_size(Batch) ->
