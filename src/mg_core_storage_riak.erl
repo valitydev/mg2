@@ -48,7 +48,7 @@
 %%%
 -module(mg_core_storage_riak).
 -include_lib("riakc/include/riakc.hrl").
--include_lib("machinegun_core/include/pulse.hrl").
+-include("pulse.hrl").
 
 %% mg_core_storage callbacks
 -behaviour(mg_core_storage).
@@ -61,6 +61,9 @@
 %% internal
 -export([start_client/1]).
 -export([start_link/1]).
+
+%% pooler callbacks
+-export([update_or_create/4]).
 
 % from riakc
 % -type bucket() :: binary().
@@ -102,9 +105,13 @@
     idle_timeout => timeout(),
     cull_interval => timeout(),
     auto_grow_threshold => non_neg_integer(),
-    queue_max => non_neg_integer(),
-    metrics_mod => module() | pooler_no_metrics,
-    metrics_api => folsom | exometer
+    queue_max => non_neg_integer()
+}.
+
+-type pool_name() :: atom().
+-type pulse_options() :: #{
+    name := mg_core_storage:name(),
+    pulse := mg_core_pulse:handler()
 }.
 
 %% Duration is measured in native units
@@ -112,6 +119,9 @@
 
 %% TODO: Replace by deadline
 -define(TAKE_CLIENT_TIMEOUT, 30000).
+
+-define(GPROC_POOL_NAME(Name), {n, l, {?MODULE, pool, Name}}).
+-define(GPROC_PULSE_OPTIONS(PoolNameString), {n, l, {?MODULE, pulse, PoolNameString}}).
 
 %%
 %% API
@@ -143,8 +153,15 @@ start_client(#{port := Port} = Options) ->
 
 -spec start_link(options()) -> mg_core_utils:gen_start_ret().
 start_link(Options) ->
-    PoolConfig = pooler_config:list_to_pool(make_pool_config(Options)),
-    pooler_pool_sup:start_link(PoolConfig).
+    PoolName = construct_pool_name(Options),
+    PoolConfig = pooler_config:list_to_pool(make_pool_config(PoolName, Options)),
+    case pooler_pool_sup:start_link(PoolConfig) of
+        {ok, SupPid} ->
+            ok = register_pool(Options, SupPid, PoolName),
+            {ok, SupPid};
+        Error ->
+            Error
+    end.
 
 %%
 %% mg_core_storage callbacks
@@ -161,18 +178,19 @@ child_spec(Options, ChildID) ->
 
 -spec do_request(options(), mg_core_storage:request()) -> mg_core_storage:response().
 do_request(Options, Request) ->
-    ClientRef = take_client(Options),
+    PoolName = pool_name(Options),
+    ClientRef = take_client(PoolName),
     try
         StartTimestamp = erlang:monotonic_time(),
         ok = emit_beat_start(Request, Options),
         Result = try_do_request(Options, ClientRef, Request),
         Duration = erlang:monotonic_time() - StartTimestamp,
         ok = emit_beat_finish(Request, Options, Duration),
-        ok = return_client(Options, ClientRef, ok),
+        ok = return_client(PoolName, ClientRef, ok),
         Result
     catch
         Class:Error:StackTrace ->
-            ok = return_client(Options, ClientRef, fail),
+            ok = return_client(PoolName, ClientRef, fail),
             erlang:raise(Class, Error, StackTrace)
     end.
 
@@ -503,16 +521,17 @@ get_addrs_by_host(Host, Timeout) ->
 
 %% pool helpers
 
--spec make_pool_config(options()) -> [{atom(), term()}].
-make_pool_config(Options) ->
-    Name = pool_name(Options),
+-spec make_pool_config(pool_name(), options()) -> [{atom(), term()}].
+make_pool_config(Name, Options) ->
     PoolOptions = maps:get(pool_options, Options),
     StartTimeout = get_option(connect_timeout, Options) + get_option(resolve_timeout, Options),
     DefaultConfig = [
         {name, Name},
         {start_mfa, {?MODULE, start_client, [Options]}},
         {stop_mfa, {riakc_pb_socket, stop, ['$pooler_pid']}},
-        {member_start_timeout, {StartTimeout, ms}}
+        {member_start_timeout, {StartTimeout, ms}},
+        {metrics_mod, ?MODULE},
+        {metrics_api, exometer}
     ],
     Config = maps:fold(
         fun
@@ -527,38 +546,104 @@ make_pool_config(Options) ->
             (auto_grow_threshold, V, Acc) when is_integer(V) ->
                 [{auto_grow_threshold, V} | Acc];
             (queue_max, V, Acc) when is_integer(V) ->
-                [{queue_max, V} | Acc];
-            (metrics_mod, V, Acc) when is_atom(V) ->
-                [{metrics_mod, V} | Acc];
-            (metrics_api, V, Acc) when is_atom(V) ->
-                [{metrics_api, V} | Acc]
+                [{queue_max, V} | Acc]
         end,
         [],
         PoolOptions
     ),
     DefaultConfig ++ Config.
 
--spec take_client(options()) -> client_ref().
-take_client(Options) ->
+-spec take_client(pool_name()) -> client_ref().
+take_client(PoolName) ->
     Timeout = ?TAKE_CLIENT_TIMEOUT,
-    case pooler:take_member(pool_name(Options), {Timeout, ms}) of
+    case pooler:take_member(PoolName, {Timeout, ms}) of
         Ref when is_pid(Ref) ->
             Ref;
         error_no_members ->
             erlang:throw({transient, {storage_unavailable, no_pool_members}})
     end.
 
--spec return_client(options(), client_ref(), ok | fail) -> ok.
-return_client(Options, ClientRef, Status) ->
-    pooler:return_member(pool_name(Options), ClientRef, Status).
+-spec return_client(pool_name(), client_ref(), ok | fail) -> ok.
+return_client(PoolName, ClientRef, Status) ->
+    pooler:return_member(PoolName, ClientRef, Status).
 
--spec pool_name(options()) -> atom().
-pool_name(#{name := Name}) ->
+-spec construct_pool_name(options()) -> atom().
+construct_pool_name(#{name := Name}) ->
     term_to_atom(Name).
 
 -spec term_to_atom(term()) -> atom().
 term_to_atom(Term) ->
     erlang:binary_to_atom(base64:encode(erlang:term_to_binary(Term)), latin1).
+
+-spec register_pool(options(), pid(), pool_name()) -> ok.
+register_pool(Options = #{name := Name}, Pid, PoolName) ->
+    PulseOptions = maps:with([name, pulse], Options),
+    true = gproc:reg_other(?GPROC_POOL_NAME(Name), Pid, PoolName),
+    true = gproc:reg_other(?GPROC_PULSE_OPTIONS(genlib:to_binary(PoolName)), Pid, PulseOptions),
+    ok.
+
+-spec pool_name(options()) -> pool_name().
+pool_name(#{name := Name}) ->
+    gproc:lookup_value(?GPROC_POOL_NAME(Name)).
+
+-spec pulse_options(binary()) -> pulse_options().
+pulse_options(PoolNameString) ->
+    gproc:lookup_value(?GPROC_PULSE_OPTIONS(PoolNameString)).
+
+%%
+%% pool events
+%%
+
+-type pooler_metric_type() :: counter | meter | histogram.
+
+-spec update_or_create([binary()], number(), pooler_metric_type(), []) -> ok.
+update_or_create([<<"pooler">>, PoolNameString, <<"error_no_members_count">>], _, _Counter, []) ->
+    #{name := Name, pulse := Handler} = pulse_options(PoolNameString),
+    mg_core_pulse:handle_beat(
+        Handler,
+        #mg_core_riak_connection_pool_state_reached{
+            name = Name,
+            state = no_free_connections
+        }
+    );
+update_or_create([<<"pooler">>, PoolNameString, <<"queue_max_reached">>], _, _Counter, []) ->
+    #{name := Name, pulse := Handler} = pulse_options(PoolNameString),
+    mg_core_pulse:handle_beat(
+        Handler,
+        #mg_core_riak_connection_pool_state_reached{
+            name = Name,
+            state = queue_limit_reached
+        }
+    );
+update_or_create([<<"pooler">>, PoolNameString, <<"starting_member_timeout">>], _, _Counter, []) ->
+    #{name := Name, pulse := Handler} = pulse_options(PoolNameString),
+    mg_core_pulse:handle_beat(
+        Handler,
+        #mg_core_riak_connection_pool_error{
+            name = Name,
+            reason = connect_timeout
+        }
+    );
+update_or_create([<<"pooler">>, PoolNameString, <<"killed_free_count">>], _, _Counter, []) ->
+    #{name := Name, pulse := Handler} = pulse_options(PoolNameString),
+    mg_core_pulse:handle_beat(
+        Handler,
+        #mg_core_riak_connection_pool_connection_killed{
+            name = Name,
+            state = free
+        }
+    );
+update_or_create([<<"pooler">>, PoolNameString, <<"killed_in_use_count">>], _, _Counter, []) ->
+    #{name := Name, pulse := Handler} = pulse_options(PoolNameString),
+    mg_core_pulse:handle_beat(
+        Handler,
+        #mg_core_riak_connection_pool_connection_killed{
+            name = Name,
+            state = in_use
+        }
+    );
+update_or_create(_MetricKey, _Value, _Type, []) ->
+    ok.
 
 %%
 %% logging

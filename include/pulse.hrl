@@ -278,6 +278,23 @@
     duration :: non_neg_integer()
 }).
 
+%% Riak connection pool events
+
+-record(mg_core_riak_connection_pool_state_reached, {
+    name :: mg_core_storage:name(),
+    state :: no_free_connections | queue_limit_reached
+}).
+
+-record(mg_core_riak_connection_pool_connection_killed, {
+    name :: mg_core_storage:name(),
+    state :: free | in_use
+}).
+
+-record(mg_core_riak_connection_pool_error, {
+    name :: mg_core_storage:name(),
+    reason :: connect_timeout
+}).
+
 %% Workers management
 
 -record(mg_core_worker_call_attempt, {
