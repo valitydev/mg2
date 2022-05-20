@@ -80,6 +80,7 @@
     | #mg_core_riak_client_search_start{}
     | #mg_core_riak_client_search_finish{}
     | #mg_core_riak_client_delete_start{}
+    | #mg_core_riak_client_delete_finish{}
     % Riak client call handling
     | #mg_core_riak_connection_pool_state_reached{}
     | #mg_core_riak_connection_pool_connection_killed{}
