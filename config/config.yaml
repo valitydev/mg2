@@ -136,11 +136,7 @@ logging:
     formatter:
         max_length: 1000
         max_printable_string_length: 80
-metrics:
-    publisher:
-        statsd:
-            host: "localhost"
-            port: 8125
+
 namespaces:
     mg_test_ns:
         # only for testing, default 0

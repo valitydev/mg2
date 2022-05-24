@@ -196,6 +196,38 @@ setup() ->
         {duration_unit, seconds},
         {help, "Machinegun riak client operation duration."}
     ]),
+    %% Riak pool events
+    true = prometheus_counter:declare([
+        {name, mg_riak_pool_no_free_connection_errors_total},
+        {registry, registry()},
+        {labels, [namespace, name]},
+        {help, "Total number of no free connection errors in Machinegun riak pool."}
+    ]),
+    true = prometheus_counter:declare([
+        {name, mg_riak_pool_queue_limit_reached_errors_total},
+        {registry, registry()},
+        {labels, [namespace, name]},
+        {help, "Total number of queue limit reached errors in Machinegun riak pool."}
+    ]),
+    true = prometheus_counter:declare([
+        {name, mg_riak_pool_connect_timeout_errors_total},
+        {registry, registry()},
+        {labels, [namespace, name]},
+        {help, "Total number of connect timeout errors in Machinegun riak pool."}
+    ]),
+    true = prometheus_counter:declare([
+        {name, mg_riak_pool_killed_free_connections_total},
+        {registry, registry()},
+        {labels, [namespace, name]},
+        {help, "Total number of killed free Machinegun riak pool connections."}
+    ]),
+    true = prometheus_counter:declare([
+        {name, mg_riak_pool_killed_in_use_connections_total},
+        {registry, registry()},
+        {labels, [namespace, name]},
+        {help, "Total number of killed used Machinegun riak pool connections."}
+    ]),
+    %% Event sink / kafka
     true = prometheus_counter:declare([
         {name, mg_events_sink_produced_total},
         {registry, registry()},
@@ -344,6 +376,23 @@ dispatch_metrics(#mg_core_riak_client_delete_start{name = {NS, _Caller, Type}}) 
 dispatch_metrics(#mg_core_riak_client_delete_finish{name = {NS, _Caller, Type}, duration = Duration}) ->
     ok = inc(mg_riak_client_operation_changes_total, [NS, Type, delete, finish]),
     ok = observe(mg_riak_client_operation_duration_seconds, [NS, Type, delete], Duration);
+% Riak pool events
+dispatch_metrics(#mg_core_riak_connection_pool_state_reached{
+    name = {NS, _Caller, Type},
+    state = no_free_connections
+}) ->
+    ok = inc(mg_riak_pool_no_free_connection_errors_total, [NS, Type]);
+dispatch_metrics(#mg_core_riak_connection_pool_state_reached{
+    name = {NS, _Caller, Type},
+    state = queue_limit_reached
+}) ->
+    ok = inc(mg_riak_pool_queue_limit_reached_errors_total, [NS, Type]);
+dispatch_metrics(#mg_core_riak_connection_pool_connection_killed{name = {NS, _Caller, Type}, state = free}) ->
+    ok = inc(mg_riak_pool_killed_free_connections_total, [NS, Type]);
+dispatch_metrics(#mg_core_riak_connection_pool_connection_killed{name = {NS, _Caller, Type}, state = in_use}) ->
+    ok = inc(mg_riak_pool_killed_in_use_connections_total, [NS, Type]);
+dispatch_metrics(#mg_core_riak_connection_pool_error{name = {NS, _Caller, Type}, reason = connect_timeout}) ->
+    ok = inc(mg_riak_pool_connect_timeout_errors_total, [NS, Type]);
 % Event sink operations
 dispatch_metrics(#mg_core_events_sink_kafka_sent{
     name = Name,

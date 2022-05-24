@@ -22,7 +22,6 @@
         kernel,
         stdlib,
         genlib,
-        how_are_you,
         yamerl,
         erl_health,
         prometheus,

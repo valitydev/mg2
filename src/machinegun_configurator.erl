@@ -109,7 +109,7 @@ events_machine_options(NS, NSs, EventSinkNS, Pulse) ->
         event_sink_options(SinkConfig, EventSinkNS, Pulse)
      || SinkConfig <- maps:get(event_sinks, NSConfigs, [])
     ],
-    EventsStorage = add_storage_metrics(NS, events, sub_storage_options(<<"events">>, Storage)),
+    EventsStorage = sub_storage_options(<<"events">>, Storage),
     #{
         namespace => NS,
         processor => processor(ProcessorConfig, Pulse),
@@ -132,7 +132,7 @@ machine_options(NS, Config, Pulse) ->
         ],
         Config
     ),
-    MachinesStorage = add_storage_metrics(NS, machines, sub_storage_options(<<"machines">>, Storage)),
+    MachinesStorage = sub_storage_options(<<"machines">>, Storage),
     Options#{
         namespace => NS,
         storage => MachinesStorage,
@@ -191,8 +191,8 @@ collect_event_sink_machines(NSs) ->
 -spec event_sink_namespace_options(event_sink_ns(), pulse()) -> mg_core_events_sink_machine:ns_options().
 event_sink_namespace_options(#{storage := Storage} = EventSinkNS, Pulse) ->
     NS = <<"_event_sinks">>,
-    MachinesStorage = add_storage_metrics(NS, machines, sub_storage_options(<<"machines">>, Storage)),
-    EventsStorage = add_storage_metrics(NS, events, sub_storage_options(<<"events">>, Storage)),
+    MachinesStorage = sub_storage_options(<<"machines">>, Storage),
+    EventsStorage = sub_storage_options(<<"events">>, Storage),
     EventSinkNS#{
         namespace => NS,
         pulse => Pulse,
@@ -214,10 +214,9 @@ worker_manager_options(Config) ->
 tags_options(NS, #{retries := Retries, storage := Storage} = Config, Pulse) ->
     TagsNS = mg_core_utils:concatenate_namespaces(NS, <<"tags">>),
     % по логике тут должен быть sub namespace, но его по историческим причинам нет
-    TagsStorage = add_storage_metrics(TagsNS, tags, Storage),
     #{
         namespace => TagsNS,
-        storage => TagsStorage,
+        storage => Storage,
         worker => worker_manager_options(Config),
         pulse => Pulse,
         retries => Retries
@@ -249,27 +248,3 @@ modernizer_options(#{current_format_version := CurrentFormatVersion, handler := 
     };
 modernizer_options(undefined, _Pulse) ->
     #{}.
-
--spec add_storage_metrics(mg_core:ns(), _Type, mg_core_machine:storage_options()) -> mg_core_machine:storage_options().
-add_storage_metrics(NS, Type, Storage0) ->
-    Storage1 = mg_core_utils:separate_mod_opts(Storage0, #{}),
-    do_add_storage_metrics(NS, Type, Storage1).
-
--spec do_add_storage_metrics(mg_core:ns(), atom(), mg_core_machine:storage_options()) ->
-    mg_core_machine:storage_options().
-do_add_storage_metrics(_NS, _Type, {mg_core_storage_memory, _} = Storage) ->
-    Storage;
-do_add_storage_metrics(NS, Type, {mg_core_storage_riak, Options}) ->
-    PoolOptions = maps:get(pool_options, Options, #{}),
-    NewOptions = Options#{
-        sidecar =>
-            {machinegun_riak_metric, #{
-                namespace => NS,
-                type => Type
-            }},
-        pool_options => PoolOptions#{
-            metrics_mod => machinegun_riak_metric,
-            metrics_api => exometer
-        }
-    },
-    {mg_core_storage_riak, NewOptions}.

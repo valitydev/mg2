@@ -17,7 +17,6 @@
 -module(machinegun_pulse).
 
 -include_lib("machinegun_woody_api/include/pulse.hrl").
--include_lib("machinegun_core/include/pulse.hrl").
 
 %% mg_pulse handler
 -behaviour(mg_core_pulse).
@@ -33,7 +32,6 @@
     | #woody_request_handle_error{}.
 
 -type options() :: #{
-    hay_options => machinegun_pulse_hay:options(),
     woody_event_handler_options => woody_event_handler:options()
 }.
 
@@ -47,5 +45,4 @@
 -spec handle_beat(options(), beat()) -> ok.
 handle_beat(Options, Beat) ->
     ok = machinegun_pulse_log:handle_beat(maps:get(woody_event_handler_options, Options, #{}), Beat),
-    ok = machinegun_pulse_hay:handle_beat(maps:get(hay_options, Options, #{}), Beat),
     ok = machinegun_pulse_prometheus:handle_beat(#{}, Beat).

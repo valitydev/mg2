@@ -37,5 +37,5 @@ stop(_State) ->
 
 -spec setup_metrics() -> ok.
 setup_metrics() ->
-    ok = machinegun_riak_metric:setup(),
-    ok = machinegun_pulse_prometheus:setup().
+    ok = machinegun_pulse_prometheus:setup(),
+    ok = machinegun_riak_prometheus:setup().

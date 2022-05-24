@@ -16,17 +16,16 @@
 
 -module(machinegun_test_processor).
 
--export([start/3]).
--export([start_link/3]).
+-export([start/2]).
+-export([start_link/2]).
 -export([default_result/2]).
 
 %% processor handlers
--include_lib("mg_proto/include/mg_proto_state_processing_thrift.hrl").
-
 -behaviour(woody_server_thrift_handler).
 
 -export([handle_function/4]).
 
+-export_type([handler_info/0]).
 -export_type([processor_functions/0]).
 -export_type([modernizer_function/0]).
 
@@ -61,30 +60,32 @@
 
 -type functions() :: processor_functions() | modernizer_functions().
 
--type host_address() :: inet:ip_address().
+-type handler_info() :: #{
+    endpoint := {inet:ip_address(), inet:port_number()}
+}.
 
 %%
 %% API
 %%
--spec start(host_address(), integer(), options()) -> mg_core_utils:gen_start_ret().
-start(Host, Port, Options) ->
-    case start_link(Host, Port, Options) of
-        {ok, ProcessorPid} ->
+-spec start(_Id, options()) -> {ok, pid(), handler_info()} | {error, _}.
+start(Id, Options) ->
+    case start_link(Id, Options) of
+        {ok, ProcessorPid, HandlerInfo} ->
             true = erlang:unlink(ProcessorPid),
-            {ok, ProcessorPid};
+            {ok, ProcessorPid, HandlerInfo};
         ErrorOrIgnore ->
             ErrorOrIgnore
     end.
 
--spec start_link(host_address(), integer(), options()) -> mg_core_utils:gen_start_ret().
-start_link(Host, Port, Options) ->
+-spec start_link(_Id, options()) -> {ok, pid(), handler_info()} | {error, _}.
+start_link(Id, Options) ->
     Flags = #{strategy => one_for_all},
     ChildsSpecs = [
         woody_server:child_spec(
-            ?MODULE,
+            Id,
             #{
-                ip => Host,
-                port => Port,
+                ip => {0, 0, 0, 0},
+                port => 0,
                 event_handler => {mg_woody_api_event_handler, {machinegun_pulse, #{}}},
                 handlers => maps:values(
                     maps:map(
@@ -100,7 +101,13 @@ start_link(Host, Port, Options) ->
             }
         )
     ],
-    mg_core_utils_supervisor_wrapper:start_link(Flags, ChildsSpecs).
+    case mg_core_utils_supervisor_wrapper:start_link(Flags, ChildsSpecs) of
+        {ok, SupPid} ->
+            Endpoint = woody_server:get_addr(Id, Options),
+            {ok, SupPid, #{endpoint => Endpoint}};
+        Error ->
+            Error
+    end.
 
 %%
 %% processor handlers

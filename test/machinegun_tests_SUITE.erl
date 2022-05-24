@@ -20,7 +20,6 @@
 -module(machinegun_tests_SUITE).
 
 -include_lib("common_test/include/ct.hrl").
--include_lib("stdlib/include/assert.hrl").
 -include_lib("mg_proto/include/mg_proto_state_processing_thrift.hrl").
 
 %% tests descriptions
@@ -99,11 +98,12 @@ groups() ->
 init_per_suite(C) ->
     % dbg:tracer(), dbg:p(all, c),
     % dbg:tpl({mg_machine, retry_strategy, '_'}, x),
-    C.
+    Apps = machinegun_ct_helper:start_applications([cowboy]),
+    [{suite_apps, Apps} | C].
 
 -spec end_per_suite(config()) -> ok.
-end_per_suite(_C) ->
-    ok.
+end_per_suite(C) ->
+    machinegun_ct_helper:stop_applications(?config(suite_apps, C)).
 
 -spec init_per_group(group_name(), config()) -> config().
 init_per_group(mwc, C) ->
@@ -119,14 +119,8 @@ init_per_group(_, C) ->
 -spec init_per_group(config()) -> config().
 init_per_group(C) ->
     %% TODO сделать нормальную генерацию урлов
-    Config = machinegun_config(C),
-    Apps = machinegun_ct_helper:start_applications([
-        brod,
-        {machinegun, Config}
-    ]),
-    {ok, ProcessorPid} = machinegun_test_processor:start(
-        {0, 0, 0, 0},
-        8023,
+    {ok, ProcessorPid, HandlerInfo} = machinegun_test_processor:start(
+        ?MODULE,
         genlib_map:compact(#{
             processor => {
                 "/processor",
@@ -138,7 +132,11 @@ init_per_group(C) ->
             }
         })
     ),
-
+    Config = machinegun_config(HandlerInfo, C),
+    Apps = machinegun_ct_helper:start_applications([
+        brod,
+        {machinegun, Config}
+    ]),
     [
         {apps, Apps},
         {automaton_options, #{
@@ -146,7 +144,6 @@ init_per_group(C) ->
             ns => ?NS,
             retry_strategy => genlib_retry:linear(3, 1)
         }},
-        {event_sink_options, "http://localhost:8022"},
         {processor_pid, ProcessorPid}
         | C
     ].
@@ -217,8 +214,8 @@ null() ->
 content(Body) ->
     {#{format_version => 42}, Body}.
 
--spec machinegun_config(config()) -> list().
-machinegun_config(C) ->
+-spec machinegun_config(machinegun_test_processor:handler_info(), config()) -> list().
+machinegun_config(#{endpoint := {IP, Port}}, C) ->
     Scheduler = #{
         scan_interval => #{continue => 500, completed => 15000},
         task_quota => <<"scheduler_tasks_total">>
@@ -236,7 +233,7 @@ machinegun_config(C) ->
             ?NS => #{
                 storage => ?config(storage, C),
                 processor => #{
-                    url => <<"http://localhost:8023/processor">>,
+                    url => genlib:format("http://~s:~p/processor", [inet:ntoa(IP), Port]),
                     transport_opts => #{pool => ns, max_connections => 100}
                 },
                 default_processing_timeout => 5000,

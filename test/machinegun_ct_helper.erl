@@ -19,17 +19,24 @@
 -define(CLIENT, mg_kafka_client).
 -define(BROKERS, [{"kafka1", 9092}, {"kafka2", 9092}, {"kafka3", 9092}]).
 
+-define(READINESS_RETRY_STRATEGY, genlib_retry:exponential(10, 2, 1000, 10000)).
+
 -export([config/1]).
 
 -export([start_application/1]).
 -export([start_applications/1]).
-
 -export([stop_applications/1]).
+
+-export([await_ready/1]).
+-export([riak_ready/0]).
+
+-export([assert_wait_ok/2]).
 -export([assert_wait_expected/3]).
 
 -export([build_storage/2]).
 
 -export([stop_wait_all/3]).
+-export([flush/0]).
 
 -export([handle_beat/2]).
 
@@ -74,6 +81,27 @@ stop_applications(AppNames) ->
 
 %%
 
+-spec await_ready(fun(() -> ok | _NotOk)) -> ok.
+await_ready(Fun) ->
+    assert_wait_ok(Fun, ?READINESS_RETRY_STRATEGY).
+
+-spec riak_ready() -> ok | {error, _}.
+riak_ready() ->
+    case riakc_pb_socket:start_link("riakdb", 8087) of
+        {ok, Ref} ->
+            pong = riakc_pb_socket:ping(Ref),
+            ok = riakc_pb_socket:stop(Ref),
+            ok;
+        Error ->
+            Error
+    end.
+
+%%
+
+-spec assert_wait_ok(fun(() -> ok | _NotOk), mg_core_retry:strategy()) -> ok.
+assert_wait_ok(Fun, Strategy) ->
+    assert_wait_expected(ok, Fun, Strategy).
+
 -spec assert_wait_expected(any(), function(), mg_core_retry:strategy()) -> ok.
 assert_wait_expected(Expected, Fun, Strategy) when is_function(Fun, 0) ->
     case Fun() of
@@ -117,6 +145,13 @@ await_stop([], _Reason, TRef) ->
     receive
         {timeout, TRef, _} -> ok
     after 0 -> ok
+    end.
+
+-spec flush() -> [term()].
+flush() ->
+    receive
+        Anything -> [Anything | flush()]
+    after 0 -> []
     end.
 
 %%
