@@ -1,5 +1,5 @@
 %%%
-%%% Copyright 2020 RBKmoney
+%%% Copyright 2020 Valitydev
 %%%
 %%% Licensed under the Apache License, Version 2.0 (the "License");
 %%% you may not use this file except in compliance with the License.
@@ -154,7 +154,7 @@ start_machine(C, ID) ->
 
 -spec create(config(), mg_core:id()) -> _.
 create(C, ID) ->
-    create_event(<<"event">>, C, ID),
+    _ = create_event(<<"event">>, C, ID),
     timer:sleep(1000),
     create(C, ID).
 

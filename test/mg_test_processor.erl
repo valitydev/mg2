@@ -1,5 +1,5 @@
 %%%
-%%% Copyright 2020 RBKmoney
+%%% Copyright 2020 Valitydev
 %%%
 %%% Licensed under the Apache License, Version 2.0 (the "License");
 %%% you may not use this file except in compliance with the License.
@@ -29,13 +29,13 @@
 -export_type([modernizer_function/0]).
 
 -type processor_signal_function() ::
-    fun((mg_core_events_machine:signal_args()) -> mg_events_machine:signal_result()).
+    fun((mg_core_events_machine:signal_args()) -> mg_core_events_machine:signal_result()).
 
 -type processor_call_function() ::
-    fun((mg_core_events_machine:call_args()) -> mg_events_machine:call_result()).
+    fun((mg_core_events_machine:call_args()) -> mg_core_events_machine:call_result()).
 
 -type processor_repair_function() ::
-    fun((mg_core_events_machine:repair_args()) -> mg_events_machine:repair_result()).
+    fun((mg_core_events_machine:repair_args()) -> mg_core_events_machine:repair_result()).
 
 -type processor_functions() :: #{
     signal => processor_signal_function(),
@@ -44,9 +44,7 @@
 }.
 
 -type modernizer_function() ::
-    fun(
-        (mg_core_events_modernizer:machine_event()) -> mg_events_modernizer:modernized_event_body()
-    ).
+    fun((mg_core_events_modernizer:machine_event()) -> mg_core_events_modernizer:modernized_event_body()).
 
 -type modernizer_functions() :: #{
     modernize => modernizer_function()
@@ -88,13 +86,9 @@ start_link(Host, Port, Options, MgWoodyApiConfig) ->
                     maps:map(
                         fun
                             (processor, {Path, Functions}) ->
-                                {Path,
-                                    {{mg_proto_state_processing_thrift, 'Processor'},
-                                        {?MODULE, Functions}}};
+                                {Path, {{mg_proto_state_processing_thrift, 'Processor'}, {?MODULE, Functions}}};
                             (modernizer, {Path, Functions}) ->
-                                {Path,
-                                    {{mg_proto_state_processing_thrift, 'Modernizer'},
-                                        {?MODULE, Functions}}}
+                                {Path, {{mg_proto_state_processing_thrift, 'Modernizer'}, {?MODULE, Functions}}}
                         end,
                         Options
                     )
@@ -120,7 +114,7 @@ handle_function('ProcessCall', {Args}, _WoodyContext, Functions) ->
     {ok, mg_woody_api_packer:pack(call_result, Result)};
 handle_function('ProcessRepair', {Args}, _WoodyContext, Functions) ->
     UnpackedArgs = mg_woody_api_packer:unpack(repair_args, Args),
-    Result = invoke_function(repair, Functions, UnpackedArgs),
+    {ok, Result} = invoke_function(repair, Functions, UnpackedArgs),
     {ok, mg_woody_api_packer:pack(repair_result, Result)};
 handle_function('ModernizeEvent', {Args}, _WoodyContext, Functions) ->
     MachineEvent = mg_woody_api_packer:unpack(machine_event, Args),
@@ -153,7 +147,7 @@ default_result(signal, _Args) ->
 default_result(call, _Args) ->
     {<<>>, {default_content(), []}, #{timer => undefined, tag => undefined}};
 default_result(repair, _Args) ->
-    {<<>>, {default_content(), []}, #{timer => undefined, tag => undefined}};
+    {ok, {<<>>, {default_content(), []}, #{timer => undefined, tag => undefined}}};
 default_result(modernize, #{event := #{body := Body}}) ->
     Body.
 

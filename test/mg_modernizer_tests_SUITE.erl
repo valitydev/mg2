@@ -1,5 +1,5 @@
 %%%
-%%% Copyright 2020 RBKmoney
+%%% Copyright 2020 Valitydev
 %%%
 %%% Licensed under the Apache License, Version 2.0 (the "License");
 %%% you may not use this file except in compliance with the License.
@@ -54,7 +54,7 @@ all() ->
         {group, modern_activities}
     ].
 
--spec groups() -> [{group_name(), list(_), test_name() | {group, group_name()}}].
+-spec groups() -> [{group_name(), list(_), [test_name() | {group, group_name()}]}].
 groups() ->
     [
         {activities, [sequence], [
@@ -90,7 +90,8 @@ init_per_suite(C) ->
     % dbg:tpl({machinegun_woody_api, '_', '_'}, x),
     Apps = mg_ct_helper:start_applications([gproc]),
     % Запускаем memory storage, который сможет "пережить" рестарты mg
-    {ok, StoragePid} = mg_core_storage_memory:start_link(#{name => ?MODULE}),
+    % FIMXE Why is pulse a required option??
+    {ok, StoragePid} = mg_core_storage_memory:start_link(#{name => ?MODULE, pulse => undefined}),
     true = erlang:unlink(StoragePid),
     [{suite_apps, Apps}, {storage_name, ?MODULE} | C].
 
@@ -157,9 +158,7 @@ mg_woody_api_config(Name, C) ->
     #{
         woody_server => #{
             ip => {0, 0, 0, 0, 0, 0, 0, 0},
-            port => 8022,
-            net_opts => [],
-            limits => #{}
+            port => 8022
         },
         namespaces => #{
             ?NS => maps:merge(
@@ -176,7 +175,8 @@ mg_woody_api_config(Name, C) ->
                     schedulers => #{
                         timers => #{}
                     },
-                    retries => #{}
+                    retries => #{},
+                    event_stash_size => 0
                 },
                 case Name of
                     legacy_activities ->

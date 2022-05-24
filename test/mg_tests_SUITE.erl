@@ -1,5 +1,5 @@
 %%%
-%%% Copyright 2020 RBKmoney
+%%% Copyright 2020 Valitydev
 %%%
 %%% Licensed under the Apache License, Version 2.0 (the "License");
 %%% you may not use this file except in compliance with the License.
@@ -296,7 +296,7 @@ default_repair_handler({Args, _Machine}) ->
         <<"business_error">> ->
             erlang:throw(#mg_stateproc_RepairFailed{reason = {bin, <<"because">>}});
         _ ->
-            {Args, {null(), []}, #{}}
+            {ok, {Args, {null(), []}, #{}}}
     end.
 
 -spec null() -> mg_core_events:content().
@@ -447,7 +447,7 @@ history_changed_atomically(C) ->
     HistoryRange = {undefined, HistoryLimit, backward},
     HistorySeen = [
         {EventID, EventBody}
-        || EventID <- lists:seq(HistoryLen, HistoryLen - HistoryLimit + 1, -1)
+     || EventID <- lists:seq(HistoryLen, HistoryLen - HistoryLimit + 1, -1)
     ],
     Concurrency = 50,
     MaxDelay = 500,
@@ -475,7 +475,7 @@ history_changed_atomically(C) ->
     ?assertEqual(#{}, maps:without([undefined, AtomicResult], Groups)).
 
 -spec get_simple_history(config(), mg_core:id(), mg_core_events:history_range()) ->
-    {[{mg_core_events:id(), mg_storage:opaque()}], mg_storage:opaque()}.
+    {[{mg_core_events:id(), mg_core_storage:opaque()}], mg_core_storage:opaque()}.
 get_simple_history(C, ID, HRange) ->
     try mg_automaton_client:get_machine(automaton_options(C), {id, ID}, HRange) of
         #{history := History, aux_state := {#{}, AuxState}} ->
@@ -624,11 +624,11 @@ event_sink_get_not_empty_history(C) ->
     }),
     GeneratedEvents = [
         E
-        || E = #mg_stateproc_SinkEvent{
-               source_id = ?ID,
-               source_ns = ?NS,
-               event = #mg_stateproc_Event{}
-           } <- AllEvents
+     || E = #mg_stateproc_SinkEvent{
+            source_id = ?ID,
+            source_ns = ?NS,
+            event = #mg_stateproc_Event{}
+        } <- AllEvents
     ],
     ?assert(erlang:length(GeneratedEvents) >= 3).
 
@@ -755,7 +755,7 @@ config_with_multiple_event_sinks(_C) ->
         #{strategy => rest_for_one},
         mg_test_configurator:construct_child_specs(Config)
     ),
-    ok = mg_ct_helper:stop_applications([Apps]).
+    ok = mg_ct_helper:stop_applications(Apps).
 
 %%
 %% utils
@@ -764,7 +764,7 @@ config_with_multiple_event_sinks(_C) ->
 start_machine(C, ID) ->
     start_machine(C, ID, ID).
 
--spec start_machine(config(), mg_core:id(), mg_core_event_machine:args()) -> ok.
+-spec start_machine(config(), mg_core:id(), term()) -> ok.
 start_machine(C, ID, Args) ->
     case catch mg_automaton_client:start(automaton_options(C), ID, Args) of
         ok ->

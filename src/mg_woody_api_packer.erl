@@ -1,5 +1,5 @@
 %%%
-%%% Copyright 2020 RBKmoney
+%%% Copyright 2020 Valitydev
 %%%
 %%% Licensed under the Apache License, Version 2.0 (the "License");
 %%% you may not use this file except in compliance with the License.
@@ -346,8 +346,7 @@ unpack(complex_action, ComplexAction) ->
 unpack(timer_action, {set_timer, SetTimerAction}) ->
     #mg_stateproc_SetTimerAction{timer = Timer, range = HRange, timeout = HandlingTimeout} =
         SetTimerAction,
-    {set_timer, unpack(timer, Timer), unpack(history_range, HRange),
-        unpack(integer, HandlingTimeout)};
+    {set_timer, unpack(timer, Timer), unpack(history_range, HRange), unpack(integer, HandlingTimeout)};
 unpack(timer_action, {unset_timer, #mg_stateproc_UnsetTimerAction{}}) ->
     unset_timer;
 unpack(tag_action, #mg_stateproc_TagAction{tag = Tag}) ->

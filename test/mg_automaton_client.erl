@@ -1,5 +1,5 @@
 %%%
-%%% Copyright 2020 RBKmoney
+%%% Copyright 2020 Valitydev
 %%%
 %%% Licensed under the Apache License, Version 2.0 (the "License");
 %%% you may not use this file except in compliance with the License.
@@ -42,7 +42,7 @@
     url := URL :: string(),
     ns := mg_core:ns(),
     retry_strategy => genlib_retry:strategy(),
-    transport_opts => woody_client_thrift_http_transport:options()
+    transport_opts => woody_client_thrift_http_transport:transport_options()
 }.
 
 -spec start(options(), mg_core:id(), mg_core_storage:opaque()) -> ok.
@@ -53,16 +53,16 @@ start(Options, ID, Args) ->
 start(#{ns := NS} = Options, ID, Args, Deadline) ->
     ok = call_service(Options, 'Start', {pack(ns, NS), pack(id, ID), pack(args, Args)}, Deadline).
 
--spec repair(options(), mg_core_events_machine:ref(), mg_storage:opaque()) -> ok.
+-spec repair(options(), mg_core_events_machine:ref(), mg_core_storage:opaque()) -> mg_core_storage:opaque().
 repair(Options, Ref, Args) ->
     repair(Options, Ref, Args, undefined).
 
 -spec repair(
     options(),
     mg_core_events_machine:ref(),
-    mg_storage:opaque(),
+    mg_core_storage:opaque(),
     mg_core_deadline:deadline()
-) -> ok.
+) -> mg_core_storage:opaque().
 repair(#{ns := NS} = Options, Ref, Args, Deadline) ->
     Response = call_service(Options, 'Repair', {machine_desc(NS, Ref), pack(args, Args)}, Deadline),
     unpack(repair_response, Response).
@@ -83,17 +83,17 @@ remove(Options, ID) ->
 remove(#{ns := NS} = Options, ID, Deadline) ->
     ok = call_service(Options, 'Remove', {pack(ns, NS), pack(id, ID)}, Deadline).
 
--spec call(options(), mg_core_events_machine:ref(), mg_storage:opaque()) ->
-    mg_core_events_machine:call_resp().
+-spec call(options(), mg_core_events_machine:ref(), mg_core_storage:opaque()) ->
+    mg_core_storage:opaque().
 call(Options, Ref, Args) ->
     call(Options, Ref, Args, undefined).
 
 -spec call(
     options(),
     mg_core_events_machine:ref(),
-    mg_storage:opaque(),
+    mg_core_storage:opaque(),
     mg_core_deadline:deadline()
-) -> mg_core_events_machine:call_resp().
+) -> mg_core_storage:opaque().
 call(#{ns := NS} = Options, Ref, Args, Deadline) ->
     unpack(
         call_response,
@@ -132,7 +132,7 @@ machine_desc(NS, Ref) ->
 machine_desc(NS, Ref, HRange) ->
     pack(machine_descriptor, {NS, Ref, HRange}).
 
--spec call_service(options(), atom(), [_Arg], mg_core_deadline:deadline()) -> any().
+-spec call_service(options(), atom(), woody:args(), mg_core_deadline:deadline()) -> any().
 call_service(#{retry_strategy := Strategy} = Options, Function, Args, Deadline) ->
     try woody_call(Options, Function, Args, Deadline) of
         {ok, R} ->
@@ -154,7 +154,7 @@ call_service(#{retry_strategy := Strategy} = Options, Function, Args, Deadline) 
 call_service(Options, Function, Args, Deadline) ->
     call_service(Options#{retry_strategy => finish}, Function, Args, Deadline).
 
--spec woody_call(options(), atom(), [_Arg], mg_core_deadline:deadline()) -> any().
+-spec woody_call(options(), atom(), woody:args(), mg_core_deadline:deadline()) -> any().
 woody_call(#{url := BaseURL} = Options, Function, Args, Deadline) ->
     TransportOptions = maps:get(transport_opts, Options, #{}),
     Context = mg_woody_api_utils:set_deadline(Deadline, woody_context:new()),

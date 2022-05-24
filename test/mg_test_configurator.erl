@@ -69,30 +69,30 @@ construct_child_specs(
 
 %%
 
--spec quotas_child_specs(config(), atom()) -> [supervisor:child_spec()].
+-spec quotas_child_specs(_, atom()) -> [supervisor:child_spec()].
 quotas_child_specs(Quotas, ChildID) ->
     [
         mg_core_quota_worker:child_spec(Options, {ChildID, maps:get(name, Options)})
-        || Options <- Quotas
+     || Options <- Quotas
     ].
 
--spec events_machines_child_specs(config(), _) -> [supervisor:child_spec()].
+-spec events_machines_child_specs(_, _) -> [supervisor:child_spec()].
 events_machines_child_specs(NSs, EventSinkNS) ->
     [
         mg_core_events_machine:child_spec(
             events_machine_options(NS, NSs, EventSinkNS),
             binary_to_atom(NS, utf8)
         )
-        || NS <- maps:keys(NSs)
+     || NS <- maps:keys(NSs)
     ].
 
--spec events_machine_options(mg_core:ns(), _, config()) -> mg_core_events_machine:options().
+-spec events_machine_options(mg_core:ns(), _, event_sink_ns()) -> mg_core_events_machine:options().
 events_machine_options(NS, NSs, EventSinkNS) ->
     NSConfigs = maps:get(NS, NSs),
     #{processor := ProcessorConfig, storage := Storage} = NSConfigs,
     EventSinks = [
         event_sink_options(SinkConfig, EventSinkNS)
-        || SinkConfig <- maps:get(event_sinks, NSConfigs, [])
+     || SinkConfig <- maps:get(event_sinks, NSConfigs, [])
     ],
     EventsStorage = sub_storage_options(<<"events">>, Storage),
     #{
@@ -128,7 +128,7 @@ machine_options(NS, Config) ->
         suicide_probability => maps:get(suicide_probability, Config, undefined)
     }.
 
--spec api_automaton_options(_, config()) -> mg_woody_api_automaton:options().
+-spec api_automaton_options(_, event_sink_ns()) -> mg_woody_api_automaton:options().
 api_automaton_options(NSs, EventSinkNS) ->
     maps:fold(
         fun(NS, ConfigNS, Options) ->
@@ -145,7 +145,7 @@ api_automaton_options(NSs, EventSinkNS) ->
         NSs
     ).
 
--spec event_sink_options(mg_core_events_sink:handler(), config()) -> mg_core_events_sink:handler().
+-spec event_sink_options(mg_core_events_sink:handler(), _) -> mg_core_events_sink:handler().
 event_sink_options({mg_core_events_sink_machine, EventSinkConfig}, EvSinks) ->
     EventSinkNS = event_sink_namespace_options(EvSinks),
     {mg_core_events_sink_machine, maps:merge(EventSinkNS, EventSinkConfig)};
@@ -155,7 +155,7 @@ event_sink_options({mg_core_events_sink_kafka, EventSinkConfig}, _Config) ->
         encoder => fun mg_woody_api_event_sink:serialize/3
     }}.
 
--spec event_sink_ns_child_spec(config(), atom()) -> supervisor:child_spec().
+-spec event_sink_ns_child_spec(_, atom()) -> supervisor:child_spec().
 event_sink_ns_child_spec(EventSinkNS, ChildID) ->
     mg_core_events_sink_machine:child_spec(event_sink_namespace_options(EventSinkNS), ChildID).
 
@@ -164,17 +164,17 @@ api_event_sink_options(NSs, EventSinkNS) ->
     EventSinkMachines = collect_event_sink_machines(NSs),
     {EventSinkMachines, event_sink_namespace_options(EventSinkNS)}.
 
--spec collect_event_sink_machines(config()) -> [mg_core:id()].
+-spec collect_event_sink_machines(_) -> [mg_core:id()].
 collect_event_sink_machines(NSs) ->
     NSConfigs = maps:values(NSs),
     EventSinks = ordsets:from_list([
         maps:get(machine_id, SinkConfig)
-        || NSConfig <- NSConfigs,
-           {mg_core_events_sink_machine, SinkConfig} <- maps:get(event_sinks, NSConfig, [])
+     || NSConfig <- NSConfigs,
+        {mg_core_events_sink_machine, SinkConfig} <- maps:get(event_sinks, NSConfig, [])
     ]),
     ordsets:to_list(EventSinks).
 
--spec event_sink_namespace_options(config()) -> mg_core_events_sink_machine:ns_options().
+-spec event_sink_namespace_options(_) -> mg_core_events_sink_machine:ns_options().
 event_sink_namespace_options(#{storage := Storage} = EventSinkNS) ->
     NS = <<"_event_sinks">>,
     MachinesStorage = sub_storage_options(<<"machines">>, Storage),

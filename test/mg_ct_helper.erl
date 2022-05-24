@@ -1,5 +1,5 @@
 %%%
-%%% Copyright 2020 RBKmoney
+%%% Copyright 2020 Valitydev
 %%%
 %%% Licensed under the Apache License, Version 2.0 (the "License");
 %%% you may not use this file except in compliance with the License.
@@ -34,6 +34,7 @@
 -export([handle_beat/2]).
 
 -type appname() :: atom().
+-type app() :: appname() | {appname(), [{atom(), _Value}]}.
 
 -type option() ::
     kafka_client_name.
@@ -43,7 +44,7 @@
 config(kafka_client_name) ->
     ?CLIENT.
 
--spec start_application(appname() | {appname(), [{atom(), _Value}]}) -> _Deps :: [appname()].
+-spec start_application(app()) -> _Deps :: [appname()].
 
 start_application(consuela) ->
     genlib_app:start_application_with(consuela, [
@@ -66,7 +67,7 @@ start_application({AppName, Env}) ->
 start_application(AppName) ->
     genlib_app:start_application(AppName).
 
--spec start_applications([appname()]) -> _Deps :: appname().
+-spec start_applications([app()]) -> [_Deps :: appname()].
 
 start_applications(Apps) ->
     lists:foldl(fun(App, Deps) -> Deps ++ start_application(App) end, [], Apps).
@@ -109,7 +110,7 @@ stop_wait_all(Pids, Reason, Timeout) ->
     _ = erlang:process_flag(trap_exit, FlagWas),
     ok.
 
--spec await_stop(pid(), _Reason, reference()) -> ok | timeout.
+-spec await_stop([pid()], _Reason, reference()) -> ok.
 await_stop([Pid | Rest], Reason, TRef) ->
     receive
         {'EXIT', Pid, Reason} ->
@@ -132,7 +133,7 @@ await_stop([], _Reason, TRef) ->
     (consuela_client:beat(), {client, category()}) -> ok;
     (consuela_session_keeper:beat(), {keeper, category()}) -> ok;
     (consuela_zombie_reaper:beat(), {reaper, category()}) -> ok;
-    (consuela_registry:beat(), {registry, category()}) -> ok.
+    (consuela_registry_server:beat(), {registry, category()}) -> ok.
 
 handle_beat(Beat, {Producer, Category}) ->
     ct:pal(Category, "[~p] ~p", [Producer, Beat]);
