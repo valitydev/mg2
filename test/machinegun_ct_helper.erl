@@ -83,11 +83,20 @@ stop_applications(AppNames) ->
 
 -spec await_ready(fun(() -> ok | _NotOk)) -> ok.
 await_ready(Fun) ->
-    assert_wait_ok(Fun, ?READINESS_RETRY_STRATEGY).
+    assert_wait_ok(
+        fun() ->
+            try
+                Fun()
+            catch
+                C:E:Stacktrace -> {C, E, Stacktrace}
+            end
+        end,
+        ?READINESS_RETRY_STRATEGY
+    ).
 
 -spec riak_ready() -> ok | {error, _}.
 riak_ready() ->
-    case riakc_pb_socket:start_link("riakdb", 8087) of
+    case riakc_pb_socket:start("riakdb", 8087) of
         {ok, Ref} ->
             pong = riakc_pb_socket:ping(Ref),
             ok = riakc_pb_socket:stop(Ref),
