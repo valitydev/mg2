@@ -46,11 +46,10 @@ init_per_suite(C) ->
         case Args of
             <<"event">> ->
                 {Args, {{#{}, <<>>}, [{#{}, <<"event_body">>}]}, #{
-                    timer => undefined,
-                    tag => undefined
+                    timer => undefined
                 }};
             _ ->
-                {Args, {{#{}, <<>>}, []}, #{timer => undefined, tag => undefined}}
+                {Args, {{#{}, <<>>}, []}, #{timer => undefined}}
         end
     end,
 

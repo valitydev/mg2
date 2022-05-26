@@ -39,8 +39,6 @@
 -export([machine_call_by_id/1]).
 -export([machine_id_not_found/1]).
 -export([machine_empty_id_not_found/1]).
--export([machine_set_tag/1]).
--export([machine_call_by_tag/1]).
 -export([machine_tag_not_found/1]).
 -export([machine_remove/1]).
 -export([machine_remove_by_action/1]).
@@ -82,8 +80,6 @@
 -define(NS, <<"NS">>).
 -define(ID, <<"ID">>).
 -define(EMPTY_ID, <<"">>).
--define(TAG, <<"tag">>).
--define(REF, {tag, ?TAG}).
 -define(ES_ID, <<"test_event_sink_2">>).
 
 -define(DEADLINE_TIMEOUT, 1000).
@@ -121,9 +117,7 @@ groups() ->
             machine_already_exists,
             machine_id_not_found,
             machine_call_by_id,
-            machine_set_tag,
             machine_tag_not_found,
-            machine_call_by_tag,
             machine_remove,
             machine_id_not_found,
             machine_start,
@@ -249,12 +243,12 @@ default_signal_handler({Args, _Machine}) ->
         {init, [<<"fire">>, HistoryLen, EventBody, AuxState]} ->
             {
                 {content(AuxState), [content(EventBody) || _ <- lists:seq(1, HistoryLen)]},
-                #{timer => undefined, tag => undefined}
+                #{timer => undefined}
             };
         {repair, <<"error">>} ->
             erlang:error(error);
         timeout ->
-            {{null(), [content(<<"handle_timer_body">>)]}, #{timer => undefined, tag => undefined}};
+            {{null(), [content(<<"handle_timer_body">>)]}, #{timer => undefined}};
         _ ->
             mg_test_processor:default_result(signal, Args)
     end.
@@ -270,8 +264,6 @@ default_call_handler({Args, #{history := History}}) ->
                 false -> {I, {null(), [content(I)]}, #{}};
                 true -> {I, {null(), []}, #{}}
             end;
-        <<"tag">> ->
-            {Args, {null(), [content(<<"tag_body">>)]}, #{tag => Args}};
         <<"nop">> ->
             {Args, {null(), []}, #{}};
         <<"set_timer">> ->
@@ -371,13 +363,13 @@ end_per_group(_, C) ->
 -spec namespace_not_found(config()) -> _.
 namespace_not_found(C) ->
     Opts = maps:update(ns, <<"incorrect_NS">>, automaton_options(C)),
-    #mg_stateproc_NamespaceNotFound{} = (catch mg_automaton_client:start(Opts, ?ID, ?TAG)).
+    #mg_stateproc_NamespaceNotFound{} = (catch mg_automaton_client:start(Opts, ?ID, <<>>)).
 
 -spec machine_start_empty_id(config()) -> _.
 machine_start_empty_id(C) ->
     % создание машины с невалидным ID не обрабатывается по протоколу
     {'EXIT', {{woody_error, _}, _}} =
-        (catch mg_automaton_client:start(automaton_options(C), ?EMPTY_ID, ?TAG)),
+        (catch mg_automaton_client:start(automaton_options(C), ?EMPTY_ID, <<>>)),
     ok.
 
 -spec machine_start(config()) -> _.
@@ -387,7 +379,7 @@ machine_start(C) ->
 -spec machine_already_exists(config()) -> _.
 machine_already_exists(C) ->
     #mg_stateproc_MachineAlreadyExists{} =
-        (catch mg_automaton_client:start(automaton_options(C), ?ID, ?TAG)).
+        (catch mg_automaton_client:start(automaton_options(C), ?ID, <<>>)).
 
 -spec machine_id_not_found(config()) -> _.
 machine_id_not_found(C) ->
@@ -404,19 +396,11 @@ machine_empty_id_not_found(C) ->
 machine_call_by_id(C) ->
     <<"nop">> = mg_automaton_client:call(automaton_options(C), {id, ?ID}, <<"nop">>).
 
--spec machine_set_tag(config()) -> _.
-machine_set_tag(C) ->
-    <<"tag">> = mg_automaton_client:call(automaton_options(C), {id, ?ID}, <<"tag">>).
-
 -spec machine_tag_not_found(config()) -> _.
 machine_tag_not_found(C) ->
     IncorrectTag = <<"incorrect_Tag">>,
     #mg_stateproc_MachineNotFound{} =
         (catch mg_automaton_client:call(automaton_options(C), {tag, IncorrectTag}, <<"nop">>)).
-
--spec machine_call_by_tag(config()) -> _.
-machine_call_by_tag(C) ->
-    <<"nop">> = mg_automaton_client:call(automaton_options(C), ?REF, <<"nop">>).
 
 -spec machine_remove(config()) -> _.
 machine_remove(C) ->

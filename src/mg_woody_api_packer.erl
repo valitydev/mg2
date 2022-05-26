@@ -79,11 +79,6 @@ pack(content, {Metadata, Data}) ->
 %% events and history
 pack(aux_state, AuxState) ->
     pack(content, AuxState);
-pack(aux_state_legacy, AuxState) ->
-    #mg_stateproc_Content{
-        data = Data
-    } = pack(aux_state, AuxState),
-    Data;
 pack(event_id, ID) ->
     pack(integer, ID);
 pack(event_body, Body) ->
@@ -131,7 +126,6 @@ pack(int_timer, {Timestamp, _, _, _}) ->
 pack(complex_action, ComplexAction) ->
     #mg_stateproc_ComplexAction{
         timer = pack(timer_action, maps:get(timer, ComplexAction, undefined)),
-        tag = pack(tag_action, maps:get(tag, ComplexAction, undefined)),
         remove = pack(remove_action, maps:get(remove, ComplexAction, undefined))
     };
 pack(timer_action, {set_timer, Timer, HRange, HandlingTimeout}) ->
@@ -142,8 +136,6 @@ pack(timer_action, {set_timer, Timer, HRange, HandlingTimeout}) ->
     }};
 pack(timer_action, unset_timer) ->
     {unset_timer, #mg_stateproc_UnsetTimerAction{}};
-pack(tag_action, Tag) ->
-    #mg_stateproc_TagAction{tag = pack(tag, Tag)};
 pack(remove_action, remove) ->
     #mg_stateproc_RemoveAction{};
 %% calls, signals, get_gistory
@@ -279,8 +271,6 @@ unpack(content, #mg_stateproc_Content{format_version = FormatVersion, data = Dat
 %% events and history
 unpack(aux_state, AuxState) ->
     unpack(content, AuxState);
-unpack(aux_state_legacy, AuxStateLegacy) ->
-    unpack(content, #mg_stateproc_Content{data = AuxStateLegacy});
 unpack(event_id, ID) ->
     unpack(integer, ID);
 unpack(event_body, Body) ->
@@ -335,12 +325,10 @@ unpack(int_timer, Timestamp) ->
 unpack(complex_action, ComplexAction) ->
     #mg_stateproc_ComplexAction{
         timer = TimerAction,
-        tag = TagAction,
         remove = RemoveAction
     } = ComplexAction,
     #{
         timer => unpack(timer_action, TimerAction),
-        tag => unpack(tag_action, TagAction),
         remove => unpack(remove_action, RemoveAction)
     };
 unpack(timer_action, {set_timer, SetTimerAction}) ->
@@ -349,8 +337,6 @@ unpack(timer_action, {set_timer, SetTimerAction}) ->
     {set_timer, unpack(timer, Timer), unpack(history_range, HRange), unpack(integer, HandlingTimeout)};
 unpack(timer_action, {unset_timer, #mg_stateproc_UnsetTimerAction{}}) ->
     unset_timer;
-unpack(tag_action, #mg_stateproc_TagAction{tag = Tag}) ->
-    unpack(tag, Tag);
 unpack(remove_action, #mg_stateproc_RemoveAction{}) ->
     remove;
 %% calls, signals, get_history
