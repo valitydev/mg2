@@ -152,11 +152,11 @@ invoke_function(Type, Functions, Args) ->
     (repair, term()) -> mg_core_events_machine:repair_result();
     (modernize, term()) -> mg_core_events_modernizer:modernized_event_body().
 default_result(signal, _Args) ->
-    {{default_content(), []}, #{timer => undefined, tag => undefined}};
+    {{default_content(), []}, #{timer => undefined}};
 default_result(call, _Args) ->
-    {<<>>, {default_content(), []}, #{timer => undefined, tag => undefined}};
+    {<<>>, {default_content(), []}, #{timer => undefined}};
 default_result(repair, _Args) ->
-    {<<>>, {default_content(), []}, #{timer => undefined, tag => undefined}};
+    {<<>>, {default_content(), []}, #{timer => undefined}};
 default_result(modernize, #{event := #{body := Body}}) ->
     Body.
 

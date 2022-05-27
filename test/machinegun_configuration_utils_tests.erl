@@ -35,6 +35,9 @@ print_vm_args_test_() ->
 -spec time_interval_test_() -> [testgen()].
 time_interval_test_() ->
     [
+        ?_assertEqual({1, 'ms'}, machinegun_configuration_utils:time_interval(<<"1ms">>)),
+        ?_assertEqual({1, 'mu'}, machinegun_configuration_utils:time_interval(<<"1mu">>)),
+        ?_assertEqual({1, 'sec'}, machinegun_configuration_utils:time_interval(<<"1s">>)),
         ?_assertEqual(86400, machinegun_configuration_utils:time_interval(<<"1d">>, sec)),
         ?_assertEqual(48, machinegun_configuration_utils:time_interval(<<"2d">>, hour)),
         ?_assertEqual(60000, machinegun_configuration_utils:time_interval(<<"1m">>, ms)),
@@ -53,6 +56,8 @@ mem_bytes_test_() ->
         ?_assertEqual(1024, machinegun_configuration_utils:mem_bytes(<<"1k">>)),
         ?_assertEqual(2097152, machinegun_configuration_utils:mem_bytes(<<"2M">>)),
         ?_assertEqual(0, machinegun_configuration_utils:mem_bytes(<<"0G">>)),
+        ?_assertEqual(96207267430400, machinegun_configuration_utils:mem_words(<<"700T">>)),
+        ?_assertEqual(188166021931073536, machinegun_configuration_utils:mem_words(<<"1337P">>)),
         ?_assertThrow(_, machinegun_configuration_utils:mem_bytes(<<"1">>)),
         ?_assertThrow(_, machinegun_configuration_utils:mem_bytes(<<"-7k">>)),
         ?_assertThrow(_, machinegun_configuration_utils:mem_bytes(<<"mlem">>))
