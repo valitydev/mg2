@@ -274,9 +274,7 @@ brod_client_ssl(SslConfig) ->
     [Opt || Opt = {_Key, Value} <- Opts, Value =/= undefined].
 
 hackney(_YamlConfig) ->
-    [
-        {mod_metrics, woody_client_metrics}
-    ].
+    [].
 
 machinegun(YamlConfig) ->
     [
