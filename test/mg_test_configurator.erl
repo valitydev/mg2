@@ -11,7 +11,7 @@
     processor := processor(),
     modernizer => modernizer(),
     % all but `worker_options.worker` option
-    worker => mg_core_workers_manager:options(),
+    worker => mg_core_workers_manager:ns_options(),
     storage := mg_core_machine:storage_options(),
     event_sinks => [mg_core_events_sink:handler()],
     retries := mg_core_machine:retry_opt(),
@@ -187,7 +187,7 @@ event_sink_namespace_options(#{storage := Storage} = EventSinkNS) ->
         worker => worker_manager_options(EventSinkNS)
     }.
 
--spec worker_manager_options(map()) -> mg_core_workers_manager:options().
+-spec worker_manager_options(map()) -> mg_core_workers_manager:ns_options().
 worker_manager_options(Config) ->
     maps:merge(
         #{

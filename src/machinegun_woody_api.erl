@@ -34,7 +34,8 @@
     port := inet:port_number(),
     transport_opts => woody_server_thrift_http_handler:transport_opts(),
     protocol_opts => woody_server_thrift_http_handler:protocol_opts(),
-    limits => woody_server_thrift_http_handler:handler_limits()
+    limits => woody_server_thrift_http_handler:handler_limits(),
+    shutdown_timeout => timeout()
 }.
 
 -type automaton() :: mg_woody_api_automaton:options().
@@ -57,22 +58,24 @@ child_spec(ID, Options) ->
         event_sink := EventSink,
         pulse := PulseHandler
     } = Options,
-    AdditionalRoutes = maps:get(additional_routes, Options, []),
-    woody_server:child_spec(
-        ID,
+    WoodyOptions = maps:merge(
         #{
             protocol => thrift,
             transport => http,
             ip => maps:get(ip, WoodyConfig),
             port => maps:get(port, WoodyConfig),
-            transport_opts => maps:get(transport_opts, WoodyConfig, #{}),
-            protocol_opts => maps:get(protocol_opts, WoodyConfig, #{}),
             event_handler => {mg_woody_api_event_handler, PulseHandler},
-            handler_limits => maps:get(limits, WoodyConfig, #{}),
             handlers => [
                 mg_woody_api_automaton:handler(Automaton),
                 mg_woody_api_event_sink:handler(EventSink)
-            ],
-            additional_routes => AdditionalRoutes
-        }
-    ).
+            ]
+        },
+        genlib_map:compact(#{
+            transport_opts => maps:get(transport_opts, WoodyConfig, undefined),
+            protocol_opts => maps:get(protocol_opts, WoodyConfig, undefined),
+            handler_limits => maps:get(limits, WoodyConfig, undefined),
+            additional_routes => maps:get(additional_routes, Options, undefined),
+            shutdown_timeout => maps:get(shutdown_timeout, WoodyConfig, undefined)
+        })
+    ),
+    woody_server:child_spec(ID, WoodyOptions).
