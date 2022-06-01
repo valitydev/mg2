@@ -26,6 +26,7 @@
 %%%
 -module(mg_core_workers_SUITE).
 -include_lib("common_test/include/ct.hrl").
+-include_lib("stdlib/include/assert.hrl").
 -include("ct_helper.hrl").
 
 %% tests descriptions
@@ -46,6 +47,10 @@
 -export([unload_loading_test/1]).
 -export([stress_test/1]).
 -export([manager_contention_test/1]).
+-export([graceful_shutdown_test/1]).
+-export([graceful_shutdown_infinite_test/1]).
+-export([graceful_shutdown_bad_test/1]).
+-export([graceful_shutdown_oot_test/1]).
 
 %% mg_core_worker
 -behaviour(mg_core_worker).
@@ -79,7 +84,11 @@ groups() ->
             unload_test,
             unload_loading_test,
             stress_test,
-            manager_contention_test
+            manager_contention_test,
+            graceful_shutdown_test,
+            graceful_shutdown_infinite_test,
+            graceful_shutdown_bad_test,
+            graceful_shutdown_oot_test
         ]}
     ].
 
@@ -225,6 +234,48 @@ unload_loading_test(C) ->
     ok = wait_worker_unload(WorkerPid, LoadLag + ?UNLOAD_TIMEOUT * 2),
     ok = stop_workers(Pid).
 
+-spec graceful_shutdown_test(config()) -> _.
+graceful_shutdown_test(C) ->
+    ShutdownTimeout = 1000,
+    CallLag = 500,
+    Options = workers_options(?UNLOAD_TIMEOUT, ShutdownTimeout, #{call_lag => CallLag}, C),
+    Pid = start_workers(Options),
+    ok = stop_workers_after(Pid, 100),
+    heyhey = mg_core_workers_manager:call(
+        Options, <<"42">>, heyhey, ?REQ_CTX, mg_core_deadline:default()
+    ),
+    _ = timer:sleep(?UNLOAD_TIMEOUT div 2),
+    false = mg_core_workers_manager:is_alive(Options, <<"42">>).
+
+-spec graceful_shutdown_infinite_test(config()) -> _.
+graceful_shutdown_infinite_test(C) ->
+    ShutdownTimeout = infinity,
+    CallLag = 2000,
+    Options = workers_options(?UNLOAD_TIMEOUT, ShutdownTimeout, #{call_lag => CallLag}, C),
+    Pid = start_workers(Options),
+    ok = stop_workers_after(Pid, 100),
+    heyhey = mg_core_workers_manager:call(
+        Options, <<"42">>, heyhey, ?REQ_CTX, mg_core_deadline:default()
+    ).
+
+-spec graceful_shutdown_bad_test(config()) -> _.
+graceful_shutdown_bad_test(C) ->
+    ShutdownTimeout0 = -10,
+    Options0 = workers_options(?UNLOAD_TIMEOUT, ShutdownTimeout0, #{}, C),
+    ?assertError(_, start_workers(Options0)),
+    ShutdownTimeout1 = blah,
+    Options1 = workers_options(?UNLOAD_TIMEOUT, ShutdownTimeout1, #{}, C),
+    ?assertError(_, start_workers(Options1)).
+
+-spec graceful_shutdown_oot_test(config()) -> _.
+graceful_shutdown_oot_test(C) ->
+    Options = workers_options(?UNLOAD_TIMEOUT, 100, #{call_lag => 1000}, C),
+    Pid = start_workers(Options),
+    ok = stop_workers_after(Pid, 100),
+    {error, {timeout, killed}} = mg_core_workers_manager:call(
+        Options, <<"42">>, heyhey, ?REQ_CTX, mg_core_deadline:default()
+    ).
+
 -spec wait_worker_pid(_ID) -> pid().
 wait_worker_pid(ID) ->
     wait_worker_pid(ID, 100).
@@ -293,6 +344,7 @@ manager_contention_test(C) ->
         manager_options => workers_options(
             UnloadTimeout,
             10 * Concurrency,
+            0,
             #{link_pid => erlang:self()},
             C
         )
@@ -401,11 +453,18 @@ stress_test_start_process(Options, Job, N, State) ->
 -spec workers_options(non_neg_integer(), worker_params(), config()) ->
     mg_core_workers_manager:options().
 workers_options(UnloadTimeout, WorkerParams, C) ->
-    workers_options(UnloadTimeout, 5000, WorkerParams, C).
+    workers_options(UnloadTimeout, 5000, 0, WorkerParams, C).
 
--spec workers_options(non_neg_integer(), non_neg_integer(), worker_params(), config()) ->
+-spec workers_options(non_neg_integer(), atom() | integer(), worker_params(), config()) ->
     mg_core_workers_manager:options().
-workers_options(UnloadTimeout, MsgQueueLen, WorkerParams, C) ->
+workers_options(UnloadTimeout, ShutdownTimeout, WorkerParams, C) ->
+    workers_options(UnloadTimeout, 5000, ShutdownTimeout, WorkerParams, C).
+
+-spec workers_options(
+    non_neg_integer(), non_neg_integer(), atom() | integer(), worker_params(), config()
+) ->
+    mg_core_workers_manager:options().
+workers_options(UnloadTimeout, MsgQueueLen, ShutdownTimeout, WorkerParams, C) ->
     #{
         name => <<"base_test_workers">>,
         pulse => undefined,
@@ -414,7 +473,8 @@ workers_options(UnloadTimeout, MsgQueueLen, WorkerParams, C) ->
         worker_options => #{
             worker => {?MODULE, WorkerParams},
             hibernate_timeout => UnloadTimeout div 2,
-            unload_timeout => UnloadTimeout
+            unload_timeout => UnloadTimeout,
+            shutdown_timeout => ShutdownTimeout
         }
     }.
 
@@ -429,7 +489,9 @@ workers_options(UnloadTimeout, MsgQueueLen, WorkerParams, C) ->
     % milliseconds
     load_lag => pos_integer(),
     load_error => term(),
-    fail_on => worker_stage()
+    fail_on => worker_stage(),
+    % milliseconds
+    call_lag => pos_integer()
 }.
 -type worker_state() :: worker_params().
 
@@ -445,6 +507,7 @@ handle_load(ID, Params, ?REQ_CTX) ->
 -spec handle_call(_Call, _From, _, _, worker_state()) -> {{reply, _Resp}, worker_state()}.
 handle_call(Call, _From, ?REQ_CTX, _Deadline, State) ->
     ok = try_exit(call, State),
+    ok = timer:sleep(maps:get(call_lag, State, 0)),
     {{reply, Call}, State}.
 
 -spec handle_unload(worker_state()) -> ok.
@@ -483,6 +546,14 @@ start_workers(Options) ->
 -spec stop_workers(pid()) -> ok.
 stop_workers(Pid) ->
     ok = proc_lib:stop(Pid, normal, 60 * 1000),
+    ok.
+
+-spec stop_workers_after(pid(), timeout()) -> ok.
+stop_workers_after(Pid, Timeout) ->
+    _ = spawn(fun() ->
+        _ = timer:sleep(Timeout),
+        stop_workers(Pid)
+    end),
     ok.
 
 -spec wait_machines_unload(pos_integer()) -> ok.

@@ -89,6 +89,9 @@ eunit:
 common-test:
 	$(REBAR) ct --cover
 
+common-test.%: test/mg_core_%_SUITE.erl
+	$(REBAR) ct --cover --suite=$^
+
 cover:
 	$(REBAR) covertool generate
 
