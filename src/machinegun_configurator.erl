@@ -94,12 +94,13 @@ quotas_child_specs(Quotas, ChildID) ->
      || Options <- Quotas
     ].
 
--spec events_machines_child_specs(namespaces(), event_sink_ns(), pulse()) -> [supervisor:child_spec()].
+-spec events_machines_child_specs(namespaces(), event_sink_ns(), pulse()) -> supervisor:child_spec().
 events_machines_child_specs(NSs, EventSinkNS, Pulse) ->
-    [
-        mg_core_events_machine:child_spec(events_machine_options(NS, NSs, EventSinkNS, Pulse), binary_to_atom(NS, utf8))
+    NsOptions = [
+        events_machine_options(NS, NSs, EventSinkNS, Pulse)
      || NS <- maps:keys(NSs)
-    ].
+    ],
+    machinegun_namespace_sup:child_spec(NsOptions, namespaces_sup).
 
 -spec events_machine_options(mg_core:ns(), namespaces(), event_sink_ns(), pulse()) -> mg_core_events_machine:options().
 events_machine_options(NS, NSs, EventSinkNS, Pulse) ->

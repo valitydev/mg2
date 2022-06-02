@@ -302,7 +302,8 @@ woody_server(YamlConfig) ->
         },
         limits   => genlib_map:compact(#{
             max_heap_size   => ?C:maybe(fun ?C:mem_words/1, ?C:conf([limits, process_heap], YamlConfig, undefined))
-        })
+        }),
+        shutdown_timeout => ?C:milliseconds(?C:conf([woody_server, shutdown_timeout], YamlConfig, <<"5s">>))
     }.
 
 health_check(YamlConfig) ->
@@ -411,7 +412,8 @@ namespace({Name, NSYamlConfig}, YamlConfig) ->
                 registry          => procreg(YamlConfig),
                 worker_options    => #{
                     hibernate_timeout => Timeout(hibernate_timeout,  <<"5s">>),
-                    unload_timeout    => Timeout(unload_timeout   , <<"60s">>)
+                    unload_timeout    => Timeout(unload_timeout   , <<"60s">>),
+                    shutdown_timeout  => Timeout(shutdown_timeout ,  <<"5s">>)
                 }
             }),
             default_processing_timeout => Timeout(default_processing_timeout, <<"30s">>),

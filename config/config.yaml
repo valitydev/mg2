@@ -38,6 +38,24 @@
 ###     For example, given `HOST_IP=10.0.42.42` one could define:
 ###       dist_node_name: machinegun@${HOST_IP}
 ###
+### * Graceful shutdowns.
+###
+###     There are multiple `shutdown_timeout` parameters defined in this example config:
+###      * one for the woody server
+###      * one for each machinegun namespace
+###      * and two for consuela presence and registry
+###     To calculate the actual maximum time this service takes to shut down gracefully
+###     you need to take the woody server `shutdown_timeout` parameter, add the maximum
+###     value between all of the `shutdown_timeout` parameters defined for each namespace,
+###     and then add the both of the consuela `shutdown_timeout`s:
+###
+###     max_shutdown_time =
+###         woody_server.shutdown_timeout +
+###         max(namespaces[].shutdown_timeout) +
+###         consuela.presence.shutdown_timeout +
+###         consuela.registry.shutdown_timeout
+###
+###
 
 # Name of the service.
 #
@@ -91,6 +109,7 @@ woody_server:
     ip: "::"
     port: 8022
     http_keep_alive_timeout: 60s
+    shutdown_timeout: 0s # woody server shutdown timeout (see notes above)
 
 # Distributed machine registry settings.
 #
@@ -99,12 +118,14 @@ woody_server:
 consuela:
     presence:
         check_interval: 5s
+        shutdown_timeout: 5s
         tags:
             - production
     registry:
         nodename: mhost1
         session_ttl: 30s
         session_renewal_interval: 10s
+        shutdown_timeout: 5s
     discovery: {}
 
 # Consul client settings.
@@ -153,6 +174,7 @@ namespaces:
         timer_processing_timeout: 60s
         reschedule_timeout: 60s
         hibernate_timeout: 5s
+        shutdown_timeout: 1s # worker shutdown timeout (see notes above)
         unload_timeout: 60s
         processor:
             url: http://localhost:8022/processor

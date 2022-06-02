@@ -100,10 +100,6 @@ end_per_suite(C) ->
     machinegun_ct_helper:stop_applications(?config(suite_apps, C)).
 
 -spec init_per_group(group_name(), config()) -> config().
-init_per_group(mwc, C) ->
-    init_per_group([{storage, mg_core_storage_memory} | C]);
-init_per_group(history, C) ->
-    init_per_group([{storage, mg_core_storage_memory} | C]);
 init_per_group(_, C) ->
     % NOTE
     % Даже такой небольшой шанс может сработать в ситуациях, когда мы в процессоре выгребаем большой кусок
