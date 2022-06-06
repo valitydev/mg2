@@ -193,15 +193,6 @@ events_machine_options(ProcessorOptions, NS) ->
         event_stash_size => 0,
         namespace => NS,
         processor => {?MODULE, ProcessorOptions},
-        tagging => #{
-            namespace => <<NS/binary, "_tags">>,
-            storage => Storage,
-            worker => #{
-                registry => mg_core_procreg_gproc
-            },
-            pulse => Pulse,
-            retries => #{}
-        },
         machines => #{
             namespace => NS,
             storage => mg_core_ct_helper:build_storage(NS, Storage),
@@ -228,7 +219,7 @@ modernize(Options, EventsMachineOptions, MachineID) ->
         Options,
         EventsMachineOptions,
         <<>>,
-        {id, MachineID},
+        MachineID,
         {undefined, undefined, forward}
     ).
 
@@ -240,7 +231,7 @@ get_history(Options, MachineID) ->
 -spec get_history(mg_core_events_machine:options(), mg_core:id(), mg_core_events:history_range()) ->
     history().
 get_history(Options, MachineID, HRange) ->
-    Machine = mg_core_events_machine:get_machine(Options, {id, MachineID}, HRange),
+    Machine = mg_core_events_machine:get_machine(Options, MachineID, HRange),
     {_AuxState, History} = decode_machine(Machine),
     History.
 

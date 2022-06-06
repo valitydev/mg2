@@ -237,18 +237,6 @@ events_machine_options(Options) ->
     #{
         namespace => NS,
         processor => maps:get(processor, Options),
-        tagging => #{
-            namespace => <<NS/binary, "_tags">>,
-            storage =>
-                {mg_core_storage_memory, #{
-                    existing_storage_name => ?MODULE
-                }},
-            worker => #{
-                registry => mg_core_procreg_gproc
-            },
-            pulse => ?MODULE,
-            retries => #{}
-        },
         machines => #{
             namespace => NS,
             storage =>
@@ -292,7 +280,7 @@ call(Options, MachineID, Args) ->
     MgOptions = events_machine_options(Options),
     Result = mg_core_events_machine:call(
         MgOptions,
-        {id, MachineID},
+        MachineID,
         encode(Args),
         HRange,
         <<>>,
@@ -307,7 +295,7 @@ get_history(Options, MachineID) ->
 -spec get_history(options(), mg_core:id(), mg_core_events:history_range()) -> [event()].
 get_history(Options, MachineID, HRange) ->
     MgOptions = events_machine_options(Options),
-    Machine = mg_core_events_machine:get_machine(MgOptions, {id, MachineID}, HRange),
+    Machine = mg_core_events_machine:get_machine(MgOptions, MachineID, HRange),
     {_AuxState, History} = decode_machine(Machine),
     History.
 

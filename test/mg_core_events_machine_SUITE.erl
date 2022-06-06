@@ -27,7 +27,6 @@
 %% tests
 -export([get_events_test/1]).
 -export([continuation_repair_test/1]).
--export([double_tag_repair_test/1]).
 -export([get_corrupted_machine_fails/1]).
 
 %% mg_core_events_machine handler
@@ -82,7 +81,6 @@ all() ->
     [
         get_events_test,
         continuation_repair_test,
-        double_tag_repair_test,
         get_corrupted_machine_fails
     ].
 
@@ -233,27 +231,6 @@ continuation_repair_test(_C) ->
     ok = repair(Options, MachineID, <<>>),
     _ = ?assertReceive({sink_events, [2, 3]}),
     ?assertEqual([{1, 1}, {2, 2}, {3, 3}], get_history(Options, MachineID)),
-    ok = stop_automaton(Pid).
-
--spec double_tag_repair_test(config()) -> any().
-double_tag_repair_test(_C) ->
-    NS = <<"test">>,
-    MachineID1 = <<"machine1">>,
-    MachineID2 = <<"machine2">>,
-    Tag = <<"haha got you">>,
-    ProcessorOptions = #{
-        signal_handler => fun({init, <<>>}, AuxState, []) -> {AuxState, [1], #{}} end,
-        call_handler => fun(tag, AuxState, [1]) -> {ok, AuxState, [2], #{tag => Tag}} end,
-        repair_handler => fun(<<>>, AuxState, [1, 2]) -> {ok, AuxState, [3], #{}} end
-    },
-    {Pid, Options} = start_automaton(ProcessorOptions, NS),
-    ok = start(Options, MachineID1, <<>>),
-    ok = start(Options, MachineID2, <<>>),
-    ?assertEqual(ok, call(Options, MachineID1, tag)),
-    ?assertException(throw, {logic, machine_failed}, call(Options, MachineID2, tag)),
-    ok = repair(Options, MachineID2, <<>>),
-    ?assertEqual([{1, 1}, {2, 2}], get_history(Options, MachineID1)),
-    ?assertEqual([{1, 1}, {2, 2}, {3, 3}], get_history(Options, MachineID2)),
     ok = stop_automaton(Pid).
 
 -spec get_corrupted_machine_fails(config()) -> any().
@@ -427,15 +404,6 @@ events_machine_options(Base, StorageOptions, ProcessorOptions, NS) ->
     Options#{
         namespace => NS,
         processor => {?MODULE, ProcessorOptions},
-        tagging => #{
-            namespace => <<NS/binary, "_tags">>,
-            storage => Storage,
-            worker => #{
-                registry => mg_core_procreg_gproc
-            },
-            pulse => Pulse,
-            retries => #{}
-        },
         machines => #{
             namespace => NS,
             storage => mg_core_ct_helper:build_storage(NS, Storage),
@@ -463,7 +431,7 @@ call(Options, MachineID, Args) ->
     Deadline = mg_core_deadline:from_timeout(3000),
     Response = mg_core_events_machine:call(
         Options,
-        {id, MachineID},
+        MachineID,
         encode(Args),
         HRange,
         <<>>,
@@ -477,7 +445,7 @@ repair(Options, MachineID, Args) ->
     Deadline = mg_core_deadline:from_timeout(3000),
     {ok, Response} = mg_core_events_machine:repair(
         Options,
-        {id, MachineID},
+        MachineID,
         encode(Args),
         HRange,
         <<>>,
@@ -504,7 +472,7 @@ get_machine(Options, MachineID) ->
 -spec get_machine(mg_core_events_machine:options(), mg_core:id(), mg_core_events:history_range()) ->
     {aux_state(), history()}.
 get_machine(Options, MachineID, HRange) ->
-    Machine = mg_core_events_machine:get_machine(Options, {id, MachineID}, HRange),
+    Machine = mg_core_events_machine:get_machine(Options, MachineID, HRange),
     decode_machine(Machine).
 
 -spec extract_events(history()) -> [event()].

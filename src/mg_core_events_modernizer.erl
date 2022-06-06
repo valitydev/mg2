@@ -47,19 +47,19 @@
 
 %%
 
--type ref() :: mg_core_events_machine:ref().
+-type id() :: mg_core_events_machine:id().
 -type history_range() :: mg_core_events:history_range().
 
 -spec modernize_machine(
     options(),
     mg_core_events_machine:options(),
     request_context(),
-    ref(),
+    id(),
     history_range()
 ) -> ok.
-modernize_machine(Options, EventsMachineOptions, ReqCtx, Ref, HRange) ->
+modernize_machine(Options, EventsMachineOptions, ReqCtx, ID, HRange) ->
     #{ns := NS, id := ID, history := History} =
-        mg_core_events_machine:get_machine(EventsMachineOptions, Ref, HRange),
+        mg_core_events_machine:get_machine(EventsMachineOptions, ID, HRange),
     OutdatedHistory = filter_outdated_history(Options, History),
     lists:foreach(
         fun(Event) ->
