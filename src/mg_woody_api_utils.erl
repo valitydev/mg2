@@ -34,7 +34,7 @@
 %%
 -type ctx() :: #{
     namespace := mg_core:ns() | undefined,
-    machine_ref := mg_core_events_machine:ref(),
+    machine_id := mg_core_events_machine:id(),
     deadline := mg_core_deadline:deadline(),
     request_context := mg_core:request_context()
 }.
@@ -55,13 +55,13 @@ handle_error(Ctx, F, Pulse) ->
             Exception = {throw, Error, ST},
             #{
                 namespace := NS,
-                machine_ref := Ref,
+                machine_id := ID,
                 request_context := ReqCtx,
                 deadline := Deadline
             } = Ctx,
             ok = mg_core_pulse:handle_beat(Pulse, #woody_request_handle_error{
                 namespace = NS,
-                machine_ref = Ref,
+                machine_id = ID,
                 request_context = ReqCtx,
                 deadline = Deadline,
                 exception = Exception

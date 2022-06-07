@@ -98,7 +98,6 @@ events_machine_options(NS, NSs, EventSinkNS) ->
     #{
         namespace => NS,
         processor => processor(ProcessorConfig),
-        tagging => tags_options(NS, NSConfigs),
         machines => machine_options(NS, NSConfigs),
         events_storage => EventsStorage,
         event_sinks => EventSinks,
@@ -196,19 +195,6 @@ worker_manager_options(Config) ->
         },
         maps:get(worker, Config, #{})
     ).
-
--spec tags_options(mg_core:ns(), events_machines()) -> mg_core_machine_tags:options().
-tags_options(NS, #{retries := Retries, storage := Storage} = Config) ->
-    TagsNS = mg_core_utils:concatenate_namespaces(NS, <<"tags">>),
-    % по логике тут должен быть sub namespace, но его по историческим причинам нет
-    TagsStorage = mg_core_utils:separate_mod_opts(Storage, #{}),
-    #{
-        namespace => TagsNS,
-        storage => TagsStorage,
-        worker => worker_manager_options(Config),
-        pulse => pulse(),
-        retries => Retries
-    }.
 
 -spec processor(processor()) -> mg_core_utils:mod_opts().
 processor(Processor) ->

@@ -159,7 +159,7 @@ create(C, ID) ->
 
 -spec create_event(binary(), config(), mg_core:id()) -> _.
 create_event(Event, C, ID) ->
-    Event = mg_automaton_client:call(automaton_options(C), {id, ID}, Event).
+    Event = mg_automaton_client:call(automaton_options(C), ID, Event).
 
 -spec automaton_options(config()) -> _.
 automaton_options(C) -> ?config(automaton_options, C).

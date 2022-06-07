@@ -55,8 +55,6 @@ pack(ns, NS) ->
     pack(binary, NS);
 pack(id, ID) ->
     pack(binary, ID);
-pack(tag, Tag) ->
-    pack(binary, Tag);
 pack(args, Args) ->
     pack(opaque, Args);
 pack(timeout, Timeout) ->
@@ -65,10 +63,8 @@ pack(timer, {deadline, Deadline}) ->
     {deadline, pack(datetime, Deadline)};
 pack(timer, {timeout, Timeout}) ->
     {timeout, pack(timeout, Timeout)};
-pack(ref, {id, ID}) ->
+pack(ref, ID) ->
     {id, pack(id, ID)};
-pack(ref, {tag, Tag}) ->
-    {tag, pack(tag, Tag)};
 pack(direction, Direction) ->
     Direction;
 pack(content, {Metadata, Data}) ->
@@ -245,8 +241,6 @@ unpack(ns, NS) ->
     unpack(binary, NS);
 unpack(id, ID) ->
     unpack(binary, ID);
-unpack(tag, Tag) ->
-    unpack(binary, Tag);
 unpack(args, Args) ->
     unpack(opaque, Args);
 unpack(timeout, Timeout) ->
@@ -256,9 +250,7 @@ unpack(timer, {deadline, Deadline}) ->
 unpack(timer, {timeout, Timeout}) ->
     {timeout, unpack(timeout, Timeout)};
 unpack(ref, {id, ID}) ->
-    {id, unpack(id, ID)};
-unpack(ref, {tag, Tag}) ->
-    {tag, unpack(tag, Tag)};
+    unpack(id, ID);
 unpack(direction, Direction) ->
     Direction;
 unpack(content, #mg_stateproc_Content{format_version = FormatVersion, data = Data}) ->

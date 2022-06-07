@@ -51,7 +51,7 @@ handle_function('GetHistory', {EventSinkID, Range}, WoodyContext, {AvaliableEven
         mg_woody_api_utils:handle_error(
             #{
                 namespace => undefined,
-                machine_ref => EventSinkID,
+                machine_id => EventSinkID,
                 request_context => ReqCtx,
                 deadline => Deadline
             },

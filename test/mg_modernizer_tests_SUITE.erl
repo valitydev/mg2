@@ -308,34 +308,34 @@ no_modernize_avail(C) ->
     Options = ?config(automaton_options, C),
     % TODO
     #mg_stateproc_NamespaceNotFound{} =
-        (catch mg_automaton_client:modernize(Options, {id, ?ID}, {undefined, undefined, forward})).
+        (catch mg_automaton_client:modernize(Options, ?ID, {undefined, undefined, forward})).
 
 -spec modernize_machine_part(config()) -> _.
 modernize_machine_part(C) ->
     Options = ?config(automaton_options, C),
-    ok = mg_automaton_client:modernize(Options, {id, ?ID}, {undefined, 1, forward}).
+    ok = mg_automaton_client:modernize(Options, ?ID, {undefined, 1, forward}).
 
 -spec modernize_machine(config()) -> _.
 modernize_machine(C) ->
     Options = ?config(automaton_options, C),
-    ok = mg_automaton_client:modernize(Options, {id, ?ID}, {undefined, undefined, forward}).
+    ok = mg_automaton_client:modernize(Options, ?ID, {undefined, undefined, forward}).
 
 -spec count_elements(config()) -> _.
 count_elements(C) ->
     Options = ?config(automaton_options, C),
-    Machine = mg_automaton_client:get_machine(Options, {id, ?ID}, {undefined, undefined, forward}),
+    Machine = mg_automaton_client:get_machine(Options, ?ID, {undefined, undefined, forward}),
     Count = count(collapse(Machine, C)),
     true = is_integer(Count) and (Count >= 0).
 
 -spec store_fixed_element(config()) -> _.
 store_fixed_element(C) ->
     Options = ?config(automaton_options, C),
-    true = mg_automaton_client:call(Options, {id, ?ID}, [<<"store">>, ?FIXED_ELEMENT]).
+    true = mg_automaton_client:call(Options, ?ID, [<<"store">>, ?FIXED_ELEMENT]).
 
 -spec store_random_element(config()) -> _.
 store_random_element(C) ->
     Options = ?config(automaton_options, C),
-    true = mg_automaton_client:call(Options, {id, ?ID}, [
+    true = mg_automaton_client:call(Options, ?ID, [
         <<"store">>,
         [<<"BLARG">>, rand:uniform(1000000)]
     ]).
@@ -343,5 +343,5 @@ store_random_element(C) ->
 -spec lookup_fixed_element(config()) -> _.
 lookup_fixed_element(C) ->
     Options = ?config(automaton_options, C),
-    Machine = mg_automaton_client:get_machine(Options, {id, ?ID}, {undefined, undefined, forward}),
+    Machine = mg_automaton_client:get_machine(Options, ?ID, {undefined, undefined, forward}),
     true = lookup(?FIXED_ELEMENT, collapse(Machine, C)).

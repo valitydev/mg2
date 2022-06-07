@@ -1,6 +1,6 @@
 -record(woody_request_handle_error, {
     namespace :: mg_core:ns(),
-    machine_ref :: mg_core_events_machine:ref(),
+    machine_id :: mg_core_events_machine:id(),
     request_context :: mg_core:request_context(),
     deadline :: mg_core_deadline:deadline(),
     exception :: mg_core_utils:exception()

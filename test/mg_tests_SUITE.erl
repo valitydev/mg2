@@ -39,7 +39,6 @@
 -export([machine_call_by_id/1]).
 -export([machine_id_not_found/1]).
 -export([machine_empty_id_not_found/1]).
--export([machine_tag_not_found/1]).
 -export([machine_remove/1]).
 -export([machine_remove_by_action/1]).
 
@@ -117,7 +116,6 @@ groups() ->
             machine_already_exists,
             machine_id_not_found,
             machine_call_by_id,
-            machine_tag_not_found,
             machine_remove,
             machine_id_not_found,
             machine_start,
@@ -385,22 +383,16 @@ machine_already_exists(C) ->
 machine_id_not_found(C) ->
     IncorrectID = <<"incorrect_ID">>,
     #mg_stateproc_MachineNotFound{} =
-        (catch mg_automaton_client:call(automaton_options(C), {id, IncorrectID}, <<"nop">>)).
+        (catch mg_automaton_client:call(automaton_options(C), IncorrectID, <<"nop">>)).
 
 -spec machine_empty_id_not_found(config()) -> _.
 machine_empty_id_not_found(C) ->
     #mg_stateproc_MachineNotFound{} =
-        (catch mg_automaton_client:call(automaton_options(C), {id, ?EMPTY_ID}, <<"nop">>)).
+        (catch mg_automaton_client:call(automaton_options(C), ?EMPTY_ID, <<"nop">>)).
 
 -spec machine_call_by_id(config()) -> _.
 machine_call_by_id(C) ->
-    <<"nop">> = mg_automaton_client:call(automaton_options(C), {id, ?ID}, <<"nop">>).
-
--spec machine_tag_not_found(config()) -> _.
-machine_tag_not_found(C) ->
-    IncorrectTag = <<"incorrect_Tag">>,
-    #mg_stateproc_MachineNotFound{} =
-        (catch mg_automaton_client:call(automaton_options(C), {tag, IncorrectTag}, <<"nop">>)).
+    <<"nop">> = mg_automaton_client:call(automaton_options(C), ?ID, <<"nop">>).
 
 -spec machine_remove(config()) -> _.
 machine_remove(C) ->
@@ -408,10 +400,10 @@ machine_remove(C) ->
 
 -spec machine_remove_by_action(config()) -> _.
 machine_remove_by_action(C) ->
-    <<"nop">> = mg_automaton_client:call(automaton_options(C), {id, ?ID}, <<"nop">>),
+    <<"nop">> = mg_automaton_client:call(automaton_options(C), ?ID, <<"nop">>),
     <<"remove">> =
         try
-            mg_automaton_client:call(automaton_options(C), {id, ?ID}, <<"remove">>)
+            mg_automaton_client:call(automaton_options(C), ?ID, <<"remove">>)
         catch
             throw:#mg_stateproc_MachineNotFound{} ->
                 % The request had been retried
@@ -461,7 +453,7 @@ history_changed_atomically(C) ->
 -spec get_simple_history(config(), mg_core:id(), mg_core_events:history_range()) ->
     {[{mg_core_events:id(), mg_core_storage:opaque()}], mg_core_storage:opaque()}.
 get_simple_history(C, ID, HRange) ->
-    try mg_automaton_client:get_machine(automaton_options(C), {id, ID}, HRange) of
+    try mg_automaton_client:get_machine(automaton_options(C), ID, HRange) of
         #{history := History, aux_state := {#{}, AuxState}} ->
             {
                 [{EventID, Body} || #{id := EventID, body := {#{}, Body}} <- History],
@@ -491,22 +483,22 @@ machine_start_timeout(C) ->
             mg_core_deadline:from_timeout(1000)
         )),
     #mg_stateproc_MachineNotFound{} =
-        (catch mg_automaton_client:call(automaton_options(C), {id, ?ID}, <<"nop">>)).
+        (catch mg_automaton_client:call(automaton_options(C), ?ID, <<"nop">>)).
 
 -spec machine_processor_error(config()) -> _.
 machine_processor_error(C) ->
     #mg_stateproc_MachineFailed{} =
-        (catch mg_automaton_client:call(automaton_options(C), {id, ?ID}, <<"fail">>)).
+        (catch mg_automaton_client:call(automaton_options(C), ?ID, <<"fail">>)).
 
 -spec failed_machine_call(config()) -> _.
 failed_machine_call(C) ->
     #mg_stateproc_MachineFailed{} =
-        (catch mg_automaton_client:call(automaton_options(C), {id, ?ID}, <<"ok">>)).
+        (catch mg_automaton_client:call(automaton_options(C), ?ID, <<"ok">>)).
 
 -spec failed_machine_repair_error(config()) -> _.
 failed_machine_repair_error(C) ->
     #mg_stateproc_MachineFailed{} =
-        (catch mg_automaton_client:repair(automaton_options(C), {id, ?ID}, <<"error">>)).
+        (catch mg_automaton_client:repair(automaton_options(C), ?ID, <<"error">>)).
 
 % -spec failed_machine_repair_business_error(config()) ->
 %     _.
@@ -516,16 +508,16 @@ failed_machine_repair_error(C) ->
 
 -spec failed_machine_repair(config()) -> _.
 failed_machine_repair(C) ->
-    <<"ok">> = mg_automaton_client:repair(automaton_options(C), {id, ?ID}, <<"ok">>).
+    <<"ok">> = mg_automaton_client:repair(automaton_options(C), ?ID, <<"ok">>).
 
 -spec failed_machine_simple_repair(config()) -> _.
 failed_machine_simple_repair(C) ->
-    ok = mg_automaton_client:simple_repair(automaton_options(C), {id, ?ID}).
+    ok = mg_automaton_client:simple_repair(automaton_options(C), ?ID).
 
 -spec working_machine_repair(config()) -> _.
 working_machine_repair(C) ->
     #mg_stateproc_MachineAlreadyWorking{} =
-        (catch mg_automaton_client:repair(automaton_options(C), {id, ?ID}, <<"ok">>)).
+        (catch mg_automaton_client:repair(automaton_options(C), ?ID, <<"ok">>)).
 
 %%
 %% timer
@@ -536,14 +528,14 @@ handle_timer(C) ->
     % retry with extremely short timeout
     Options1 = Options0#{retry_strategy => genlib_retry:linear(3, 1)},
     #{history := InitialEvents} =
-        mg_automaton_client:get_machine(Options1, {id, ?ID}, {undefined, undefined, forward}),
-    <<"set_timer">> = mg_automaton_client:call(Options1, {id, ?ID}, <<"set_timer">>),
+        mg_automaton_client:get_machine(Options1, ?ID, {undefined, undefined, forward}),
+    <<"set_timer">> = mg_automaton_client:call(Options1, ?ID, <<"set_timer">>),
     #{history := History1} =
-        mg_automaton_client:get_machine(Options1, {id, ?ID}, {undefined, undefined, forward}),
+        mg_automaton_client:get_machine(Options1, ?ID, {undefined, undefined, forward}),
     [StartTimerEvent] = History1 -- InitialEvents,
     ok = timer:sleep(2000),
     #{history := History2} =
-        mg_automaton_client:get_machine(Options1, {id, ?ID}, {undefined, undefined, forward}),
+        mg_automaton_client:get_machine(Options1, ?ID, {undefined, undefined, forward}),
     [StartTimerEvent, _] = History2 -- InitialEvents.
 
 -spec abort_timer(config()) -> _.
@@ -551,20 +543,16 @@ abort_timer(C) ->
     #{history := InitialEvents} =
         mg_automaton_client:get_machine(
             automaton_options(C),
-            {id, ?ID},
+            ?ID,
             {undefined, undefined, forward}
         ),
-    <<"set_timer">> = mg_automaton_client:call(automaton_options(C), {id, ?ID}, <<"set_timer">>),
-    <<"unset_timer">> = mg_automaton_client:call(
-        automaton_options(C),
-        {id, ?ID},
-        <<"unset_timer">>
-    ),
+    <<"set_timer">> = mg_automaton_client:call(automaton_options(C), ?ID, <<"set_timer">>),
+    <<"unset_timer">> = mg_automaton_client:call(automaton_options(C), ?ID, <<"unset_timer">>),
     ok = timer:sleep(2000),
     #{history := History1} =
         mg_automaton_client:get_machine(
             automaton_options(C),
-            {id, ?ID},
+            ?ID,
             {undefined, undefined, forward}
         ),
     [_] = History1 -- InitialEvents.
@@ -578,15 +566,15 @@ timeout_call_with_deadline(C) ->
     Options0 = no_timeout_automaton_options(C),
     Options1 = maps:remove(retry_strategy, Options0),
     {'EXIT', {{woody_error, {external, result_unknown, <<"{timeout", _/binary>>}}, _Stack}} =
-        (catch mg_automaton_client:call(Options1, {id, ?ID}, <<"sleep">>, DeadlineFn())),
+        (catch mg_automaton_client:call(Options1, ?ID, <<"sleep">>, DeadlineFn())),
     #mg_stateproc_MachineAlreadyWorking{} =
-        (catch mg_automaton_client:repair(Options0, {id, ?ID}, <<"ok">>, DeadlineFn())).
+        (catch mg_automaton_client:repair(Options0, ?ID, <<"ok">>, DeadlineFn())).
 
 -spec success_call_with_deadline(config()) -> _.
 success_call_with_deadline(C) ->
     Deadline = mg_core_deadline:from_timeout(?DEADLINE_TIMEOUT * 3),
     Options = no_timeout_automaton_options(C),
-    <<"sleep">> = mg_automaton_client:call(Options, {id, ?ID}, <<"sleep">>, Deadline).
+    <<"sleep">> = mg_automaton_client:call(Options, ?ID, <<"sleep">>, Deadline).
 
 %%
 %% event_sink group test
@@ -759,7 +747,7 @@ start_machine(C, ID, Args) ->
 
 -spec create_event(mg_core_storage:opaque(), config(), mg_core:id()) -> _.
 create_event(Event, C, ID) ->
-    mg_automaton_client:call(automaton_options(C), {id, ID}, Event).
+    mg_automaton_client:call(automaton_options(C), ID, Event).
 
 -spec create_events(integer(), config(), mg_core:id()) -> _.
 create_events(N, C, ID) ->
