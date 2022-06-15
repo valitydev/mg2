@@ -38,7 +38,6 @@
 -export([machine_call_by_id/1]).
 -export([machine_id_not_found/1]).
 -export([machine_empty_id_not_found/1]).
--export([machine_tag_not_found/1]).
 -export([machine_remove/1]).
 -export([machine_remove_by_action/1]).
 
@@ -76,7 +75,6 @@ groups() ->
             machine_already_exists,
             machine_id_not_found,
             machine_call_by_id,
-            machine_tag_not_found,
             machine_remove,
             machine_id_not_found,
             machine_start,
@@ -292,22 +290,16 @@ machine_id_not_found(C) ->
     _ = code:load_file(mg_core_storage_memory),
     IncorrectID = <<"incorrect_ID">>,
     #mg_stateproc_MachineNotFound{} =
-        (catch machinegun_automaton_client:call(automaton_options(C), {id, IncorrectID}, <<"nop">>)).
+        (catch machinegun_automaton_client:call(automaton_options(C), IncorrectID, <<"nop">>)).
 
 -spec machine_empty_id_not_found(config()) -> _.
 machine_empty_id_not_found(C) ->
     #mg_stateproc_MachineNotFound{} =
-        (catch machinegun_automaton_client:call(automaton_options(C), {id, ?EMPTY_ID}, <<"nop">>)).
+        (catch machinegun_automaton_client:call(automaton_options(C), ?EMPTY_ID, <<"nop">>)).
 
 -spec machine_call_by_id(config()) -> _.
 machine_call_by_id(C) ->
-    <<"nop">> = machinegun_automaton_client:call(automaton_options(C), {id, ?ID}, <<"nop">>).
-
--spec machine_tag_not_found(config()) -> _.
-machine_tag_not_found(C) ->
-    IncorrectTag = <<"incorrect_Tag">>,
-    #mg_stateproc_MachineNotFound{} =
-        (catch machinegun_automaton_client:call(automaton_options(C), {tag, IncorrectTag}, <<"nop">>)).
+    <<"nop">> = machinegun_automaton_client:call(automaton_options(C), ?ID, <<"nop">>).
 
 -spec machine_remove(config()) -> _.
 machine_remove(C) ->
@@ -315,10 +307,10 @@ machine_remove(C) ->
 
 -spec machine_remove_by_action(config()) -> _.
 machine_remove_by_action(C) ->
-    <<"nop">> = machinegun_automaton_client:call(automaton_options(C), {id, ?ID}, <<"nop">>),
+    <<"nop">> = machinegun_automaton_client:call(automaton_options(C), ?ID, <<"nop">>),
     <<"remove">> =
         try
-            machinegun_automaton_client:call(automaton_options(C), {id, ?ID}, <<"remove">>)
+            machinegun_automaton_client:call(automaton_options(C), ?ID, <<"remove">>)
         catch
             throw:#mg_stateproc_MachineNotFound{} ->
                 % The request had been retried

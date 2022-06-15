@@ -453,10 +453,8 @@ extract_meta(retry_action, {wait, Timeout, NextStrategy}) ->
     ];
 extract_meta(retry_action, _Other) ->
     [];
-extract_meta(machine_ref, {id, MachineID}) ->
+extract_meta(machine_id, MachineID) ->
     {machine_id, MachineID};
-extract_meta(machine_ref, {tag, MachineTag}) ->
-    {machine_tag, MachineTag};
 extract_meta(namespace, NS) ->
     {machine_ns, NS};
 extract_meta(squad_member, Member) ->

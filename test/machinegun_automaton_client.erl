@@ -54,22 +54,22 @@ start(Options, ID, Args) ->
 start(#{ns := NS} = Options, ID, Args, Deadline) ->
     ok = call_service(Options, 'Start', {pack(ns, NS), pack(id, ID), pack(args, Args)}, Deadline).
 
--spec repair(options(), mg_core_events_machine:ref(), mg_core_storage:opaque()) -> ok.
-repair(Options, Ref, Args) ->
-    repair(Options, Ref, Args, undefined).
+-spec repair(options(), mg_core_events_machine:id(), mg_core_storage:opaque()) -> ok.
+repair(Options, ID, Args) ->
+    repair(Options, ID, Args, undefined).
 
--spec repair(options(), mg_core_events_machine:ref(), mg_core_storage:opaque(), mg_core_deadline:deadline()) -> ok.
-repair(#{ns := NS} = Options, Ref, Args, Deadline) ->
-    Response = call_service(Options, 'Repair', {machine_desc(NS, Ref), pack(args, Args)}, Deadline),
+-spec repair(options(), mg_core_events_machine:id(), mg_core_storage:opaque(), mg_core_deadline:deadline()) -> ok.
+repair(#{ns := NS} = Options, ID, Args, Deadline) ->
+    Response = call_service(Options, 'Repair', {machine_desc(NS, ID), pack(args, Args)}, Deadline),
     unpack(repair_response, Response).
 
--spec simple_repair(options(), mg_core_events_machine:ref()) -> ok.
-simple_repair(Options, Ref) ->
-    simple_repair(Options, Ref, undefined).
+-spec simple_repair(options(), mg_core_events_machine:id()) -> ok.
+simple_repair(Options, ID) ->
+    simple_repair(Options, ID, undefined).
 
--spec simple_repair(options(), mg_core_events_machine:ref(), mg_core_deadline:deadline()) -> ok.
-simple_repair(#{ns := NS} = Options, Ref, Deadline) ->
-    ok = call_service(Options, 'SimpleRepair', {pack(ns, NS), pack(ref, Ref)}, Deadline).
+-spec simple_repair(options(), mg_core_events_machine:id(), mg_core_deadline:deadline()) -> ok.
+simple_repair(#{ns := NS} = Options, ID, Deadline) ->
+    ok = call_service(Options, 'SimpleRepair', {pack(ns, NS), pack(ref, ID)}, Deadline).
 
 -spec remove(options(), mg_core:id()) -> ok.
 remove(Options, ID) ->
@@ -79,50 +79,50 @@ remove(Options, ID) ->
 remove(#{ns := NS} = Options, ID, Deadline) ->
     ok = call_service(Options, 'Remove', {pack(ns, NS), pack(id, ID)}, Deadline).
 
--spec call(options(), mg_core_events_machine:ref(), mg_core_storage:opaque()) -> mg_core_storage:opaque().
-call(Options, Ref, Args) ->
-    call(Options, Ref, Args, undefined).
+-spec call(options(), mg_core_events_machine:id(), mg_core_storage:opaque()) -> mg_core_storage:opaque().
+call(Options, ID, Args) ->
+    call(Options, ID, Args, undefined).
 
--spec call(options(), mg_core_events_machine:ref(), mg_core_storage:opaque(), mg_core_deadline:deadline()) ->
+-spec call(options(), mg_core_events_machine:id(), mg_core_storage:opaque(), mg_core_deadline:deadline()) ->
     mg_core_storage:opaque().
-call(#{ns := NS} = Options, Ref, Args, Deadline) ->
+call(#{ns := NS} = Options, ID, Args, Deadline) ->
     unpack(
         call_response,
-        call_service(Options, 'Call', {machine_desc(NS, Ref), pack(args, Args)}, Deadline)
+        call_service(Options, 'Call', {machine_desc(NS, ID), pack(args, Args)}, Deadline)
     ).
 
--spec get_machine(options(), mg_core_events_machine:ref(), mg_core_events:history_range()) ->
+-spec get_machine(options(), mg_core_events_machine:id(), mg_core_events:history_range()) ->
     mg_core_events_machine:machine().
-get_machine(Options, Ref, Range) ->
-    get_machine(Options, Ref, Range, undefined).
+get_machine(Options, ID, Range) ->
+    get_machine(Options, ID, Range, undefined).
 
 -spec get_machine(
     options(),
-    mg_core_events_machine:ref(),
+    mg_core_events_machine:id(),
     mg_core_events:history_range(),
     mg_core_deadline:deadline()
 ) ->
     mg_core_events_machine:machine().
-get_machine(#{ns := NS} = Options, Ref, Range, Deadline) ->
+get_machine(#{ns := NS} = Options, ID, Range, Deadline) ->
     unpack(
         machine,
-        call_service(Options, 'GetMachine', {machine_desc(NS, Ref, Range)}, Deadline)
+        call_service(Options, 'GetMachine', {machine_desc(NS, ID, Range)}, Deadline)
     ).
 
--spec modernize(options(), mg_core_events_machine:ref(), mg_core_events:history_range()) -> ok.
-modernize(#{ns := NS} = Options, Ref, Range) ->
-    ok = call_service(Options, 'Modernize', {machine_desc(NS, Ref, Range)}, undefined).
+-spec modernize(options(), mg_core_events_machine:id(), mg_core_events:history_range()) -> ok.
+modernize(#{ns := NS} = Options, ID, Range) ->
+    ok = call_service(Options, 'Modernize', {machine_desc(NS, ID, Range)}, undefined).
 
 %%
 %% local
 %%
--spec machine_desc(mg_core:ns(), mg_core_events_machine:ref()) -> _.
-machine_desc(NS, Ref) ->
-    machine_desc(NS, Ref, {undefined, undefined, forward}).
+-spec machine_desc(mg_core:ns(), mg_core_events_machine:id()) -> _.
+machine_desc(NS, ID) ->
+    machine_desc(NS, ID, {undefined, undefined, forward}).
 
--spec machine_desc(mg_core:ns(), mg_core_events_machine:ref(), mg_core_events:history_range()) -> _.
-machine_desc(NS, Ref, HRange) ->
-    pack(machine_descriptor, {NS, Ref, HRange}).
+-spec machine_desc(mg_core:ns(), mg_core_events_machine:id(), mg_core_events:history_range()) -> _.
+machine_desc(NS, ID, HRange) ->
+    pack(machine_descriptor, {NS, ID, HRange}).
 
 -spec call_service(options(), atom(), tuple(), mg_core_deadline:deadline()) -> any().
 call_service(#{retry_strategy := Strategy} = Options, Function, Args, Deadline) ->
