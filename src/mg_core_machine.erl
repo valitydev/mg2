@@ -720,6 +720,17 @@ process_simple_repair(ReqCtx, Deadline, State) ->
         State
     ).
 
+-spec emit_repaired_beat(request_context(), deadline(), state()) ->
+    ok.
+emit_repaired_beat(ReqCtx, Deadline, State) ->
+    #{id := ID, options := #{namespace := NS} = Options} = State,
+    ok = emit_beat(Options, #mg_core_machine_lifecycle_repaired{
+        namespace = NS,
+        machine_id = ID,
+        request_context = ReqCtx,
+        deadline = Deadline
+    }).
+
 -spec process(processor_impact(), processing_context(), request_context(), deadline(), state()) ->
     state().
 process(Impact, ProcessingCtx, ReqCtx, Deadline, State) ->
@@ -1000,7 +1011,7 @@ transit_state(ReqCtx, Deadline, NewStorageMachine = #{status := Status}, State) 
     _ =
         case Status of
             StatusWas -> ok;
-            _Different -> handle_status_transition(Status, State)
+            _Different -> handle_status_transition(StatusWas, Status, ReqCtx, Deadline, State)
         end,
     F = fun() ->
         mg_core_storage:put(
@@ -1018,12 +1029,20 @@ transit_state(ReqCtx, Deadline, NewStorageMachine = #{status := Status}, State) 
         storage_context := NewStorageContext
     }.
 
--spec handle_status_transition(machine_status(), state()) -> _.
-handle_status_transition({waiting, TargetTimestamp, _, _}, State) ->
+-spec handle_status_transition(
+    From :: machine_status(), To :: machine_status(), request_context(), deadline(), state()
+) -> _.
+handle_status_transition({error, _Reason, _}, _Any, ReqCtx, Deadline, State) ->
+    emit_repaired_beat(ReqCtx, Deadline, State);
+handle_status_transition(_Any, {error, _Reason, _}, _, _, _State) ->
+    %% Can't put machine_lifetime_failed beat here because
+    %% nonexistant storage_machines can also fail on init
+    ok;
+handle_status_transition(_Any, {waiting, TargetTimestamp, _, _}, _, _, State) ->
     try_send_timer_task(timers, TargetTimestamp, State);
-handle_status_transition({retrying, TargetTimestamp, _, _, _}, State) ->
+handle_status_transition(_Any, {retrying, TargetTimestamp, _, _, _}, _, _, State) ->
     try_send_timer_task(timers_retries, TargetTimestamp, State);
-handle_status_transition(_Status, _State) ->
+handle_status_transition(_FromStatus, _ToStatus, _ReqCtx, _Deadline, _State) ->
     ok.
 
 -spec try_acquire_scheduler(scheduler_type(), state()) -> state().

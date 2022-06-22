@@ -52,6 +52,7 @@
     | #mg_core_machine_lifecycle_unloaded{}
     | #mg_core_machine_lifecycle_committed_suicide{}
     | #mg_core_machine_lifecycle_failed{}
+    | #mg_core_machine_lifecycle_repaired{}
     | #mg_core_machine_lifecycle_loading_error{}
     | #mg_core_machine_lifecycle_transient_error{}
     % Machine call handling

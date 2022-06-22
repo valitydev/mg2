@@ -183,6 +183,13 @@
     exception :: mg_core_utils:exception()
 }).
 
+-record(mg_core_machine_lifecycle_repaired, {
+    namespace :: mg_core:ns(),
+    machine_id :: mg_core:id(),
+    request_context :: mg_core:request_context(),
+    deadline :: mg_core_deadline:deadline()
+}).
+
 -record(mg_core_machine_lifecycle_loading_error, {
     namespace :: mg_core:ns(),
     machine_id :: mg_core:id(),
