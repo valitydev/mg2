@@ -17,7 +17,7 @@
 -module(machinegun_ct_helper).
 
 -define(CLIENT, mg_kafka_client).
--define(BROKERS, [{"kafka1", 9092}, {"kafka2", 9092}, {"kafka3", 9092}]).
+-define(BROKERS, [{"kafka1", 9092}]).
 
 -define(READINESS_RETRY_STRATEGY, genlib_retry:exponential(10, 2, 1000, 10000)).
 

@@ -20,7 +20,7 @@ DOCKERCOMPOSE_W_ENV = DEV_IMAGE_TAG=$(DEV_IMAGE_TAG) $(DOCKERCOMPOSE)
 REBAR ?= rebar3
 TEST_CONTAINER_NAME ?= testrunner
 
-all: compile
+all: compile xref lint check-format dialyze eunit
 
 .PHONY: dev-image clean-dev-image wc-shell test
 

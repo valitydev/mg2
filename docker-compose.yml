@@ -13,15 +13,20 @@ services:
     hostname: $SERVICE_NAME
     working_dir: $PWD
     depends_on:
-      - riakdb
-      - member1
-      - member2
-      - kafka1
-      - kafka2
-      - kafka3
-      - consul1
-      - consul2
-      - consul0
+      riakdb:
+        condition: service_started
+      member1:
+        condition: service_started
+      member2:
+        condition: service_started
+      kafka1:
+        condition: service_healthy
+      consul0:
+        condition: service_started
+      consul1:
+        condition: service_started
+      consul2:
+        condition: service_started
     ports:
       - "8022"
     command: /sbin/init
@@ -50,30 +55,33 @@ services:
       - riakdb
 
   zookeeper:
-    image: docker.io/confluentinc/cp-zookeeper:${CONFLUENT_PLATFORM_VERSION}
+    image: docker.io/confluentinc/cp-zookeeper:${ZOOKEEPER_VERSION}
+    healthcheck:
+      test: echo ruok | nc 127.0.0.1 2181 || exit -1
+      interval: 5s
+      timeout: 240s #🍎
+      retries: 50
     environment:
+      KAFKA_OPTS: "-Dzookeeper.4lw.commands.whitelist=ruok"
       ZOOKEEPER_CLIENT_PORT: 2181
 
   kafka1: &kafka-broker
-    image: docker.io/confluentinc/cp-kafka:${CONFLUENT_PLATFORM_VERSION}
+    image: docker.io/wurstmeister/kafka:${KAFKA_VERSION}
     depends_on:
-      - zookeeper
+      zookeeper:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "kafka-topics.sh", "--list", "--zookeeper", "zookeeper:2181"]
+      interval: 5s
+      timeout: 10s
+      retries: 5
     environment:
       KAFKA_BROKER_ID: 1
+      KAFKA_ADVERTISED_LISTENERS: OUTSIDE://kafka1:9092
+      KAFKA_LISTENERS: OUTSIDE://0.0.0.0:9092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: OUTSIDE:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: OUTSIDE
       KAFKA_ZOOKEEPER_CONNECT: 'zookeeper:2181'
-      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka1:9092
-  kafka2:
-    <<: *kafka-broker
-    environment:
-      KAFKA_BROKER_ID: 2
-      KAFKA_ZOOKEEPER_CONNECT: 'zookeeper:2181'
-      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka2:9092
-  kafka3:
-    <<: *kafka-broker
-    environment:
-      KAFKA_BROKER_ID: 3
-      KAFKA_ZOOKEEPER_CONNECT: 'zookeeper:2181'
-      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka3:9092
 
   consul1: &consul-server
     image: docker.io/consul:${CONSUL_VERSION}

@@ -219,14 +219,20 @@ snowflake(YamlConfig) ->
 pulse(YamlConfig) ->
     MaxLength = ?C:conf([logging, formatter, max_length], YamlConfig, 1000),
     MaxPrintable = ?C:conf([logging, formatter, max_printable_string_length], YamlConfig, 1000),
-    {machinegun_pulse, #{
+    LifecycleKafkaOptions = conf_with([lifecycle_pulse], YamlConfig, undefined, fun (LifecyclePulseConfig) -> #{
+        topic => ?C:conf([topic], LifecyclePulseConfig),
+        client => ?C:atom(?C:conf([client], LifecyclePulseConfig)),
+        encoder => fun mg_woody_api_life_sink:serialize/3
+    } end),
+    {machinegun_pulse, genlib_map:compact(#{
         woody_event_handler_options => #{
             formatter_opts => #{
                 max_length => MaxLength,
                 max_printable_string_length => MaxPrintable
             }
-        }
-    }}.
+        },
+        lifecycle_kafka_options => LifecycleKafkaOptions
+    })}.
 
 brod(YamlConfig) ->
     Clients = ?C:conf([kafka], YamlConfig, []),
