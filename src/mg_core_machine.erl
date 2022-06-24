@@ -70,6 +70,7 @@
 -export_type([logic_error/0]).
 -export_type([transient_error/0]).
 -export_type([throws/0]).
+-export_tupe([storage_machine/0]).
 -export_type([machine_state/0]).
 -export_type([machine_status/0]).
 -export_type([processor_impact/0]).
@@ -93,7 +94,6 @@
 -export([fail/4]).
 -export([fail/5]).
 -export([get/2]).
--export([get_status/2]).
 -export([is_exist/2]).
 -export([search/2]).
 -export([search/3]).
@@ -169,6 +169,12 @@
     overload | {storage_unavailable, _Reason} | {processor_unavailable, _Reason} | unavailable.
 
 -type throws() :: no_return().
+
+-type storage_machine() :: #{
+    status => machine_status(),
+    state => machine_state()
+}.
+
 -type machine_state() :: mg_core_storage:opaque().
 
 -type machine_regular_status() ::
@@ -327,23 +333,14 @@ fail(Options, ID, ReqCtx, Deadline) ->
 fail(Options, ID, Exception, ReqCtx, Deadline) ->
     call_(Options, ID, {fail, Exception}, ReqCtx, Deadline).
 
--spec get(options(), mg_core:id()) -> machine_state() | throws().
+-spec get(options(), mg_core:id()) -> storage_machine() | throws().
 get(Options, ID) ->
-    {_, #{state := State}} =
+    {_, StorageMachine} =
         mg_core_utils:throw_if_undefined(
             get_storage_machine(Options, ID),
             {logic, machine_not_found}
         ),
-    State.
-
--spec get_status(options(), mg_core:id()) -> machine_status() | throws().
-get_status(Options, ID) ->
-    {_, #{status := Status}} =
-        mg_core_utils:throw_if_undefined(
-            get_storage_machine(Options, ID),
-            {logic, machine_not_found}
-        ),
-    Status.
+    StorageMachine.
 
 -spec is_exist(options(), mg_core:id()) -> boolean() | throws().
 is_exist(Options, ID) ->
@@ -431,11 +428,6 @@ call_(Options, ID, Call, ReqCtx, Deadline) ->
     schedulers => #{scheduler_type() => scheduler_ref()},
     storage_machine => storage_machine() | nonexistent | unknown,
     storage_context => mg_core_storage:context() | undefined
-}.
-
--type storage_machine() :: #{
-    status => machine_status(),
-    state => machine_state()
 }.
 
 -type scheduler_ref() ::

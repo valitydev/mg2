@@ -90,12 +90,13 @@
 -type process_result() :: {reply_action(), flow_action(), state()}.
 
 -type machine() :: #{
-    ns => mg_core:ns(),
-    id => mg_core:id(),
-    history => [mg_core_events:event()],
-    history_range => mg_core_events:history_range(),
-    aux_state => aux_state(),
-    timer => int_timer()
+    ns := mg_core:ns(),
+    id := mg_core:id(),
+    history := [mg_core_events:event()],
+    history_range := mg_core_events:history_range(),
+    aux_state := aux_state(),
+    timer := int_timer(),
+    status => mg_core_machine:machine_status()
 }.
 
 %% TODO сделать более симпатично
@@ -204,10 +205,10 @@ call(Options, ID, Args, HRange, ReqCtx, Deadline) ->
 
 -spec get_machine(options(), id(), mg_core_events:history_range()) -> machine().
 get_machine(Options, ID, HRange) ->
-    InitialState = opaque_to_state(mg_core_machine:get(machine_options(Options), ID)),
-    EffectiveState = maybe_apply_delayed_actions(InitialState),
+    #{state := State, status := Status} = mg_core_machine:get(machine_options(Options), ID),
+    EffectiveState = maybe_apply_delayed_actions(opaque_to_state(State)),
     _ = mg_core_utils:throw_if_undefined(EffectiveState, {logic, machine_not_found}),
-    machine(Options, ID, EffectiveState, HRange).
+    machine(Options, ID, EffectiveState, Status, HRange).
 
 -spec remove(options(), id(), request_context(), deadline()) -> ok.
 remove(Options, ID, ReqCtx, Deadline) ->
@@ -634,6 +635,13 @@ machine(Options = #{namespace := Namespace}, ID, State, HRange) ->
         aux_state => AuxState,
         timer => Timer
     }.
+
+-spec machine(
+    options(), id(), state(), mg_core_machine:machine_status(), mg_core_events:history_range()
+) -> machine().
+machine(Options, ID, State, Status, HRange) ->
+    Machine = machine(Options, ID, State, HRange),
+    Machine#{status => Status}.
 
 -type event_getter() :: fun((events_range()) -> [mg_core_events:event()]).
 -type event_sources() :: [{events_range(), event_getter()}, ...].

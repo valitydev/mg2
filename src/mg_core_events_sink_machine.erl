@@ -208,7 +208,8 @@ store_event(Options, EventSinkID, SinkEvent) ->
 -spec get_state(ns_options(), mg_core:id()) -> state().
 get_state(Options, EventSinkID) ->
     try
-        opaque_to_state(mg_core_machine:get(machine_options(Options), EventSinkID))
+        #{state := State} = mg_core_machine:get(machine_options(Options), EventSinkID),
+        opaque_to_state(State)
     catch
         throw:{logic, machine_not_found} ->
             new_state()

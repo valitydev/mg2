@@ -76,7 +76,7 @@ robust_handling(_C) ->
 
     ok = mg_core_machine:start(Options, ID, undefined, ?REQ_CTX, mg_core_deadline:default()),
     ok = timer:sleep(2000),
-    {retrying, _, _, _, _} = mg_core_machine:get_status(Options, ID),
+    #{status := {retrying, _, _, _, _}} = mg_core_machine:get(Options, ID),
 
     ok = stop_automaton(Pid).
 
