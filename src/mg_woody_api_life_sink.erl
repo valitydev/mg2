@@ -93,14 +93,14 @@ serialize_data({machine_lifecycle_failed, #{exception := Exception}}) ->
     {machine,
         {status_changed, #mg_lifesink_MachineLifecycleStatusChangedEvent{
             new_status =
-                {failed, #mg_lifesink_MachineStatusFailed{
+                {failed, #mg_stateproc_MachineStatusFailed{
                     reason = exception_to_string(Exception)
                 }}
         }}};
 serialize_data({machine_lifecycle_repaired, _}) ->
     {machine,
         {status_changed, #mg_lifesink_MachineLifecycleStatusChangedEvent{
-            new_status = {working, #mg_lifesink_MachineStatusWorking{}}
+            new_status = {working, #mg_stateproc_MachineStatusWorking{}}
         }}};
 serialize_data({machine_lifecycle_removed, _}) ->
     {machine, {removed, #mg_lifesink_MachineLifecycleRemovedEvent{}}}.
@@ -138,7 +138,7 @@ serialize_machine_lifecycle_failed_test() ->
             {machine,
                 {status_changed, #mg_lifesink_MachineLifecycleStatusChangedEvent{
                     new_status =
-                        {failed, #mg_lifesink_MachineStatusFailed{
+                        {failed, #mg_stateproc_MachineStatusFailed{
                             reason = <<"throw:throw ">>
                         }}
                 }}},
@@ -154,7 +154,7 @@ serialize_machine_lifecycle_repaired_test() ->
         target_event(
             {machine,
                 {status_changed, #mg_lifesink_MachineLifecycleStatusChangedEvent{
-                    new_status = {working, #mg_lifesink_MachineStatusWorking{}}
+                    new_status = {working, #mg_stateproc_MachineStatusWorking{}}
                 }}},
             Timestamp
         ),

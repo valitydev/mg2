@@ -18,6 +18,7 @@
 
 %% API
 -export_type([options/0]).
+-export_type([machine_simple/0]).
 -export([handler/1]).
 
 %% woody handler
@@ -27,14 +28,27 @@
 %% уменьшаем писанину
 -import(mg_woody_api_packer, [pack/2, unpack/2]).
 
-%%
-%% API
-%%
+%% API types
 -type options() :: #{mg_core:ns() => ns_options()}.
 -type ns_options() :: #{
     machine := mg_core_events_machine:options(),
     modernizer => mg_core_events_modernizer:options()
 }.
+-type machine_status_simple() :: working | {failed, Reason :: binary()}.
+%% Exactly mg_core_events_machine:machine(), except some information is lost about it's status
+-type machine_simple() :: #{
+    ns := mg_core:ns(),
+    id := mg_core:id(),
+    history := [mg_core_events:event()],
+    history_range := mg_core_events:history_range(),
+    aux_state := mg_core_events:content(),
+    timer := {genlib_time:ts(), mg_core:request_context(), pos_integer(), mg_core_events:history_range()},
+    status => machine_status_simple()
+}.
+
+%%
+%% API
+%%
 
 -spec handler(options()) -> mg_woody_api_utils:woody_handler().
 handler(Options) ->
@@ -135,7 +149,7 @@ handle_function('GetMachine', {MachineDesc}, WoodyContext, Options) ->
     ReqCtx = mg_woody_api_utils:woody_context_to_opaque(WoodyContext),
     {NS, ID, Range} = unpack(machine_descriptor, MachineDesc),
     Deadline = get_deadline(NS, WoodyContext, Options),
-    History =
+    Machine =
         mg_woody_api_utils:handle_error(
             #{namespace => NS, machine_id => ID, request_context => ReqCtx, deadline => Deadline},
             fun() ->
@@ -147,7 +161,7 @@ handle_function('GetMachine', {MachineDesc}, WoodyContext, Options) ->
             end,
             pulse(NS, Options)
         ),
-    {ok, pack(machine, History)};
+    {ok, pack(machine_simple, simplify_core_machine(Machine))};
 handle_function('Remove', {NS, IDIn}, WoodyContext, Options) ->
     ID = unpack(id, IDIn),
     Deadline = get_deadline(NS, WoodyContext, Options),
@@ -229,3 +243,18 @@ default_processing_timeout(Namespace, Options) ->
     catch
         throw:{logic, namespace_not_found} -> 0
     end.
+
+-spec simplify_core_machine(mg_core_events_machine:machine()) ->
+    machine_simple().
+simplify_core_machine(Machine = #{status := Status}) ->
+    Machine#{status => simplify_machine_status(Status)}.
+
+-spec exception_to_string(mg_core_utils:exception()) -> binary().
+exception_to_string(Exception) ->
+    iolist_to_binary(genlib_format:format_exception(Exception)).
+
+-spec simplify_machine_status(mg_core_machine:machine_status()) -> machine_status_simple().
+simplify_machine_status({error, Reason, _}) ->
+    {failed, exception_to_string(Reason)};
+simplify_machine_status(_) ->
+    working.

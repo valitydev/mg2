@@ -101,7 +101,7 @@ call(#{ns := NS} = Options, ID, Args, Deadline) ->
     ).
 
 -spec get_machine(options(), mg_core_events_machine:id(), mg_core_events:history_range()) ->
-    mg_core_events_machine:machine().
+    mg_woody_api_automaton:machine_simple().
 get_machine(Options, ID, Range) ->
     get_machine(Options, ID, Range, undefined).
 
@@ -110,10 +110,10 @@ get_machine(Options, ID, Range) ->
     mg_core_events_machine:id(),
     mg_core_events:history_range(),
     mg_core_deadline:deadline()
-) -> mg_core_events_machine:machine().
+) -> mg_woody_api_automaton:machine_simple().
 get_machine(#{ns := NS} = Options, ID, Range, Deadline) ->
     unpack(
-        machine,
+        machine_simple,
         call_service(Options, 'GetMachine', {machine_desc(NS, ID, Range)}, Deadline)
     ).
 

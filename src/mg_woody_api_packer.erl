@@ -92,7 +92,7 @@ pack(event, #{id := ID, created_at := CreatedAt, body := Body}) ->
     };
 pack(history, History) ->
     pack({list, event}, History);
-pack(machine, Machine) ->
+pack(machine_simple, Machine) ->
     #{
         ns := NS,
         id := ID,
@@ -107,8 +107,13 @@ pack(machine, Machine) ->
         history = pack(history, History),
         history_range = pack(history_range, HRange),
         aux_state = pack(aux_state, AuxState),
-        timer = pack(int_timer, Timer)
+        timer = pack(int_timer, Timer),
+        status = pack(machine_status, maps:get(status, Machine, undefined))
     };
+pack(machine_status, working) ->
+    {working, #mg_stateproc_MachineStatusWorking{}};
+pack(machine_status, {failed, Reason}) ->
+    {failed, #mg_stateproc_MachineStatusFailed{reason = Reason}};
 pack(machine_event, #{ns := NS, id := ID, event := Event}) ->
     #mg_stateproc_MachineEvent{
         ns = pack(ns, NS),
@@ -155,17 +160,17 @@ pack(repair_error, #{reason := Reason}) ->
 pack(signal_args, {Signal, Machine}) ->
     #mg_stateproc_SignalArgs{
         signal = pack(signal, Signal),
-        machine = pack(machine, Machine)
+        machine = pack(machine_simple, Machine)
     };
 pack(call_args, {Args, Machine}) ->
     #mg_stateproc_CallArgs{
         arg = pack(args, Args),
-        machine = pack(machine, Machine)
+        machine = pack(machine_simple, Machine)
     };
 pack(repair_args, {Args, Machine}) ->
     #mg_stateproc_RepairArgs{
         arg = pack(args, Args),
-        machine = pack(machine, Machine)
+        machine = pack(machine_simple, Machine)
     };
 pack(signal_result, {StateChange, ComplexAction}) ->
     #mg_stateproc_SignalResult{
@@ -287,14 +292,15 @@ unpack(event, Event) ->
     };
 unpack(history, History) ->
     unpack({list, event}, History);
-unpack(machine, Machine = #mg_stateproc_Machine{}) ->
+unpack(machine_simple, Machine = #mg_stateproc_Machine{}) ->
     #mg_stateproc_Machine{
         ns = NS,
         id = ID,
         history_range = HRange,
         history = History,
         aux_state = AuxState,
-        timer = Timer
+        timer = Timer,
+        status = Status
     } = Machine,
     #{
         ns => unpack(ns, NS),
@@ -302,8 +308,13 @@ unpack(machine, Machine = #mg_stateproc_Machine{}) ->
         history_range => unpack(history_range, HRange),
         history => unpack(history, History),
         aux_state => unpack(aux_state, AuxState),
-        timer => unpack(int_timer, Timer)
+        timer => unpack(int_timer, Timer),
+        status => unpack(machine_status, Status)
     };
+unpack(machine_status, {working, #mg_stateproc_MachineStatusWorking{}}) ->
+    working;
+unpack(machine_status, {failed, #mg_stateproc_MachineStatusFailed{reason = Reason}}) ->
+    {failed, Reason};
 unpack(machine_event, #mg_stateproc_MachineEvent{ns = NS, id = ID, event = Event}) ->
     #{
         ns => unpack(ns, NS),
@@ -352,11 +363,11 @@ unpack(repair_response, RepairResponse) ->
 unpack(repair_error, #mg_stateproc_RepairFailed{reason = Reason}) ->
     #{reason => unpack(opaque, Reason)};
 unpack(signal_args, #mg_stateproc_SignalArgs{signal = Signal, machine = Machine}) ->
-    {unpack(signal, Signal), unpack(machine, Machine)};
+    {unpack(signal, Signal), unpack(machine_simple, Machine)};
 unpack(call_args, #mg_stateproc_CallArgs{arg = Args, machine = Machine}) ->
-    {unpack(args, Args), unpack(machine, Machine)};
+    {unpack(args, Args), unpack(machine_simple, Machine)};
 unpack(repair_args, #mg_stateproc_RepairArgs{arg = Args, machine = Machine}) ->
-    {unpack(args, Args), unpack(machine, Machine)};
+    {unpack(args, Args), unpack(machine_simple, Machine)};
 unpack(signal_result, #mg_stateproc_SignalResult{change = StateChange, action = ComplexAction}) ->
     {
         unpack(state_change, StateChange),

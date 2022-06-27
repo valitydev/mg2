@@ -49,12 +49,14 @@
 -export([failed_machine_start/1]).
 -export([machine_start_timeout/1]).
 -export([machine_processor_error/1]).
+-export([failed_machine_status/1]).
 -export([failed_machine_call/1]).
 -export([failed_machine_repair_error/1]).
 % -export([failed_machine_repair_business_error/1]).
 -export([failed_machine_repair/1]).
 -export([failed_machine_simple_repair/1]).
 -export([working_machine_repair/1]).
+-export([working_machine_status/1]).
 
 %% timer group tests
 -export([handle_timer/1]).
@@ -133,12 +135,14 @@ groups() ->
             machine_id_not_found,
             machine_start,
             machine_processor_error,
+            failed_machine_status,
             failed_machine_call,
             failed_machine_repair_error,
             % failed_machine_repair_business_error, % FIXME: uncomment after switch to new repair
             failed_machine_repair,
             machine_call_by_id,
             working_machine_repair,
+            working_machine_status,
             machine_remove,
             machine_start,
             machine_processor_error,
@@ -490,6 +494,11 @@ machine_processor_error(C) ->
     #mg_stateproc_MachineFailed{} =
         (catch mg_automaton_client:call(automaton_options(C), ?ID, <<"fail">>)).
 
+-spec failed_machine_status(config()) -> _.
+failed_machine_status(C) ->
+    #{status := {failed, _}} =
+        mg_automaton_client:get_machine(automaton_options(C), ?ID, {undefined, undefined, forward}).
+
 -spec failed_machine_call(config()) -> _.
 failed_machine_call(C) ->
     #mg_stateproc_MachineFailed{} =
@@ -518,6 +527,11 @@ failed_machine_simple_repair(C) ->
 working_machine_repair(C) ->
     #mg_stateproc_MachineAlreadyWorking{} =
         (catch mg_automaton_client:repair(automaton_options(C), ?ID, <<"ok">>)).
+
+-spec working_machine_status(config()) -> _.
+working_machine_status(C) ->
+    #{status := working} =
+        mg_automaton_client:get_machine(automaton_options(C), ?ID, {undefined, undefined, forward}).
 
 %%
 %% timer

@@ -27,6 +27,6 @@
 %% mg_pulse handler
 %%
 
--spec handle_beat(undefined, term()) -> ok.
-handle_beat(_, _) ->
-    ok.
+-spec handle_beat(_, term()) -> ok.
+handle_beat(_, Beat) ->
+    ct:pal("~p", [Beat]).
