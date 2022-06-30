@@ -266,7 +266,8 @@ brod_client(ClientConfig) ->
             {max_linger_ms, ?C:milliseconds(?C:conf([max_linger], ProducerConfig, <<"0ms">>))},
             {max_linger_count, ?C:conf([max_linger_count], ProducerConfig, 0)}
         ]},
-        {ssl, brod_client_ssl(?C:conf([ssl], ClientConfig, false))}
+        {ssl, brod_client_ssl(?C:conf([ssl], ClientConfig, false))},
+        {sasl, brod_client_sasl(?C:conf([sasl], ClientConfig, undefined))}
     ].
 
 brod_client_ssl(false) ->
@@ -278,6 +279,20 @@ brod_client_ssl(SslConfig) ->
         {cacertfile, ?C:maybe(fun ?C:string/1, ?C:conf([cacertfile], SslConfig, undefined))}
     ],
     [Opt || Opt = {_Key, Value} <- Opts, Value =/= undefined].
+
+brod_client_sasl(undefined) ->
+    undefined;
+brod_client_sasl(SaslConfig) ->
+    Mechanism = ?C:atom(?C:conf([mechanism], SaslConfig, <<"scram_sha_512">>)),
+    File = ?C:maybe(fun ?C:string/1, ?C:conf([file], SaslConfig, undefined)),
+    case File of
+        undefined ->
+            Username = ?C:string(?C:conf([username], SaslConfig)),
+            Password = ?C:string(?C:conf([password], SaslConfig)),
+            {Mechanism, Username, Password};
+        _ ->
+            {Mechanism, File}
+    end.
 
 hackney(_YamlConfig) ->
     [].

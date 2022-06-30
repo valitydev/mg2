@@ -226,6 +226,17 @@ kafka:
             certfile: "client.crt"
             keyfile: "client.key"
             cacertfile: "ca.crt"
+        sasl:
+            mechanism: scram_sha_512 # Available: scram_sha_512, scram_sha_265, plain
+            # *Either* specify the `file` field or `username` and `password` fields.
+            # `file` is the path to a text file which contains two lines,
+            # first line for username and second line for password.
+            # Presence of the `file` field will override the presence of
+            # `username` and `password` fields (there is no fallback).
+            file: secret.txt
+            # ** OR **
+            username: root
+            password: qwerty
         producer:
             compression: no_compression  # 'gzip' or 'snappy' to enable compression
             # How many message sets (per-partition) can be sent to kafka broker
