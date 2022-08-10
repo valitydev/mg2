@@ -41,6 +41,10 @@
        {ref,"edba3d0f8f06d7e4eba84ab1e52ea30551bd0f92"}},
   0},
  {<<"snappyer">>,{pkg,<<"snappyer">>,<<"1.2.8">>},0},
+ {<<"snowflake">>,
+  {git,"https://github.com/valitydev/snowflake",
+       {ref,"de159486ef40cec67074afe71882bdc7f7deab72"}},
+  0},
  {<<"ssl_verify_fun">>,{pkg,<<"ssl_verify_fun">>,<<"1.1.6">>},2},
  {<<"supervisor3">>,{pkg,<<"supervisor3">>,<<"1.1.11">>},1},
  {<<"unicode_util_compat">>,{pkg,<<"unicode_util_compat">>,<<"0.7.0">>},2}]}.

@@ -221,7 +221,9 @@ new_state() ->
 
 -spec machine_options(ns_options()) -> mg_core_machine:options().
 machine_options(
-    Options = #{namespace := Namespace, storage := Storage, worker := Worker, pulse := Pulse}
+    Options = #{
+        namespace := Namespace, storage := Storage, worker := Worker, pulse := Pulse
+    }
 ) ->
     #{
         namespace => mg_core_utils:concatenate_namespaces(Namespace, <<"machines">>),

@@ -129,6 +129,11 @@ automaton_options(NS) ->
         worker => #{
             registry => mg_core_procreg_gproc
         },
+        notification => #{
+            namespace => NS,
+            pulse => ?MODULE,
+            storage => mg_core_storage_memory
+        },
         pulse => ?MODULE,
         retries => #{
             timers => {intervals, [1000, 1000, 1000, 1000, 1000]},

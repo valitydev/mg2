@@ -28,6 +28,7 @@
 -export([get_events_test/1]).
 -export([continuation_repair_test/1]).
 -export([get_corrupted_machine_fails/1]).
+-export([post_events_with_notification_test/1]).
 
 %% mg_core_events_machine handler
 -behaviour(mg_core_events_machine).
@@ -62,12 +63,8 @@
 
 -type options() :: #{
     signal_handler => fun((signal(), aux_state(), [event()]) -> {aux_state(), [event()], action()}),
-    call_handler => fun(
-        (call(), aux_state(), [event()]) -> {term(), aux_state(), [event()], action()}
-    ),
-    repair_handler => fun(
-        (call(), aux_state(), [event()]) -> {term(), aux_state(), [event()], action()}
-    ),
+    call_handler => fun((call(), aux_state(), [event()]) -> {term(), aux_state(), [event()], action()}),
+    repair_handler => fun((call(), aux_state(), [event()]) -> {term(), aux_state(), [event()], action()}),
     sink_handler => fun((history()) -> ok)
 }.
 
@@ -81,7 +78,8 @@ all() ->
     [
         get_events_test,
         continuation_repair_test,
-        get_corrupted_machine_fails
+        get_corrupted_machine_fails,
+        post_events_with_notification_test
     ].
 
 -spec init_per_suite(config()) -> config().
@@ -269,6 +267,39 @@ get_corrupted_machine_fails(_C) ->
     _ = ?assertError(_, get_history(Options, MachineID)),
     ok = stop_automaton(Pid).
 
+-spec post_events_with_notification_test(config()) -> any().
+post_events_with_notification_test(_C) ->
+    NS = <<"notification">>,
+    MachineID = genlib:to_binary(?FUNCTION_NAME),
+    ProcessorOpts = #{
+        signal_handler => fun
+            ({init, <<>>}, _, []) ->
+                {0, [], #{}};
+            ({notification, Args}, _, _) ->
+                {0, [Args], #{}}
+        end
+    },
+    BaseOptions = events_machine_options(
+        #{event_stash_size => 0},
+        #{},
+        ProcessorOpts,
+        NS
+    ),
+    LossyStorage = mg_core_storage_memory,
+    EventsStorage = mg_core_ct_helper:build_storage(<<NS/binary, "_events">>, LossyStorage),
+    {Pid, Options} = start_automaton(BaseOptions#{events_storage => EventsStorage}),
+    ok = start(Options, MachineID, <<>>),
+    _ = ?assertEqual([], get_history(Options, MachineID)),
+    _NotificationID = notify(Options, MachineID, <<"notification_event">>),
+    {ok, _} = mg_core_ct_helper:poll_for_value(
+        fun() ->
+            get_history(Options, MachineID)
+        end,
+        [{1, <<"notification_event">>}],
+        5000
+    ),
+    ok = stop_automaton(Pid).
+
 %% Processor handlers
 
 -spec process_signal(options(), req_ctx(), deadline(), mg_core_events_machine:signal_args()) ->
@@ -410,11 +441,19 @@ events_machine_options(Base, StorageOptions, ProcessorOptions, NS) ->
             worker => #{
                 registry => mg_core_procreg_gproc
             },
+            notification => #{
+                namespace => NS,
+                pulse => ?MODULE,
+                storage => mg_core_storage_memory
+            },
             pulse => Pulse,
             schedulers => #{
                 timers => Scheduler,
                 timers_retries => Scheduler,
-                overseer => #{}
+                overseer => #{},
+                notification => #{
+                    scan_handicap => 2
+                }
             }
         },
         events_storage => mg_core_ct_helper:build_storage(<<NS/binary, "_events">>, Storage)
@@ -438,6 +477,17 @@ call(Options, MachineID, Args) ->
         Deadline
     ),
     decode(Response).
+
+-spec notify(mg_core_events_machine:options(), mg_core:id(), term()) -> term().
+notify(Options, MachineID, Args) ->
+    HRange = {undefined, undefined, forward},
+    mg_core_events_machine:notify(
+        Options,
+        MachineID,
+        Args,
+        HRange,
+        <<>>
+    ).
 
 -spec repair(mg_core_events_machine:options(), mg_core:id(), term()) -> ok.
 repair(Options, MachineID, Args) ->
@@ -504,7 +554,9 @@ decode_signal(timeout) ->
 decode_signal({init, Args}) ->
     {init, decode(Args)};
 decode_signal({repair, Args}) ->
-    {repair, decode(Args)}.
+    {repair, decode(Args)};
+decode_signal({notification, Args}) ->
+    {notification, Args}.
 
 -spec encode(term()) -> binary().
 encode(Value) ->

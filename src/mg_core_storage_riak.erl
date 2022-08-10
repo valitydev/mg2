@@ -258,9 +258,7 @@ put(Options = #{bucket := Bucket}, ClientRef, Key, Context, Value, IndexesUpdate
     {context(), mg_core_storage:value()} | undefined.
 get(Options = #{bucket := Bucket}, ClientRef, Key) ->
     Timeout = get_option(request_timeout, Options),
-    case
-        ?SAFE(riakc_pb_socket:get(ClientRef, Bucket, Key, get_option(r_options, Options), Timeout))
-    of
+    case ?SAFE(riakc_pb_socket:get(ClientRef, Bucket, Key, get_option(r_options, Options), Timeout)) of
         {error, notfound} ->
             undefined;
         Result ->

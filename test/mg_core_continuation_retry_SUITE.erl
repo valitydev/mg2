@@ -134,6 +134,11 @@ automaton_options() ->
         storage => mg_core_storage_memory,
         worker => #{registry => mg_core_procreg_gproc},
         pulse => ?MODULE,
+        notification => #{
+            namespace => ?MH_NS,
+            pulse => ?MODULE,
+            storage => mg_core_storage_memory
+        },
         retries => #{
             continuation => {intervals, ?TEST_INTERVALS}
         }

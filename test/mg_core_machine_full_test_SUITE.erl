@@ -258,12 +258,18 @@ stop_automaton(Pid) ->
 
 -spec automaton_options() -> mg_core_machine:options().
 automaton_options() ->
+    NS = <<"test">>,
     #{
-        namespace => <<"test">>,
+        namespace => NS,
         processor => ?MODULE,
         storage => mg_core_storage_memory,
         worker => #{
             registry => mg_core_procreg_gproc
+        },
+        notification => #{
+            namespace => NS,
+            pulse => ?MODULE,
+            storage => mg_core_storage_memory
         },
         pulse => ?MODULE
     }.

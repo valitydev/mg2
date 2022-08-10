@@ -59,6 +59,10 @@
     | #mg_core_machine_process_started{}
     | #mg_core_machine_process_finished{}
     | #mg_core_machine_process_transient_error{}
+    % Machine notification
+    | #mg_core_machine_notification_created{}
+    | #mg_core_machine_notification_delivered{}
+    | #mg_core_machine_notification_delivery_error{}
     % Machine worker handling
     | #mg_core_worker_call_attempt{}
     | #mg_core_worker_start_attempt{}

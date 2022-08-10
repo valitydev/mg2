@@ -171,6 +171,11 @@ automaton_options(NS, StorageName) ->
         worker => #{
             registry => mg_core_procreg_gproc
         },
+        notification => #{
+            namespace => NS,
+            pulse => ?MODULE,
+            storage => mg_core_storage_memory
+        },
         pulse => ?MODULE,
         schedulers => #{
             overseer => Scheduler

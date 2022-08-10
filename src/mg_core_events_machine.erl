@@ -50,6 +50,7 @@
 -export([call/6]).
 -export([get_machine/3]).
 -export([remove/4]).
+-export([notify/5]).
 
 %% mg_core_machine handler
 -behaviour(mg_core_machine).
@@ -82,7 +83,7 @@
     | {error, repair_error()}.
 -type repair_error() :: {failed, term()}.
 -type state_change() :: {aux_state(), [mg_core_events:body()]}.
--type signal() :: {init, term()} | timeout | {repair, term()}.
+-type signal() :: {init, term()} | timeout | {repair, term()} | {notification, term()}.
 -type aux_state() :: mg_core_events:content().
 -type request_context() :: mg_core:request_context().
 -type reply_action() :: mg_core_machine:processor_reply_action().
@@ -109,8 +110,7 @@
     remove => remove | undefined
 }.
 -type timer_action() ::
-    {set_timer, timer(), mg_core_events:history_range() | undefined,
-        Timeout :: pos_integer() | undefined}
+    {set_timer, timer(), mg_core_events:history_range() | undefined, Timeout :: pos_integer() | undefined}
     | unset_timer.
 -type timer() :: {timeout, timeout_()} | {deadline, calendar:datetime()}.
 -type timeout_() :: non_neg_integer().
@@ -214,6 +214,15 @@ get_machine(Options, ID, HRange) ->
 remove(Options, ID, ReqCtx, Deadline) ->
     mg_core_machine:call(machine_options(Options), ID, remove, ReqCtx, Deadline).
 
+-spec notify(options(), id(), term(), mg_core_events:history_range(), request_context()) -> mg_core_notification:id().
+notify(Options, MachineID, Args, HRange, ReqCtx) ->
+    mg_core_machine:notify(
+        machine_options(Options),
+        MachineID,
+        notification_args_to_opaque({Args, HRange}),
+        ReqCtx
+    ).
+
 %%
 %% mg_core_processor handler
 %%
@@ -292,6 +301,18 @@ process_machine_(
 ) ->
     NewState = State#{timer := undefined},
     process_machine_(Options, ID, {Subj, {undefined, HRange}}, PCtx, ReqCtx, Deadline, NewState);
+process_machine_(
+    Options,
+    ID,
+    {notification, _, OpaqueArgs},
+    _PCtx,
+    ReqCtx,
+    Deadline,
+    State
+) ->
+    {Args, HRange} = opaque_to_notification_args(OpaqueArgs),
+    Machine = machine(Options, ID, State, HRange),
+    process_machine_std(Options, ReqCtx, Deadline, notification, Args, Machine, State);
 process_machine_(_, _, {call, remove}, _, _, _, State) ->
     % TODO удалить эвенты (?)
     {{reply, ok}, remove, State};
@@ -312,11 +333,10 @@ process_machine_(
     Deadline,
     State1 = #{delayed_actions := DelayedActions}
 ) ->
-    % отложенные действия (эвент синк, тэг)
+    % отложенные действия (эвент синк)
     %
     % надо понимать, что:
     %  - эвенты добавляются в event sink
-    %  - создатся тэг
     %  - отсылается ответ
     %  - если есть удаление, то удаляется
     % надо быть аккуратнее, мест чтобы накосячить тут вагон и маленькая тележка  :-\
@@ -345,7 +365,7 @@ when
     Options :: options(),
     ReqCtx :: request_context(),
     Deadline :: deadline(),
-    Subject :: init | repair | call | timeout,
+    Subject :: init | repair | call | timeout | notification,
     Args :: term(),
     Machine :: machine(),
     State :: state().
@@ -359,9 +379,14 @@ process_machine_std(Options, ReqCtx, Deadline, repair, Args, Machine, State) ->
 process_machine_std(Options, ReqCtx, Deadline, Subject, Args, Machine, State) ->
     {Reply, NewState} =
         case Subject of
-            init -> process_signal(Options, ReqCtx, Deadline, {init, Args}, Machine, State);
-            timeout -> process_signal(Options, ReqCtx, Deadline, timeout, Machine, State);
-            call -> process_call(Options, ReqCtx, Deadline, Args, Machine, State)
+            init ->
+                process_signal(Options, ReqCtx, Deadline, {init, Args}, Machine, State);
+            timeout ->
+                process_signal(Options, ReqCtx, Deadline, timeout, Machine, State);
+            notification ->
+                process_signal(Options, ReqCtx, Deadline, {notification, Args}, Machine, State);
+            call ->
+                process_call(Options, ReqCtx, Deadline, Args, Machine, State)
         end,
     {noreply, {continue, Reply}, NewState}.
 
@@ -871,6 +896,16 @@ int_timer_to_opaque({Timestamp, ReqCtx, HandlingTimeout, HRange}) ->
 -spec opaque_to_int_timer(mg_core_storage:opaque()) -> int_timer().
 opaque_to_int_timer([1, Timestamp, ReqCtx, HandlingTimeout, HRange]) ->
     {Timestamp, ReqCtx, HandlingTimeout, mg_core_events:opaque_to_history_range(HRange)}.
+
+-spec notification_args_to_opaque({mg_core_storage:opaque(), mg_core_events:history_range()}) ->
+    mg_core_storage:opaque().
+notification_args_to_opaque({Args, HRange}) ->
+    [1, Args, mg_core_events:history_range_to_opaque(HRange)].
+
+-spec opaque_to_notification_args(mg_core_storage:opaque()) ->
+    {mg_core_storage:opaque(), mg_core_events:history_range()}.
+opaque_to_notification_args([1, Args, HRangeOpaque]) ->
+    {Args, mg_core_events:opaque_to_history_range(HRangeOpaque)}.
 
 %%
 

@@ -207,6 +207,29 @@
     retry_action :: {wait, timeout(), mg_core_retry:strategy()} | finish
 }).
 
+%% Machine notification
+
+-record(mg_core_machine_notification_created, {
+    namespace :: mg_core:ns(),
+    machine_id :: mg_core:id(),
+    notification_id :: mg_core:id(),
+    target_timestamp :: genlib_time:ts()
+}).
+
+-record(mg_core_machine_notification_delivered, {
+    namespace :: mg_core:ns(),
+    machine_id :: mg_core:id(),
+    notification_id :: mg_core:id()
+}).
+
+-record(mg_core_machine_notification_delivery_error, {
+    namespace :: mg_core:ns(),
+    machine_id :: mg_core:id(),
+    notification_id :: mg_core:id(),
+    exception :: mg_core_utils:exception(),
+    action :: delete | {reschedule, genlib_time:ts()} | ignore
+}).
+
 %% Storage operations
 %% Duration is in native units
 

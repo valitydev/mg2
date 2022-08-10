@@ -142,9 +142,7 @@ add_events_ssl_failed_test(C) ->
         ok = change_proxy_mode(pass, ignore, Proxy, C),
         _ = ?assertException(
             throw,
-            {transient,
-                {event_sink_unavailable,
-                    {connect_failed, [{_, {{failed_to_upgrade_to_ssl, _}, _ST}}]}}},
+            {transient, {event_sink_unavailable, {connect_failed, [{_, {{failed_to_upgrade_to_ssl, _}, _ST}}]}}},
             mg_core_events_sink_kafka:add_events(
                 event_sink_options(),
                 ?SOURCE_NS,

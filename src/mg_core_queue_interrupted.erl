@@ -27,8 +27,6 @@
 
 -type milliseconds() :: non_neg_integer().
 -type options() :: #{
-    namespace := mg_core:ns(),
-    scheduler_name := mg_core_scheduler:name(),
     pulse := mg_core_pulse:handler(),
     machine := mg_core_machine:options(),
     min_scan_delay => milliseconds(),

@@ -206,6 +206,11 @@ automaton_options(NS) ->
         worker => #{
             registry => mg_core_procreg_gproc
         },
+        notification => #{
+            namespace => NS,
+            pulse => ?MODULE,
+            storage => mg_core_storage_memory
+        },
         pulse => ?MODULE,
         schedulers => #{
             timers => Scheduler,
@@ -222,6 +227,11 @@ automaton_options_wo_shedulers(NS) ->
         storage => mg_core_ct_helper:build_storage(NS, mg_core_storage_memory),
         worker => #{
             registry => mg_core_procreg_gproc
+        },
+        notification => #{
+            namespace => NS,
+            pulse => ?MODULE,
+            storage => mg_core_storage_memory
         },
         pulse => ?MODULE,
         schedulers => #{

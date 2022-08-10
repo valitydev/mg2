@@ -16,6 +16,7 @@
 
 -module(mg_core_machine_SUITE).
 -include_lib("common_test/include/ct.hrl").
+-include_lib("stdlib/include/assert.hrl").
 
 %% tests descriptions
 -export([all/0]).
@@ -222,12 +223,18 @@ stop_automaton(Pid) ->
 -spec automaton_options(config()) -> mg_core_machine:options().
 automaton_options(C) ->
     Scheduler = #{},
+    Namespace = <<"test">>,
     #{
-        namespace => <<"test">>,
+        namespace => Namespace,
         processor => ?MODULE,
         storage => mg_core_storage_memory,
         worker => #{
             registry => ?config(registry, C)
+        },
+        notification => #{
+            namespace => Namespace,
+            pulse => ?MODULE,
+            storage => mg_core_storage_memory
         },
         pulse => ?MODULE,
         schedulers => #{

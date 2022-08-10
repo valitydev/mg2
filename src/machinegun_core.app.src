@@ -27,7 +27,8 @@
         riakc,
         pooler,
         brod,
-        msgpack
+        msgpack,
+        snowflake
     ]},
     {env, []},
     {modules, []},

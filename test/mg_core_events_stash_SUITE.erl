@@ -39,9 +39,7 @@
 
 -type handlers() :: #{
     signal_handler => fun((signal(), aux_state(), [event()]) -> {aux_state(), [event()], action()}),
-    call_handler => fun(
-        (call(), aux_state(), [event()]) -> {term(), aux_state(), [event()], action()}
-    ),
+    call_handler => fun((call(), aux_state(), [event()]) -> {term(), aux_state(), [event()], action()}),
     sink_handler => fun(([event()]) -> ok)
 }.
 -type processor() :: {module(), handlers()}.
@@ -245,6 +243,11 @@ events_machine_options(Options) ->
                 }},
             worker => #{
                 registry => mg_core_procreg_gproc
+            },
+            notification => #{
+                namespace => NS,
+                pulse => ?MODULE,
+                storage => mg_core_storage_memory
             },
             pulse => ?MODULE,
             schedulers => #{

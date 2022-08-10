@@ -203,6 +203,11 @@ automaton_options(NS, RetryPolicy) ->
         worker => #{
             registry => mg_core_procreg_gproc
         },
+        notification => #{
+            namespace => NS,
+            pulse => ?MODULE,
+            storage => mg_core_storage_memory
+        },
         pulse => ?MODULE,
         retries => #{
             timers => RetryPolicy

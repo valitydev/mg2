@@ -31,8 +31,7 @@
 -type policy() ::
     {linear, retries_num() | {max_total_timeout, pos_integer()}, pos_integer()}
     | {exponential, retries_num() | {max_total_timeout, pos_integer()}, number(), pos_integer()}
-    | {exponential, retries_num() | {max_total_timeout, pos_integer()}, number(), pos_integer(),
-        timeout()}
+    | {exponential, retries_num() | {max_total_timeout, pos_integer()}, number(), pos_integer(), timeout()}
     | {intervals, [pos_integer(), ...]}
     | {timecap, timeout(), policy()}.
 

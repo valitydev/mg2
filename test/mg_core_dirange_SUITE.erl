@@ -206,10 +206,8 @@ intersect_test(_) ->
             ?FORALL({R, With}, {range(), nonempty_range()}, begin
                 {LD, _, RD} = mg_core_dirange:intersect(R, With),
                 conjunction([
-                    {strictly_left_diff,
-                        equals({LD, empty(), empty()}, mg_core_dirange:intersect(LD, With))},
-                    {strictly_right_diff,
-                        equals({empty(), empty(), RD}, mg_core_dirange:intersect(RD, With))}
+                    {strictly_left_diff, equals({LD, empty(), empty()}, mg_core_dirange:intersect(LD, With))},
+                    {strictly_right_diff, equals({empty(), empty(), RD}, mg_core_dirange:intersect(RD, With))}
                 ])
             end)
         )
@@ -261,10 +259,8 @@ unify_test(_) ->
                 begin
                     RU = mg_core_dirange:unify(R0, R1),
                     conjunction([
-                        {no_smaller_than_r0,
-                            equals(mg_core_dirange:size(RU) >= mg_core_dirange:size(R0), true)},
-                        {no_smaller_than_r1,
-                            equals(mg_core_dirange:size(RU) >= mg_core_dirange:size(R1), true)}
+                        {no_smaller_than_r0, equals(mg_core_dirange:size(RU) >= mg_core_dirange:size(R0), true)},
+                        {no_smaller_than_r1, equals(mg_core_dirange:size(RU) >= mg_core_dirange:size(R1), true)}
                     ])
                 end
             )
