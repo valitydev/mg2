@@ -117,12 +117,18 @@ machine_options(NS, Config) ->
         Config
     ),
     MachinesStorage = sub_storage_options(<<"machines">>, Storage),
+    NotificationsStorage = sub_storage_options(<<"notifications">>, Storage),
     Options#{
         namespace => NS,
         storage => MachinesStorage,
         worker => worker_manager_options(Config),
         schedulers => maps:get(schedulers, Config, #{}),
         pulse => pulse(),
+        notification => #{
+            namespace => NS,
+            pulse => pulse(),
+            storage => NotificationsStorage
+        },
         % TODO сделать аналогично в event_sink'е и тэгах
         suicide_probability => maps:get(suicide_probability, Config, undefined)
     }.

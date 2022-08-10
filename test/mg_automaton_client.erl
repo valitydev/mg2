@@ -28,6 +28,7 @@
 -export([remove/3]).
 -export([call/3]).
 -export([call/4]).
+-export([notify/3]).
 -export([get_machine/3]).
 -export([get_machine/4]).
 -export([modernize/3]).
@@ -98,6 +99,17 @@ call(#{ns := NS} = Options, ID, Args, Deadline) ->
     unpack(
         call_response,
         call_service(Options, 'Call', {machine_desc(NS, ID), pack(args, Args)}, Deadline)
+    ).
+
+-spec notify(
+    options(),
+    mg_core_events_machine:id(),
+    mg_core_storage:opaque()
+) -> mg_core_storage:opaque().
+notify(#{ns := NS} = Options, ID, Args) ->
+    unpack(
+        notify_response,
+        call_service(Options, 'Notify', {machine_desc(NS, ID), pack(args, Args)}, undefined)
     ).
 
 -spec get_machine(options(), mg_core_events_machine:id(), mg_core_events:history_range()) ->

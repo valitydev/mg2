@@ -148,10 +148,9 @@ handle_function('Call', {MachineDesc, Args}, WoodyContext, Options) ->
 handle_function('GetMachine', {MachineDesc}, WoodyContext, Options) ->
     ReqCtx = mg_woody_api_utils:woody_context_to_opaque(WoodyContext),
     {NS, ID, Range} = unpack(machine_descriptor, MachineDesc),
-    Deadline = get_deadline(NS, WoodyContext, Options),
     Machine =
         mg_woody_api_utils:handle_error(
-            #{namespace => NS, machine_id => ID, request_context => ReqCtx, deadline => Deadline},
+            #{namespace => NS, machine_id => ID, request_context => ReqCtx},
             fun() ->
                 mg_core_events_machine:get_machine(
                     get_machine_options(NS, Options),
@@ -181,10 +180,9 @@ handle_function('Remove', {NS, IDIn}, WoodyContext, Options) ->
     {ok, ok};
 handle_function('Modernize', {MachineDesc}, WoodyContext, Options) ->
     {NS, ID, Range} = unpack(machine_descriptor, MachineDesc),
-    Deadline = get_deadline(NS, WoodyContext, Options),
     ReqCtx = mg_woody_api_utils:woody_context_to_opaque(WoodyContext),
     mg_woody_api_utils:handle_error(
-        #{namespace => NS, machine_id => ID, request_context => ReqCtx, deadline => Deadline},
+        #{namespace => NS, machine_id => ID, request_context => ReqCtx},
         fun() ->
             case get_ns_options(NS, Options) of
                 #{modernizer := ModernizerOptions, machine := MachineOptions} ->
@@ -203,7 +201,25 @@ handle_function('Modernize', {MachineDesc}, WoodyContext, Options) ->
             end
         end,
         pulse(NS, Options)
-    ).
+    );
+handle_function('Notify', {MachineDesc, Args}, WoodyContext, Options) ->
+    ReqCtx = mg_woody_api_utils:woody_context_to_opaque(WoodyContext),
+    {NS, ID, Range} = unpack(machine_descriptor, MachineDesc),
+    NotificationID =
+        mg_woody_api_utils:handle_error(
+            #{namespace => NS, machine_id => ID, request_context => ReqCtx},
+            fun() ->
+                mg_core_events_machine:notify(
+                    get_machine_options(NS, Options),
+                    ID,
+                    unpack(args, Args),
+                    Range,
+                    ReqCtx
+                )
+            end,
+            pulse(NS, Options)
+        ),
+    {ok, pack(notify_response, NotificationID)}.
 
 %%
 %% local

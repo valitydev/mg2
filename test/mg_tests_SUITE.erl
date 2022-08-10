@@ -41,6 +41,7 @@
 -export([machine_empty_id_not_found/1]).
 -export([machine_remove/1]).
 -export([machine_remove_by_action/1]).
+-export([machine_notification/1]).
 
 %% history group tests
 -export([history_changed_atomically/1]).
@@ -118,6 +119,7 @@ groups() ->
             machine_already_exists,
             machine_id_not_found,
             machine_call_by_id,
+            machine_notification,
             machine_remove,
             machine_id_not_found,
             machine_start,
@@ -249,6 +251,8 @@ default_signal_handler({Args, _Machine}) ->
             };
         {repair, <<"error">>} ->
             erlang:error(error);
+        {notification, NotificationArgs} ->
+            {{null(), [content(NotificationArgs)]}, #{timer => undefined}};
         timeout ->
             {{null(), [content(<<"handle_timer_body">>)]}, #{timer => undefined}};
         _ ->
@@ -324,7 +328,8 @@ mg_woody_api_config(C) ->
                 },
                 default_processing_timeout => 5000,
                 schedulers => #{
-                    timers => Scheduler
+                    timers => Scheduler,
+                    notification => Scheduler
                 },
                 retries => #{
                     storage => {exponential, infinity, 1, 10},
@@ -397,6 +402,19 @@ machine_empty_id_not_found(C) ->
 -spec machine_call_by_id(config()) -> _.
 machine_call_by_id(C) ->
     <<"nop">> = mg_automaton_client:call(automaton_options(C), ?ID, <<"nop">>).
+
+-spec machine_notification(config()) -> _.
+machine_notification(C) ->
+    Options = automaton_options(C),
+    #mg_stateproc_MachineNotFound{} =
+        (catch mg_automaton_client:notify(Options, <<"nope">>, <<"hello">>)),
+    #{history := InitialEvents} =
+        mg_automaton_client:get_machine(Options, ?ID, {undefined, undefined, forward}),
+    _NotificationID = mg_automaton_client:notify(Options, ?ID, <<"hello">>),
+    _ = timer:sleep(1000),
+    #{history := History1} =
+        mg_automaton_client:get_machine(Options, ?ID, {undefined, undefined, forward}),
+    [#{body := {_, <<"hello">>}}] = History1 -- InitialEvents.
 
 -spec machine_remove(config()) -> _.
 machine_remove(C) ->
