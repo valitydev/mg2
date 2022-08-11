@@ -99,6 +99,9 @@ format_beat(#mg_core_machine_lifecycle_transient_error{context = Ctx, exception 
         finish ->
             {warning, {"transient error ~p during ~p, retires exhausted", [Ctx, Reason]}, Context}
     end;
+format_beat(#mg_core_machine_notification_delivery_error{exception = {_, Reason, _}} = Beat, _Options) ->
+    Context = ?BEAT_TO_META(mg_core_machine_notification_delivery_error, Beat),
+    {warning, {"machine notification delivery failed ~p", [Reason]}, Context};
 format_beat(#mg_core_timer_lifecycle_rescheduled{target_timestamp = TS, attempt = Attempt} = Beat, _Options) ->
     Context = ?BEAT_TO_META(mg_core_timer_lifecycle_rescheduled, Beat),
     {info, {"machine rescheduled to ~s, attempt ~p", [format_timestamp(TS), Attempt]}, Context};
@@ -453,8 +456,13 @@ extract_meta(retry_action, {wait, Timeout, NextStrategy}) ->
     ];
 extract_meta(retry_action, _Other) ->
     [];
-extract_meta(machine_id, MachineID) ->
-    {machine_id, MachineID};
+extract_meta(action, {reschedule, Timestamp}) ->
+    [
+        {action, <<"reschedule">>},
+        {reschedule_time, format_timestamp(Timestamp)}
+    ];
+extract_meta(action, Action) ->
+    {action, genlib:to_binary(Action)};
 extract_meta(namespace, NS) ->
     {machine_ns, NS};
 extract_meta(squad_member, Member) ->

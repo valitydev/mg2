@@ -186,6 +186,18 @@ namespaces:
             capacity: 500
             min_scan_delay: 10s
         overseer: disabled
+        notification:
+            capacity: 1000
+            # search for new notification tasks in storage every x
+            scan_interval: 1m
+            # if the search had a continuation, read the continuation after x amount of time
+            min_scan_delay: 1s
+            # only search for notification tasks that are older than x
+            scan_handicap: 10s
+            # only search for notification tasks that are younger than x
+            scan_cutoff: 4W
+            # reschedule notification deliveries that failed with temporary errors x amount of time into the future
+            reschedule_time: 5s
         # maximum number of events that will be stored inside of machine state
         # must be non negative integer, default is 0
         event_stash_size: 5

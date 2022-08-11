@@ -133,9 +133,15 @@ machine_options(NS, Config, Pulse) ->
         Config
     ),
     MachinesStorage = sub_storage_options(<<"machines">>, Storage),
+    NotificationStorage = sub_storage_options(<<"notifications">>, Storage),
     Options#{
         namespace => NS,
         storage => MachinesStorage,
+        notification => #{
+            namespace => NS,
+            pulse => Pulse,
+            storage => NotificationStorage
+        },
         worker => worker_manager_options(Config),
         schedulers => maps:get(schedulers, Config, #{}),
         pulse => Pulse,

@@ -32,6 +32,7 @@
 -export([get_machine/3]).
 -export([get_machine/4]).
 -export([modernize/3]).
+-export([notify/3]).
 
 %% уменьшаем писанину
 -import(mg_woody_api_packer, [pack/2, unpack/2]).
@@ -105,13 +106,24 @@ get_machine(Options, ID, Range) ->
     mg_core_events_machine:machine().
 get_machine(#{ns := NS} = Options, ID, Range, Deadline) ->
     unpack(
-        machine,
+        machine_simple,
         call_service(Options, 'GetMachine', {machine_desc(NS, ID, Range)}, Deadline)
     ).
 
 -spec modernize(options(), mg_core_events_machine:id(), mg_core_events:history_range()) -> ok.
 modernize(#{ns := NS} = Options, ID, Range) ->
     ok = call_service(Options, 'Modernize', {machine_desc(NS, ID, Range)}, undefined).
+
+-spec notify(
+    options(),
+    mg_core_events_machine:id(),
+    mg_core_storage:opaque()
+) -> mg_core_storage:opaque().
+notify(#{ns := NS} = Options, ID, Args) ->
+    unpack(
+        notify_response,
+        call_service(Options, 'Notify', {machine_desc(NS, ID), pack(args, Args)}, undefined)
+    ).
 
 %%
 %% local

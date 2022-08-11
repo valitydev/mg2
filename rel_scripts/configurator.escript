@@ -448,25 +448,7 @@ namespace({Name, NSYamlConfig}, YamlConfig) ->
                 processor    => {exponential, {max_total_timeout, 24 * 60 * 60 * 1000}, 2, 10, 60 * 1000},
                 continuation => {exponential, infinity, 2, 10, 60 * 1000}
             },
-            schedulers => maps:merge(
-                case ?C:conf([timers], NSYamlConfig, []) of
-                    <<"disabled">> ->
-                        #{};
-                    TimersConfig ->
-                        #{
-                            timers         => timer_scheduler(2, TimersConfig),
-                            timers_retries => timer_scheduler(1, TimersConfig)
-                        }
-                end,
-                case ?C:conf([overseer], NSYamlConfig, []) of
-                    <<"disabled">> ->
-                        #{};
-                    OverseerConfig ->
-                        #{
-                            overseer => overseer_scheduler(0, OverseerConfig)
-                        }
-                end
-            ),
+            schedulers => namespace_schedulers(NSYamlConfig),
             event_sinks => [event_sink(ES) || ES <- ?C:conf([event_sinks], NSYamlConfig, [])],
             suicide_probability => ?C:probability(?C:conf([suicide_probability], NSYamlConfig, 0)),
             event_stash_size => ?C:conf([event_stash_size], NSYamlConfig, 0)
@@ -475,6 +457,36 @@ namespace({Name, NSYamlConfig}, YamlConfig) ->
             modernizer => modernizer(Name, ModernizerYamlConfig)
         } end)
     )}.
+
+namespace_schedulers(NSYamlConfig) ->
+    Schedulers = [
+        case ?C:conf([timers], NSYamlConfig, []) of
+            <<"disabled">> ->
+                #{};
+            TimersConfig ->
+                #{
+                    timers         => timer_scheduler(2, TimersConfig),
+                    timers_retries => timer_scheduler(1, TimersConfig)
+                }
+        end,
+        case ?C:conf([overseer], NSYamlConfig, []) of
+            <<"disabled">> ->
+                #{};
+            OverseerConfig ->
+                #{
+                    overseer => overseer_scheduler(0, OverseerConfig)
+                }
+        end,
+        case ?C:conf([notification], NSYamlConfig, []) of
+            <<"disabled">> ->
+                #{};
+            NotificationConfig ->
+                #{
+                    notification => notification_scheduler(1, NotificationConfig)
+                }
+        end
+    ],
+    lists:foldl(fun maps:merge/2, #{}, Schedulers).
 
 modernizer(Name, ModernizerYamlConfig) ->
     #{
@@ -511,6 +523,16 @@ overseer_scheduler(Share, Config) ->
         capacity       => ?C:conf([capacity], Config, 1000),
         min_scan_delay => timeout(min_scan_delay, Config, <<"1s">>, ms),
         rescan_delay   => timeout(scan_interval, Config, <<"10m">>, ms)
+    }.
+
+notification_scheduler(Share, Config) ->
+    (scheduler(Share, Config))#{
+        capacity        => ?C:conf([capacity], Config, 1000),
+        min_scan_delay  => timeout(min_scan_delay, Config, <<"1s">>, ms),
+        rescan_delay    => timeout(scan_interval, Config, <<"1m">>, ms),
+        scan_handicap   => timeout(scan_handicap, Config, <<"10s">>, ms),
+        scan_cutoff     => timeout(scan_cutoff, Config, <<"4W">>, ms),
+        reschedule_time => timeout(reschedule_time, Config, <<"5s">>, ms)
     }.
 
 timeout(Name, Config, Default, Unit) ->

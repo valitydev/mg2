@@ -50,6 +50,19 @@ setup() ->
         {labels, [namespace, change]},
         {help, "Total number of Machinegun machine processes status changes."}
     ]),
+    % Notifications
+    true = prometheus_counter:declare([
+        {name, mg_machine_notification_changes_total},
+        {registry, registry()},
+        {labels, [namespace, status]},
+        {help, "Total number of Machinegun machine notification status changes."}
+    ]),
+    true = prometheus_counter:declare([
+        {name, mg_machine_notification_delivery_failure_actions_total},
+        {registry, registry()},
+        {labels, [namespace, action]},
+        {help, "Total number of Machinegun machine notification failure action changes."}
+    ]),
     % Machine processing
     true = prometheus_counter:declare([
         {name, mg_machine_processing_changes_total},
@@ -256,6 +269,8 @@ dispatch_metrics(#mg_core_machine_lifecycle_created{namespace = NS}) ->
     ok = inc(mg_machine_lifecycle_changes_total, [NS, created]);
 dispatch_metrics(#mg_core_machine_lifecycle_removed{namespace = NS}) ->
     ok = inc(mg_machine_lifecycle_changes_total, [NS, removed]);
+dispatch_metrics(#mg_core_machine_lifecycle_repaired{namespace = NS}) ->
+    ok = inc(mg_machine_lifecycle_changes_total, [NS, repaired]);
 dispatch_metrics(#mg_core_machine_lifecycle_failed{namespace = NS}) ->
     ok = inc(mg_machine_lifecycle_changes_total, [NS, failed]);
 dispatch_metrics(#mg_core_machine_lifecycle_committed_suicide{namespace = NS}) ->
@@ -270,6 +285,14 @@ dispatch_metrics(#mg_core_machine_process_started{processor_impact = Impact, nam
 dispatch_metrics(#mg_core_machine_process_finished{processor_impact = Impact, namespace = NS, duration = Duration}) ->
     ok = inc(mg_machine_processing_changes_total, [NS, decode_impact(Impact), finished]),
     ok = observe(mg_machine_processing_duration_seconds, [NS, decode_impact(Impact)], Duration);
+% Notifications
+dispatch_metrics(#mg_core_machine_notification_created{namespace = NS}) ->
+    ok = inc(mg_machine_notification_changes_total, [NS, created]);
+dispatch_metrics(#mg_core_machine_notification_delivered{namespace = NS}) ->
+    ok = inc(mg_machine_notification_changes_total, [NS, success]);
+dispatch_metrics(#mg_core_machine_notification_delivery_error{namespace = NS, action = Action}) ->
+    ok = inc(mg_machine_notification_changes_total, [NS, error]),
+    ok = inc(mg_machine_notification_delivery_failure_actions_total, [NS, decode_delivery_error_action(Action)]);
 % Timer lifecycle
 dispatch_metrics(#mg_core_timer_lifecycle_created{namespace = NS, target_timestamp = Timestamp}) ->
     ok = inc(mg_timer_lifecycle_changes_total, [NS, created]),
@@ -442,6 +465,13 @@ decode_impact(timeout) ->
     timeout;
 decode_impact(continuation) ->
     continuation.
+
+-spec decode_delivery_error_action(Action) -> atom() when
+    Action :: delete | {reschedule, genlib_time:ts()} | ignore.
+decode_delivery_error_action({reschedule, _}) ->
+    reschedule;
+decode_delivery_error_action(Action) when is_atom(Action) ->
+    Action.
 
 -spec decode_ts_offset(number()) -> number().
 decode_ts_offset(Timestamp0) ->
