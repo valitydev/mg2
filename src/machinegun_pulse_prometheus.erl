@@ -459,6 +459,8 @@ decode_impact({init, _Args}) ->
     init;
 decode_impact({repair, _Args}) ->
     repair;
+decode_impact({notification, _, _}) ->
+    notification;
 decode_impact({call, _Args}) ->
     call;
 decode_impact(timeout) ->
