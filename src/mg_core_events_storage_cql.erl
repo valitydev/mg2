@@ -212,6 +212,12 @@ bootstrap(Options, NS) ->
             "created_at TUPLE<DATE, TIME>,"
             "body BLOB,"
             "body_format_vsn SMALLINT,"
+            % TODO
+            % Ideally we would want to colocate machine state with at least the
+            % first page of events. For that we would need to use a single wide
+            % table with columns describing both a machine and an event though.
+            % Then we could allocate row with `event_id = 0` to store machine
+            % state. Yet all this sounds cringey.
             "PRIMARY KEY ((machine_id, page_offset), event_id)"
             ")"
         ])
