@@ -1,5 +1,16 @@
 %% TODOs
-%% * what's up with `HandlingTimeout`? It's not used anywhere AFAICS.
+%%
+%% 1. What's up with `HandlingTimeout`? It's not used anywhere AFAICS.
+%%
+%% A: It's part of the protocol, and was designed to allow processors to request
+%%    reasonably chosen timeouts on subsequent `ProcessSignal` instead of long
+%%    30-60 seconds chosen by default. This was a safety measure against third
+%%    parties with no idempotency guarantees in the protocol. Yet on the other
+%%    hand woody timeouts that long could exhaust connection pools (and memory
+%%    as a result) on the processor under load.
+%%
+%%    Ideally, we should respect this timeout, somewhere in the timer handling
+%%    code.
 
 -module(mg_core_machine_storage).
 
@@ -51,8 +62,8 @@
 -type machine_regular_status() ::
     sleeping
     | {waiting, unix_timestamp_s(), request_context(), HandlingTimeout :: mg_core:timeout_ms()}
-    | {retrying, Target :: unix_timestamp_s(), Start :: unix_timestamp_s(),
-        Attempt :: non_neg_integer(), request_context()}
+    | {retrying, Target :: unix_timestamp_s(), Start :: unix_timestamp_s(), Attempt :: non_neg_integer(),
+        request_context()}
     | {processing, request_context()}.
 
 -type machine_status() ::
