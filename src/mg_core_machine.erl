@@ -156,7 +156,7 @@
     namespace := mg_core:ns(),
     pulse := mg_core_pulse:handler(),
     storage => storage_options(),
-    notification => mg_core_notification:options(),
+    notification => notification_storage_options(),
     processor => mg_core_utils:mod_opts(),
     worker => mg_core_workers_manager:ns_options(),
     retries => retry_opt(),
@@ -168,6 +168,9 @@
 
 % like mg_core_machine_storage:options() except `name`
 -type storage_options() :: mg_core_utils:mod_opts(map()).
+
+% like mg_core_notification_storage:options() except `name`
+-type notification_storage_options() :: mg_core_utils:mod_opts(map()).
 
 -type thrown_error() ::
     {logic, logic_error()} | {transient, transient_error()} | {timeout, _Reason}.
@@ -194,7 +197,7 @@
     {init, term()}
     | {repair, term()}
     | {call, term()}
-    | {notification, mg_core_notification:id(), term()}
+    | {notification, mg_core:notification_id(), term()}
     | timeout
     | continuation.
 -type processor_reply_action() :: noreply | {reply, _}.
@@ -317,15 +320,16 @@ call(Options, ID, Call, ReqCtx, Deadline) ->
     call_(Options, ID, {call, Call}, ReqCtx, Deadline).
 
 -spec notify(options(), mg_core:id(), mg_core_storage:opaque(), request_context()) ->
-    mg_core_notification:id() | throws().
-notify(Options, ID, Args, ReqCtx) ->
+    mg_core:notification_id() | throws().
+notify(Options = #{namespace := NS}, ID, Args, ReqCtx) ->
     %% Ensure machine exists
     _ = get(Options, ID),
     NotificationID = generate_snowflake_id(),
     Timestamp = genlib_time:unow(),
     OpaqueArgs = notification_args_to_opaque({Args, ReqCtx}),
-    Context = mg_core_notification:put(
-        notification_options(Options),
+    Context = mg_core_notification_storage:put(
+        notification_storage_options(Options),
+        NS,
         NotificationID,
         #{
             machine_id => ID,
@@ -347,7 +351,8 @@ notify(Options, ID, Args, ReqCtx) ->
 send_timeout(Options, ID, Timestamp, Deadline) ->
     call_(Options, ID, {timeout, Timestamp}, undefined, Deadline).
 
--spec send_notification(options(), mg_core:id(), mg_core_notification:id(), term(), deadline()) -> _Resp | throws().
+-spec send_notification(options(), mg_core:id(), mg_core:notification_id(), term(), deadline()) ->
+    _Resp | throws().
 send_notification(Options, ID, NotificationID, OpaqueArgs, Deadline) ->
     {Args, ReqCtx} = opaque_to_notification_args(OpaqueArgs),
     call_(Options, ID, {notification, NotificationID, Args}, ReqCtx, Deadline).
@@ -450,7 +455,7 @@ call_(Options, ID, Call, ReqCtx, Deadline) ->
     schedulers => #{scheduler_type() => scheduler_ref()},
     storage_machine => storage_machine() | nonexistent | unknown,
     storage_context => mg_core_machine_storage:context() | undefined,
-    notifications_processed => mg_core_circular_buffer:t(mg_core_notification:id())
+    notifications_processed => mg_core_circular_buffer:t(mg_core:notification_id())
 }.
 
 -type storage_machine() :: mg_core_machine_storage:machine().
@@ -646,7 +651,7 @@ process(Impact, ProcessingCtx, ReqCtx, Deadline, State) ->
 
 %% 😠
 -spec process_notification(NotificationID, Args, ProcessingCtx, ReqCtx, Deadline, State) -> State when
-    NotificationID :: mg_core_notification:id(),
+    NotificationID :: mg_core:notification_id(),
     Args :: term(),
     ProcessingCtx :: processing_context(),
     ReqCtx :: request_context(),
@@ -663,7 +668,7 @@ process_notification(NotificationID, Args, PCtx, ReqCtx, Deadline, State) ->
             State
     end.
 
--spec is_notification_processed(mg_core_notification:id(), state()) ->
+-spec is_notification_processed(mg_core:notification_id(), state()) ->
     boolean().
 is_notification_processed(NotificationID, #{notifications_processed := Buffer}) ->
     mg_core_circular_buffer:member(NotificationID, Buffer).
@@ -680,10 +685,10 @@ opaque_to_notification_args([1, Args, RequestContext]) ->
 
 -spec send_notification_task(Options, NotificationID, Args, MachineID, Context, TargetTime) -> ok when
     Options :: options(),
-    NotificationID :: mg_core_notification:id(),
+    NotificationID :: mg_core:notification_id(),
     Args :: mg_core_storage:opaque(),
     MachineID :: mg_core:id(),
-    Context :: mg_core_notification:context(),
+    Context :: mg_core_notification_storage:context(),
     TargetTime :: genlib_time:ts().
 send_notification_task(Options, NotificationID, Args, MachineID, Context, TargetTime) ->
     Task = mg_core_queue_notifications:build_task(NotificationID, MachineID, TargetTime, Context, Args),
@@ -850,7 +855,7 @@ generate_snowflake_id() ->
     <<ID:64>> = snowflake:new(),
     genlib_format:format_int_base(ID, 61).
 
--spec handle_notification_processed(mg_core_notification:id(), state()) ->
+-spec handle_notification_processed(mg_core:notification_id(), state()) ->
     state().
 handle_notification_processed(NotificationID, State = #{notifications_processed := Buffer}) ->
     State#{notifications_processed => mg_core_circular_buffer:push(NotificationID, Buffer)}.
@@ -871,8 +876,8 @@ call_processor(Impact, ProcessingCtx, ReqCtx, Deadline, State) ->
     ).
 
 -spec notification_child_spec(options()) -> supervisor:child_spec() | undefined.
-notification_child_spec(#{notification := NotificationOptions}) ->
-    mg_core_notification:child_spec(NotificationOptions, notification);
+notification_child_spec(Options = #{notification := _}) ->
+    mg_core_notification_storage:child_spec(notification_storage_options(Options), notification);
 notification_child_spec(#{}) ->
     undefined.
 
@@ -981,8 +986,11 @@ transit_state(ReqCtx, Deadline, StorageMachine = #{status := Status}, State) ->
     } = State,
     _ =
         case StorageMachinePrev of
-            #{status := Status} -> ok;
-            #{status := StatusWas} -> handle_status_transition(StatusWas, Status, ReqCtx, Deadline, State)
+            #{status := Status} ->
+                ok;
+            #{} ->
+                StatusPrev = maps:get(status, StorageMachinePrev, undefined),
+                handle_status_transition(StatusPrev, Status, ReqCtx, Deadline, State)
         end,
     F = fun() ->
         mg_core_machine_storage:update(
@@ -1002,7 +1010,11 @@ transit_state(ReqCtx, Deadline, StorageMachine = #{status := Status}, State) ->
     }.
 
 -spec handle_status_transition(
-    From :: machine_status(), To :: machine_status(), request_context(), deadline(), state()
+    From :: machine_status() | undefined,
+    To :: machine_status(),
+    request_context(),
+    deadline(),
+    state()
 ) -> _.
 handle_status_transition({error, _Reason, _}, _Any, ReqCtx, Deadline, State) ->
     emit_repaired_beat(ReqCtx, Deadline, State);
@@ -1226,9 +1238,14 @@ storage_options(#{
     {Processor, _} = mg_core_utils:separate_mod_opts(ProcessorOptions, #{}),
     {Mod, Options#{name => {NS, ?MODULE, machines}, processor => Processor, pulse => Handler}}.
 
--spec notification_options(options()) -> mg_core_notification:options().
-notification_options(#{notification := NotificationOptions}) ->
-    NotificationOptions.
+-spec notification_storage_options(options()) -> mg_core_notification_storage:options().
+notification_storage_options(#{
+    namespace := NS,
+    notification := StorageOptions,
+    pulse := Handler
+}) ->
+    {Mod, Options} = mg_core_utils:separate_mod_opts(StorageOptions, #{}),
+    {Mod, Options#{name => {NS, ?MODULE, notification}, pulse => Handler}}.
 
 -spec scheduler_child_spec(scheduler_type(), options()) -> supervisor:child_spec() | undefined.
 scheduler_child_spec(SchedulerType, Options) ->
@@ -1272,7 +1289,7 @@ scheduler_options(overseer, Options, Config) ->
 scheduler_options(notification = SchedulerType, Options, Config) ->
     HandlerOptions = #{
         scheduler_id => scheduler_id(SchedulerType, Options),
-        notification => notification_options(Options),
+        notification => notification_storage_options(Options),
         processing_timeout => maps:get(notification_processing_timeout, Options, undefined),
         min_scan_delay => maps:get(min_scan_delay, Config, undefined),
         rescan_delay => maps:get(rescan_delay, Config, undefined),

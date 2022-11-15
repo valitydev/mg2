@@ -228,7 +228,7 @@ get_machine(Options, ID, HRange) ->
 remove(Options, ID, ReqCtx, Deadline) ->
     mg_core_machine:call(machine_options(Options), ID, remove, ReqCtx, Deadline).
 
--spec notify(options(), id(), term(), mg_core_events:history_range(), request_context()) -> mg_core_notification:id().
+-spec notify(options(), id(), term(), mg_core_events:history_range(), request_context()) -> mg_core:notification_id().
 notify(Options, MachineID, Args, HRange, ReqCtx) ->
     mg_core_machine:notify(
         machine_options(Options),

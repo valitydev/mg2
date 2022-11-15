@@ -32,7 +32,7 @@
 
 %% mg_core_machine
 -behaviour(mg_core_machine).
--export([pool_child_spec/2, process_machine/7]).
+-export([process_machine/7]).
 
 %% mg_core_machine_storage_kvs
 -behaviour(mg_core_machine_storage_kvs).
@@ -44,8 +44,6 @@
 -export([prepare_update_query/4]).
 -export([read_machine_state/2]).
 -export([bootstrap/3]).
-
--export([start/0]).
 
 %% Pulse
 -export([handle_beat/2]).
@@ -200,13 +198,6 @@ simple_test(C) ->
 
 -type machine_state() :: {binary(), integer()}.
 
--spec pool_child_spec(_Options, atom()) -> supervisor:child_spec().
-pool_child_spec(_Options, Name) ->
-    #{
-        id => Name,
-        start => {?MODULE, start, []}
-    }.
-
 -spec process_machine(
     _Options,
     mg_core:id(),
@@ -282,10 +273,6 @@ bootstrap(_, NS, Client) ->
 %%
 %% utils
 %%
--spec start() -> ignore.
-start() ->
-    ignore.
-
 -spec start_automaton(mg_core_machine:options()) -> pid().
 start_automaton(Options) ->
     mg_core_utils:throw_if_error(mg_core_machine:start_link(Options)).
@@ -305,11 +292,7 @@ automaton_options(C) ->
         worker => #{
             registry => ?config(registry, C)
         },
-        notification => #{
-            namespace => ?NAMESPACE,
-            pulse => ?MODULE,
-            storage => {mg_core_machine_storage_kvs, #{kvs => mg_core_storage_memory}}
-        },
+        notification => {mg_core_machine_storage_kvs, #{kvs => mg_core_storage_memory}},
         pulse => ?MODULE,
         schedulers => #{
             timers => Scheduler,

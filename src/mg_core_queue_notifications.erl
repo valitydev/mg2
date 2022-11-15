@@ -37,7 +37,7 @@
     scheduler_id := mg_core_scheduler:id(),
     pulse := mg_core_pulse:handler(),
     machine := mg_core_machine:options(),
-    notification := mg_core_notification:options(),
+    notification := mg_core_notification_storage:options(),
     % how many seconds behind real time we are
     processing_timeout => timeout(),
     min_scan_delay => milliseconds(),
@@ -61,7 +61,7 @@
 -type task_id() :: mg_core:id().
 -type task_payload() :: #{
     args := mg_core_storage:opaque(),
-    context := mg_core_notification:context()
+    context := mg_core_notification_storage:context()
 }.
 -type target_time() :: mg_core_queue_task:target_time().
 -type task() :: mg_core_queue_task:task(task_id(), task_payload()).
@@ -83,10 +83,10 @@
 %%
 
 -spec build_task(
-    NotificationID :: mg_core_notification:id(),
+    NotificationID :: mg_core:notification_id(),
     MachineID :: mg_core:id(),
     Timestamp :: genlib_time:ts(),
-    Context :: mg_core_notification:context(),
+    Context :: mg_core_notification_storage:context(),
     Args :: mg_core_storage:opaque()
 ) ->
     task().
@@ -107,15 +107,16 @@ init(_Options) ->
 
 -spec search_tasks(options(), scan_limit(), state()) -> {{scan_delay(), [task()]}, state()}.
 search_tasks(Options, Limit, State = #state{}) ->
+    #{namespace := NS} = machine_options(Options),
     CurrentTs = mg_core_queue_task:current_time(),
     ScanCutoff = maps:get(scan_cutoff, Options, ?DEFAULT_SCAN_CUTOFF),
     ScanHandicap = get_handicap_seconds(State),
     TFrom = CurrentTs - ScanHandicap - ScanCutoff,
     TTo = CurrentTs - ScanHandicap,
-    {Notifications, Continuation} = mg_core_notification:search(
-        notification_options(Options),
-        TFrom,
-        TTo,
+    {Notifications, Continuation} = mg_core_notification_storage:search(
+        storage_options(Options),
+        NS,
+        {TFrom, TTo},
         Limit
     ),
     Tasks = lists:map(
@@ -131,14 +132,15 @@ search_tasks(Options, Limit, State = #state{}) ->
 
 -spec execute_task(options(), task()) -> ok.
 execute_task(Options, #{id := NotificationID, machine_id := MachineID, payload := Payload} = Task) ->
-    Timeout = maps:get(processing_timeout, Options, ?DEFAULT_PROCESSING_TIMEOUT),
+    #{namespace := NS} = machine_options(Options),
     SchedulerID = maps:get(scheduler_id, Options),
+    Timeout = maps:get(processing_timeout, Options, ?DEFAULT_PROCESSING_TIMEOUT),
     Deadline = mg_core_deadline:from_timeout(Timeout),
     #{args := Args, context := Context} = Payload,
     try mg_core_machine:send_notification(machine_options(Options), MachineID, NotificationID, Args, Deadline) of
         Result ->
             ok = emit_delivered_beat(Options, MachineID, NotificationID),
-            ok = mg_core_notification:delete(notification_options(Options), NotificationID, Context),
+            ok = mg_core_notification_storage:delete(storage_options(Options), NS, NotificationID, Context),
             Result
     catch
         throw:Reason:Stacktrace ->
@@ -147,7 +149,7 @@ execute_task(Options, #{id := NotificationID, machine_id := MachineID, payload :
             ok = emit_delivery_error_beat(Options, MachineID, NotificationID, Exception, Action),
             case Action of
                 delete ->
-                    ok = mg_core_notification:delete(notification_options(Options), NotificationID, Context);
+                    ok = mg_core_notification_storage:delete(storage_options(Options), NS, NotificationID, Context);
                 {reschedule, NewTargetTime} ->
                     ok = mg_core_scheduler:send_task(SchedulerID, Task#{target_time => NewTargetTime});
                 ignore ->
@@ -175,19 +177,20 @@ maybe_set_handicap(_Options, State) ->
 machine_options(#{machine := MachineOptions}) ->
     MachineOptions.
 
--spec notification_options(options()) -> mg_core_notification:options().
-notification_options(#{notification := NotificationOptions}) ->
-    NotificationOptions.
+-spec storage_options(options()) -> mg_core_notification_storage:options().
+storage_options(#{notification := StorageOptions}) ->
+    StorageOptions.
 
--spec create_task(options(), mg_core_notification:id(), target_time()) -> task().
+-spec create_task(options(), mg_core:notification_id(), target_time()) -> task().
 create_task(Options, NotificationID, Timestamp) ->
-    {ok, Context, #{
-        machine_id := MachineID,
-        args := Args
-    }} = mg_core_notification:get(
-        notification_options(Options),
-        NotificationID
-    ),
+    #{namespace := NS} = machine_options(Options),
+    {
+        Context,
+        #{
+            machine_id := MachineID,
+            args := Args
+        }
+    } = mg_core_notification_storage:get(storage_options(Options), NS, NotificationID),
     build_task(NotificationID, MachineID, Timestamp, Context, Args).
 
 -spec task_fail_action(options(), mg_core_machine:thrown_error()) -> fail_action().
@@ -208,7 +211,7 @@ get_reschedule_time(Options) ->
 -spec emit_delivery_error_beat(
     options(),
     mg_core:id(),
-    mg_core_notification:id(),
+    mg_core:notification_id(),
     mg_core_utils:exception(),
     fail_action()
 ) -> ok.
@@ -224,7 +227,7 @@ emit_delivery_error_beat(Options, MachineID, NotificationID, Exception, Action) 
 -spec emit_delivered_beat(
     options(),
     mg_core:id(),
-    mg_core_notification:id()
+    mg_core:notification_id()
 ) -> ok.
 emit_delivered_beat(Options, MachineID, NotificationID) ->
     ok = emit_beat(Options, #mg_core_machine_notification_delivered{

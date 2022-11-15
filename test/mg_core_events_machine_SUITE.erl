@@ -441,11 +441,7 @@ events_machine_options(Base, StorageOptions, ProcessorOptions, NS) ->
             worker => #{
                 registry => mg_core_procreg_gproc
             },
-            notification => #{
-                namespace => NS,
-                pulse => ?MODULE,
-                storage => mg_core_storage_memory
-            },
+            notification => {mg_core_notification_storage_kvs, #{kvs => mg_core_storage_memory}},
             pulse => Pulse,
             schedulers => #{
                 timers => Scheduler,
