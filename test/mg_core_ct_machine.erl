@@ -28,9 +28,7 @@
 
 -type handlers() :: #{
     signal_handler => fun((signal(), aux_state(), [event()]) -> {aux_state(), [event()], action()}),
-    call_handler => fun(
-        (call(), aux_state(), [event()]) -> {term(), aux_state(), [event()], action()}
-    ),
+    call_handler => fun((call(), aux_state(), [event()]) -> {term(), aux_state(), [event()], action()}),
     sink_handler => fun(([event()]) -> ok)
 }.
 
@@ -45,14 +43,7 @@ start(Options, MachineID, Args) ->
 call(Options, MachineID, Args) ->
     HRange = {undefined, undefined, forward},
     Deadline = mg_core_deadline:from_timeout(3000),
-    Result = mg_core_events_machine:call(
-        Options,
-        {id, MachineID},
-        encode(Args),
-        HRange,
-        <<>>,
-        Deadline
-    ),
+    Result = mg_core_events_machine:call(Options, MachineID, encode(Args), HRange, <<>>, Deadline),
     decode(Result).
 
 -spec history(options(), mg_core:id()) -> ok.
@@ -61,7 +52,7 @@ history(Options, MachineID) ->
 
 -spec history(options(), mg_core:id(), mg_core_events:history_range()) -> ok.
 history(Options, MachineID, HRange) ->
-    Machine = mg_core_events_machine:get_machine(Options, {id, MachineID}, HRange),
+    Machine = mg_core_events_machine:get_machine(Options, MachineID, HRange),
     {_AuxState, History} = decode_machine(Machine),
     History.
 
@@ -116,7 +107,7 @@ add_events(Handlers, _NS, _MachineID, Events, _ReqCtx, _Deadline) ->
 dummy_signal_handler(_Signal, AuxState, _Events) ->
     {AuxState, [], #{}}.
 
--spec dummy_call_handler(signal(), aux_state(), [event()]) -> {aux_state(), [event()], action()}.
+-spec dummy_call_handler(signal(), aux_state(), [event()]) -> {ok, aux_state(), [event()], action()}.
 dummy_call_handler(_Signal, AuxState, _Events) ->
     {ok, AuxState, [], #{}}.
 
