@@ -104,7 +104,11 @@ logger(YamlConfig) ->
                 flush_qlen     => ?C:conf([logging, flush_qlen],     YamlConfig, 2000)
             }),
             formatter => {logger_logstash_formatter, #{
-                chars_limit => ?C:conf([logging, formatter, max_length], YamlConfig, 1000)
+                chars_limit => ?C:conf([logging, formatter, max_length], YamlConfig, 1000),
+                log_level_map =>
+                    conf_with([logging, formatter, level_map], YamlConfig, #{}, fun (LevelMap) ->
+                        maps:from_list(lists:map(fun log_level_tuple_to_atom/1, LevelMap))
+                    end)
             }}
         }}
     ].
@@ -694,3 +698,22 @@ conf_with(YamlConfigPath, YamlConfig, Default, FunOrVal) ->
         Value when is_function(FunOrVal) -> FunOrVal(Value);
         _Value -> FunOrVal
     end.
+
+log_level_tuple_to_atom({<<"emergency">>, NewLevel}) when is_binary(NewLevel) ->
+    {emergency, binary_to_atom(NewLevel)};
+log_level_tuple_to_atom({<<"alert">>, NewLevel}) when is_binary(NewLevel) ->
+    {alert, binary_to_atom(NewLevel)};
+log_level_tuple_to_atom({<<"critical">>, NewLevel}) when is_binary(NewLevel) ->
+    {critical, binary_to_atom(NewLevel)};
+log_level_tuple_to_atom({<<"error">>, NewLevel}) when is_binary(NewLevel) ->
+    {error, binary_to_atom(NewLevel)};
+log_level_tuple_to_atom({<<"warning">>, NewLevel}) when is_binary(NewLevel) ->
+    {warning, binary_to_atom(NewLevel)};
+log_level_tuple_to_atom({<<"notice">>, NewLevel}) when is_binary(NewLevel) ->
+    {notice, binary_to_atom(NewLevel)};
+log_level_tuple_to_atom({<<"info">>, NewLevel}) when is_binary(NewLevel) ->
+    {info, binary_to_atom(NewLevel)};
+log_level_tuple_to_atom({<<"debug">>, NewLevel}) when is_binary(NewLevel) ->
+    {debug, binary_to_atom(NewLevel)};
+log_level_tuple_to_atom({Level, _NewLevel}) ->
+    throw("Not supported logger level '" ++ binary_to_list(Level) ++ "'").

@@ -157,6 +157,15 @@ logging:
     formatter:
         max_length: 1000
         max_printable_string_length: 80
+        level_map:
+            'emergency': 'ERROR'
+            'alert': 'ERROR'
+            'critical': 'ERROR'
+            'error': 'ERROR'
+            'warning': 'WARN'
+            'notice': 'INFO'
+            'info': 'INFO'
+            'debug': 'DEBUG'
 
 namespaces:
     mg_test_ns:
