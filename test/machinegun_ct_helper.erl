@@ -107,11 +107,11 @@ riak_ready() ->
 
 %%
 
--spec assert_wait_ok(fun(() -> ok | _NotOk), mg_core_retry:strategy()) -> ok.
+-spec assert_wait_ok(fun(() -> ok | _NotOk), genlib_retry:strategy()) -> ok.
 assert_wait_ok(Fun, Strategy) ->
     assert_wait_expected(ok, Fun, Strategy).
 
--spec assert_wait_expected(any(), function(), mg_core_retry:strategy()) -> ok.
+-spec assert_wait_expected(any(), function(), genlib_retry:strategy()) -> ok.
 assert_wait_expected(Expected, Fun, Strategy) when is_function(Fun, 0) ->
     case Fun() of
         Expected ->

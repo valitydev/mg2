@@ -157,4 +157,194 @@ traverse_test_() ->
         machinegun_configuration_utils:conf([blarg], Config)
     ).
 
+-spec retry_policy_test_() -> [testgen()].
+retry_policy_test_() ->
+    DataSets = [
+        {
+            <<"\nblah: blah">>,
+            #{
+                type => <<"exponential">>,
+                max_retries => 10,
+                factor => 2,
+                timeout => <<"10ms">>,
+                max_timeout => <<"60s">>
+            },
+            {exponential, 10, 2, 10, 60 * 1000}
+        },
+        {
+            <<
+                "\nretries:"
+                "\n  storage:"
+                "\n    type: exponential"
+                "\n    max_retries: 100"
+                "\n    factor: 3"
+                "\n    timeout: 10ms"
+                "\n    max_timeout: 60s"
+            >>,
+            #{
+                factor => 2,
+                timeout => <<"1d">>,
+                max_retries => 10
+            },
+            {exponential, 100, 3, 10, 60 * 1000}
+        },
+        {
+            <<
+                "\nretries:"
+                "\n  storage:"
+                "\n    type: exponential"
+                "\n    timeout: 10s"
+                "\n    max_retries:"
+                "\n      max_total_timeout: 1h"
+            >>,
+            #{
+                type => <<"linear">>,
+                factor => 2,
+                max_retries => 10
+            },
+            {exponential, {max_total_timeout, 1 * 60 * 60 * 1000}, 2, 10 * 1000}
+        },
+        {
+            <<
+                "\nretries:"
+                "\n  storage:"
+                "\n    timeout: 10s"
+            >>,
+            #{
+                type => <<"linear">>,
+                max_retries => 10
+            },
+            {linear, 10, 10 * 1000}
+        },
+        {
+            <<
+                "\nretries:"
+                "\n  storage:"
+                "\n    type: intervals"
+                "\n    timeouts:"
+                "\n      - 100ms"
+                "\n      - 50s"
+                "\n      - 5h"
+                "\n      - 1d"
+            >>,
+            #{},
+            {intervals, [100, 50 * 1000, 5 * 60 * 60 * 1000, 24 * 60 * 60 * 1000]}
+        },
+        {
+            <<
+                "\nretries:"
+                "\n  storage:"
+                "\n    type: linear"
+                "\n    timecap: 10m"
+                "\n    max_retries: infinity"
+                "\n    factor: 2"
+                "\n    timeout: 10ms"
+                "\n    max_timeout: 60s"
+            >>,
+            #{},
+            {timecap, 10 * 60 * 1000, {linear, infinity, 10}}
+        },
+        {
+            <<
+                "\nretries:"
+                "\n  storage:"
+                "\n    type: linear"
+                "\n    max_retries: infinity"
+                "\n    timeout: 20ms"
+                "\n    jitter: 5ms"
+            >>,
+            #{
+                jitter => 10
+            },
+            {linear, infinity, {jitter, 20, 5}}
+        },
+        {
+            <<
+                "\nretries:"
+                "\n  storage:"
+                "\n    type: exponential"
+                "\n    max_retries: infinity"
+                "\n    factor: 2"
+                "\n    timeout: 20ms"
+                "\n    jitter: 5ms"
+            >>,
+            #{},
+            {exponential, infinity, 2, {jitter, 20, 5}}
+        },
+        {
+            <<
+                "\nretries:"
+                "\n  storage:"
+                "\n    type: intervals"
+                "\n    timeouts:"
+                "\n      - 100ms"
+                "\n      - 50s"
+                "\n      - 1d"
+                "\n    jitter: 5s"
+            >>,
+            #{},
+            {intervals, [
+                {jitter, 100, 5 * 1000}, {jitter, 50 * 1000, 5 * 1000}, {jitter, 24 * 60 * 60 * 1000, 5 * 1000}
+            ]}
+        }
+    ],
+    [
+        ?_assertEqual(
+            Policy,
+            machinegun_configuration_utils:to_retry_policy(
+                [namespaces, 'test-namespace', retries, storage],
+                machinegun_configuration_utils:parse_yaml(Yaml),
+                DefaultMap
+            )
+        )
+     || {Yaml, DefaultMap, Policy} <- DataSets
+    ].
+
+-spec retry_policy_failure_test_() -> [testgen()].
+retry_policy_failure_test_() ->
+    DataSets = [
+        #{},
+        #{
+            type => <<"non existing type">>,
+            max_retries => <<"infinity">>,
+            factor => 2,
+            timeout => <<"10ms">>
+        },
+        #{
+            %% required "max_retries" not present
+            type => <<"exponential">>,
+            factor => 2,
+            timeout => <<"10ms">>
+        },
+        #{
+            %% required "factor" not present
+            type => <<"exponential">>,
+            max_retries => <<"infinity">>,
+            timeout => <<"10ms">>
+        },
+        #{
+            %% required "timeout" not present
+            type => <<"exponential">>,
+            max_retries => <<"infinity">>,
+            factor => 2
+        },
+        #{
+            %% required "timeouts" not present
+            type => <<"intervals">>
+        },
+        #{
+            %% required "timeout" not present
+            type => <<"linear">>,
+            max_retries => 10
+        }
+    ],
+    Path = [namespaces, 'test-namespace', retries, storage],
+    [
+        ?_assertThrow(
+            {'bad retry config', Path, Map},
+            machinegun_configuration_utils:to_retry_policy(Path, [], Map)
+        )
+     || Map <- DataSets
+    ].
+
 -endif.

@@ -243,7 +243,7 @@ machine_lifecycle_transient_error_test(_C) ->
         machine_id = <<"ID">>,
         request_context = null,
         exception = {throw, thrown, []},
-        retry_strategy = mg_core_retry:new_strategy({linear, infinity, 1}),
+        retry_strategy = genlib_retry:new_strategy({linear, infinity, 1}),
         retry_action = finish
     }).
 
