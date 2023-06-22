@@ -190,7 +190,7 @@ stop_automaton(Pid) ->
     ok = proc_lib:stop(Pid, normal, 5000),
     ok.
 
--spec automaton_options(mg_core:ns(), mg_core_retry:policy()) -> mg_core_machine:options().
+-spec automaton_options(mg_core:ns(), genlib_retry:policy()) -> mg_core_machine:options().
 automaton_options(NS, RetryPolicy) ->
     Scheduler = #{
         min_scan_delay => 1000,

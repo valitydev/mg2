@@ -115,7 +115,7 @@ add_events(C) ->
             mg_core_deadline:default()
         )
     end,
-    call_with_retry(F, mg_core_retry:new_strategy({linear, 10, 500})).
+    call_with_retry(F, genlib_retry:new_strategy({linear, 10, 500})).
 
 -spec read_all_events() -> [term()].
 read_all_events() ->
@@ -155,7 +155,7 @@ event_sink_options() ->
 handle_beat(_, Beat) ->
     ct:pal("~p", [Beat]).
 
--spec call_with_retry(fun(() -> Result), mg_core_retry:strategy()) -> Result.
+-spec call_with_retry(fun(() -> Result), genlib_retry:strategy()) -> Result.
 call_with_retry(Fun, Strategy) ->
     try
         Fun()

@@ -84,7 +84,7 @@ instant_start_test(_C) ->
     mg_core_ct_helper:assert_wait_expected(
         1,
         F,
-        mg_core_retry:new_strategy({linear, _Retries = 10, _Timeout = 100})
+        genlib_retry:new_strategy({linear, _Retries = 10, _Timeout = 100})
     ),
 
     ok = stop_automaton(Pid).
