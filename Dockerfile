@@ -24,6 +24,8 @@ RUN rebar3 compile \
 FROM docker.io/library/erlang:${OTP_VERSION}-slim
 
 ARG SERVICE_NAME
+ARG USER_UID=1001
+ARG USER_GID=$USER_UID
 
 # Set env
 ENV CHARSET=UTF-8
@@ -36,6 +38,13 @@ ENV SERVICE_NAME=${SERVICE_NAME}
 WORKDIR /opt/${SERVICE_NAME}
 
 COPY --from=builder /build/_build/prod/rel/${SERVICE_NAME} /opt/${SERVICE_NAME}
+
+# Setup user
+RUN groupadd --gid ${USER_GID} ${SERVICE_NAME} && \
+    useradd --uid ${USER_UID} --gid ${USER_GID} -m ${SERVICE_NAME} && \
+    chown -R ${USER_UID}:${USER_GID} /opt/${SERVICE_NAME}/releases
+
+USER ${SERVICE_NAME}
 
 ENTRYPOINT ["./bin/entrypoint.sh", "./etc/config.yaml"]
 
