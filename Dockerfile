@@ -41,9 +41,10 @@ COPY --from=builder /build/_build/prod/rel/${SERVICE_NAME} /opt/${SERVICE_NAME}
 
 # Setup user
 RUN groupadd --gid ${USER_GID} ${SERVICE_NAME} && \
+    mkdir /var/log/${SERVICE_NAME} && \
+    chown ${USER_UID}:${USER_GID} /var/log/${SERVICE_NAME} && \
     useradd --uid ${USER_UID} --gid ${USER_GID} -m ${SERVICE_NAME} && \
     chown -R ${USER_UID}:${USER_GID} /opt/${SERVICE_NAME}/releases
-
 USER ${SERVICE_NAME}
 
 ENTRYPOINT ["./bin/entrypoint.sh", "./etc/config.yaml"]
