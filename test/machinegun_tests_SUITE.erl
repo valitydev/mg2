@@ -20,6 +20,7 @@
 -module(machinegun_tests_SUITE).
 
 -include_lib("common_test/include/ct.hrl").
+-include_lib("stdlib/include/assert.hrl").
 -include_lib("mg_proto/include/mg_proto_state_processing_thrift.hrl").
 
 %% tests descriptions
@@ -41,6 +42,7 @@
 -export([machine_empty_id_not_found/1]).
 -export([machine_remove/1]).
 -export([machine_remove_by_action/1]).
+-export([consuela_health_check_passing/1]).
 
 %%
 
@@ -61,7 +63,8 @@
 -spec all() -> [test_name() | {group, group_name()}].
 all() ->
     [
-        {group, base}
+        {group, base},
+        {group, auxiliary}
     ].
 
 -spec groups() -> [{group_name(), list(_), [test_name()]}].
@@ -82,6 +85,9 @@ groups() ->
             machine_start,
             machine_remove_by_action,
             machine_id_not_found
+        ]},
+        {auxiliary, [], [
+            consuela_health_check_passing
         ]}
     ].
 
@@ -100,6 +106,9 @@ end_per_suite(C) ->
     machinegun_ct_helper:stop_applications(?config(suite_apps, C)).
 
 -spec init_per_group(group_name(), config()) -> config().
+init_per_group(auxiliary, C) ->
+    Apps = machinegun_ct_helper:start_applications([consuela]),
+    [{apps, Apps} | C];
 init_per_group(_, C) ->
     % NOTE
     % Даже такой небольшой шанс может сработать в ситуациях, когда мы в процессоре выгребаем большой кусок
@@ -125,6 +134,7 @@ init_per_group(C) ->
     Config = machinegun_config(HandlerInfo, C),
     Apps = machinegun_ct_helper:start_applications([
         brod,
+        consuela,
         {machinegun, Config}
     ]),
     [
@@ -264,7 +274,10 @@ machinegun_config(#{endpoint := {IP, Port}}, C) ->
 
 -spec end_per_group(group_name(), config()) -> ok.
 end_per_group(_, C) ->
-    ok = proc_lib:stop(?config(processor_pid, C)),
+    case ?config(processor_pid, C) of
+        undefined -> ok;
+        Pid -> proc_lib:stop(Pid)
+    end,
     machinegun_ct_helper:stop_applications(?config(apps, C)).
 
 %%
@@ -332,6 +345,13 @@ machine_remove_by_action(C) ->
                 % The request had been retried
                 <<"remove">>
         end.
+
+%%
+%% Auxiliary functionality
+%%
+-spec consuela_health_check_passing(config()) -> _.
+consuela_health_check_passing(_C) ->
+    ?assertMatch({passing, _}, machinegun_health_check:consuela()).
 
 %%
 %% utils

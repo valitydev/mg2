@@ -348,7 +348,13 @@ health_check(YamlConfig) ->
                     end,
                 #{memory => {erl_health, Type, [Limit]}}
             end),
-            #{service => {erl_health, service, [service_name(YamlConfig)]}}
+            #{service => {erl_health, service, [service_name(YamlConfig)]}},
+            conf_with(
+                [consuela],
+                YamlConfig,
+                #{},
+                #{consuela => {machinegun_health_check, consuela, []}}
+            )
         ]
     ).
 
@@ -536,6 +542,7 @@ modernizer(Name, ModernizerYamlConfig) ->
         }
     }.
 
+-spec scheduler(mg_core_quota:share(), ?C:yaml_config()) -> mg_core_machine:scheduler_opt().
 scheduler(Share, Config) ->
     #{
         max_scan_limit => ?C:conf([scan_limit], Config, 5000),

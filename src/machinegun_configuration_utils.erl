@@ -55,10 +55,11 @@
 
 %%
 
-% hello to librares without an explicit typing 😡
--type yaml_config() :: _TODO.
+-type yaml_config() :: yamerl_constr:yamerl_simple_doc().
 -type yaml_config_path() :: [atom()].
 -type yaml_string() :: binary().
+
+-export_type([yaml_config/0]).
 
 -type vm_args() :: [
     {vm_flag_name(), vm_flag_value()}
