@@ -150,6 +150,15 @@ format_consuela_beat({client, {result, Error = {error, Reason}}}) ->
         {error, [{reason, genlib:print(Reason, 500)}]}
     ]};
 %% registry
+format_consuela_beat({registry_server, {{test, {_SampleName, _SamplePid}}, Status}}) ->
+    case Status of
+        started ->
+            {debug, {"testing registry ...", []}, []};
+        {finished, _AnyOutcome} ->
+            {debug, {"registry test success", []}, []};
+        {failed, Reason} ->
+            {warning, {"registry test failed: ~p", [Reason]}, []}
+    end;
 format_consuela_beat({registry_server, {{register, {Name, Pid}}, Status}}) ->
     case Status of
         started ->
