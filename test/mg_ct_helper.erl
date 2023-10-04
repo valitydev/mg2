@@ -79,7 +79,7 @@ stop_applications(AppNames) ->
 
 %%
 
--spec assert_wait_expected(any(), function(), mg_core_retry:strategy()) -> ok.
+-spec assert_wait_expected(any(), function(), genlib_retry:strategy()) -> ok.
 
 assert_wait_expected(Expected, Fun, Strategy) when is_function(Fun, 0) ->
     case Fun() of

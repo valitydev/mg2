@@ -24,7 +24,8 @@
         genlib,
         mg_proto,
         woody,
-        machinegun_core
+        machinegun_core,
+        opentelemetry_api
     ]},
     {env, []},
     {licenses, ["Apache 2.0"]},

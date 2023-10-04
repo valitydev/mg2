@@ -77,7 +77,7 @@ init_per_suite(C) ->
         {automaton_options, #{
             url => "http://localhost:8022",
             ns => ?NS,
-            retry_strategy => mg_core_retry:new_strategy({exponential, 5, 2, 1000})
+            retry_strategy => genlib_retry:new_strategy({exponential, 5, 2, 1000})
         }},
         {event_sink_options, "http://localhost:8022"},
         {processor_pid, ProcessorPid}
