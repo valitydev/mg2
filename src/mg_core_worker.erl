@@ -97,10 +97,11 @@ call(Options, NS, ID, Call, ReqCtx, Deadline, Pulse) ->
         request_context = ReqCtx,
         deadline = Deadline
     }),
+    OtelCtx = otel_ctx:get_current(),
     mg_core_procreg:call(
         procreg_options(Options),
         ?WRAP_ID(NS, ID),
-        {call, Deadline, Call, ReqCtx},
+        {call, Deadline, Call, ReqCtx, OtelCtx},
         mg_core_deadline:to_timeout(Deadline)
     ).
 
@@ -178,10 +179,11 @@ init({ID, Options = #{worker := WorkerModOpts}, ReqCtx}) ->
 % загрузка делается отдельно и лениво, чтобы не блокировать этим супервизор,
 % т.к. у него легко может начать расти очередь
 handle_call(
-    Call = {call, _, _, _},
+    Call = {call, _, _, _, OtelCtx},
     From,
     State = #{id := ID, mod := Mod, status := {loading, Args, ReqCtx}}
 ) ->
+    _ = otel_ctx:attach(OtelCtx),
     case Mod:handle_load(ID, Args, ReqCtx) of
         {ok, ModState} ->
             handle_call(Call, From, State#{status := {working, ModState}});
@@ -189,10 +191,11 @@ handle_call(
             {stop, normal, Error, State}
     end;
 handle_call(
-    {call, Deadline, Call, ReqCtx},
+    {call, Deadline, Call, ReqCtx, OtelCtx},
     From,
     State = #{mod := Mod, status := {working, ModState}}
 ) ->
+    _ = otel_ctx:attach(OtelCtx),
     case mg_core_deadline:is_reached(Deadline) of
         false ->
             {ReplyAction, NewModState} = Mod:handle_call(Call, From, ReqCtx, Deadline, ModState),

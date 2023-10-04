@@ -243,13 +243,14 @@ start_multiple_tasks(N, Iterator, State) when N > 0 ->
         active_tasks = ActiveTasks,
         task_monitors = Monitors
     } = State,
+    SpanCtx = otel_tracer:current_span_ctx(),
     case next_task(Iterator) of
         {Rank, TaskID, IteratorNext} when not is_map_key(TaskID, ActiveTasks) ->
             % Task appears not to be running on the scheduler...
             case dequeue_task(Rank, WaitingTasks) of
                 {Task = #{}, NewWaitingTasks} ->
                     % ...so let's start it.
-                    {ok, Pid, Monitor} = mg_core_scheduler_worker:start_task(ID, Task),
+                    {ok, Pid, Monitor} = mg_core_scheduler_worker:start_task(ID, Task, SpanCtx),
                     NewState = State#state{
                         waiting_tasks = NewWaitingTasks,
                         active_tasks = ActiveTasks#{TaskID => Pid},
