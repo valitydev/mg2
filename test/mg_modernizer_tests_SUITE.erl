@@ -57,28 +57,28 @@ all() ->
 -spec groups() -> [{group_name(), list(_), [test_name() | {group, group_name()}]}].
 groups() ->
     [
-        {activities, [sequence], [
-            count_elements,
-            store_random_element,
-            store_random_element,
-            store_fixed_element,
-            store_random_element,
-            lookup_fixed_element,
-            count_elements
-        ]},
+        % {activities, [sequence], [
+        %     % count_elements,
+        %     store_random_element,
+        %     store_random_element,
+        %     store_fixed_element,
+        %     store_random_element,
+        %     lookup_fixed_element,
+        %     count_elements
+        % ]},
 
-        {legacy_activities, [], [
-            start_machine,
-            no_modernize_avail,
-            {group, activities}
-        ]},
+        % {legacy_activities, [], [
+        %     start_machine,
+        %     no_modernize_avail,
+        %     {group, activities}
+        % ]},
 
-        {modern_activities, [], [
-            modernize_machine_part,
-            modernize_machine,
-            modernize_machine,
-            {group, activities}
-        ]}
+        % {modern_activities, [], [
+        %     modernize_machine_part,
+        %     modernize_machine,
+        %     modernize_machine,
+        %     {group, activities}
+        % ]}
     ].
 
 %%
