@@ -20,7 +20,7 @@
  {<<"kafka_protocol">>,{pkg,<<"kafka_protocol">>,<<"4.0.1">>},2},
  {<<"machinegun_core">>,
   {git,"https://github.com/valitydev/machinegun-core",
-       {ref,"0fcb8b3cc979b9c9c64e09b5df71329215fc4e32"}},
+       {ref,"49ea8276874143a71be06966f0dc3fedc1fb6f5b"}},
   0},
  {<<"metrics">>,{pkg,<<"metrics">>,<<"1.0.1">>},2},
  {<<"mg_proto">>,

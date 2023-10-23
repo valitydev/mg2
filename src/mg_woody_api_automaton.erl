@@ -184,21 +184,12 @@ handle_function('Modernize', {MachineDesc}, WoodyContext, Options) ->
     mg_woody_api_utils:handle_error(
         #{namespace => NS, machine_id => ID, request_context => ReqCtx},
         fun() ->
-            case get_ns_options(NS, Options) of
-                #{modernizer := ModernizerOptions, machine := MachineOptions} ->
-                    {ok,
-                        mg_core_events_modernizer:modernize_machine(
-                            ModernizerOptions,
-                            MachineOptions,
-                            WoodyContext,
-                            ID,
-                            Range
-                        )};
-                #{} ->
-                    % TODO
-                    % Тут нужно отдельное исключение конечно.
-                    erlang:throw({logic, namespace_not_found})
-            end
+            mg_core_events_modernizer:modernize_machine(
+                get_machine_options(NS, Options),
+                WoodyContext,
+                ID,
+                Range
+            )
         end,
         pulse(NS, Options)
     );
