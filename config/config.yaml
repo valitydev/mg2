@@ -104,6 +104,20 @@ erlang:
     ipv6: true
     disable_dns_cache: false
 
+# Opentelemetry settings
+# By default opentelemetry is disabled which is equivalent to
+# "opentelemetry: disabled"
+opentelemetry:
+    # TODO Describe sampling
+    # Name of the service to use in recording machinegun's spans
+    service_name: machinegun
+    # For now spans processed always in batches.
+    # We support only "otlp" traces exporter
+    exporter:
+        # Supports only "http/protobuf" or "grpc"
+        protocol: http/protobuf
+        endpoint: http://jaeger:4318
+
 # API server options.
 woody_server:
     ip: "::"

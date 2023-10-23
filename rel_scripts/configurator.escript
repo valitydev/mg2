@@ -62,17 +62,19 @@ interpolate_envs(YamlConfig) ->
 %%
 sys_config(YamlConfig) ->
     [
-        {os_mon              , os_mon      (YamlConfig)},
+        {os_mon                , os_mon                (YamlConfig)},
         {kernel, [
-            {logger_level    , logger_level(YamlConfig)},
-            {logger          , logger      (YamlConfig)}
+            {logger_level      , logger_level          (YamlConfig)},
+            {logger            , logger                (YamlConfig)}
         ]},
-        {consuela            , consuela    (YamlConfig)},
-        {prometheus          , prometheus  (YamlConfig)},
-        {snowflake           , snowflake   (YamlConfig)},
-        {brod                , brod        (YamlConfig)},
-        {hackney             , hackney     (YamlConfig)},
-        {machinegun          , machinegun  (YamlConfig)}
+        {consuela              , consuela              (YamlConfig)},
+        {prometheus            , prometheus            (YamlConfig)},
+        {snowflake             , snowflake             (YamlConfig)},
+        {brod                  , brod                  (YamlConfig)},
+        {hackney               , hackney               (YamlConfig)},
+        {machinegun            , machinegun            (YamlConfig)},
+        {opentelemetry         , opentelemetry         (YamlConfig)},
+        {opentelemetry_exporter, opentelemetry_exporter(YamlConfig)}
     ].
 
 os_mon(_YamlConfig) ->
@@ -363,6 +365,69 @@ health_check(YamlConfig) ->
             )
         ]
     ).
+
+opentelemetry(YamlConfig) ->
+    case opentelemetry_conf(YamlConfig) of
+        undefined ->
+            [{sampler, always_off}];
+        <<"disabled">> ->
+            [{sampler, always_off}];
+        OtelYamlConfig ->
+            ServiceConf = case ?C:conf([service_name], OtelYamlConfig, undefined) of
+                undefined ->
+                    [];
+                (Name) when is_binary(Name) andalso Name =/= <<"">> ->
+                    [
+                        {resource, [
+                            {service, #{name => Name}}
+                        ]}
+                    ]
+            end,
+            [
+                {span_processor, batch},
+                {traces_exporter, otlp},
+                {sampler,
+                    %% For sampling see reference
+                    %%   https://opentelemetry.io/docs/instrumentation/erlang/sampling/
+                    %% and `otel_configuration` module.
+                    %%
+                    %% Sample always if remote or local parent did so as well
+                    {parent_based, #{
+                         root => always_off,
+                         remote_parent_sampled => always_on,
+                         remote_parent_not_sampled => always_off,
+                         local_parent_sampled => always_on,
+                         local_parent_not_sampled => always_off
+                    }}
+                }
+              | ServiceConf
+            ]
+    end.
+
+opentelemetry_exporter(YamlConfig) ->
+    case opentelemetry_conf(YamlConfig) of
+        undefined ->
+            [];
+        <<"disabled">> ->
+            [];
+        OtelYamlConfig ->
+            conf_with([exporter], OtelYamlConfig, [], fun (YConf) ->
+                [
+                    {otlp_protocol, case ?C:conf([protocol], YConf, undefined) of
+                        <<"grpc">> -> grpc;
+                        <<"http/protobuf">> -> http_protobuf;
+                        _Other -> undefined
+                    end},
+                    {otlp_endpoint, case ?C:conf([endpoint], YConf, undefined) of
+                        undefined -> undefined;
+                        Endpoint when is_binary(Endpoint) -> binary_to_list(Endpoint)
+                    end}
+                ]
+            end)
+    end.
+
+opentelemetry_conf(YamlConfig) ->
+    ?C:conf([opentelemetry], YamlConfig, undefined).
 
 health_check_fun(YamlConfig) ->
     case ?C:conf([process_registry, module], YamlConfig, <<"mg_core_procreg_consuela">>) of
