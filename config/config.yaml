@@ -137,6 +137,11 @@ consul:
     connect_timeout: 200ms
     recv_timeout: 1s
 
+# if undefined will de used {mg_core_procreg_consuela, #{pulse => pulse(YamlConfig)}}
+# if consuela undefined will be used mg_core_procreg_gproc
+process_registry:
+    module: mg_core_procreg_global
+
 limits:
     process_heap: 2M # heap limit
     disk: # uses only for health check
