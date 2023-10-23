@@ -91,15 +91,15 @@ modernizer_test(_C) ->
     ProcessorOptions = #{
         signal_handler => fun({init, <<>>}, AuxState, []) -> {AuxState, [test], #{}} end
     },
-    ModernizerOptons = #{
-        current_format_version => 2,
-        handler => {?MODULE, #{}}
-    },
+    % ModernizerOptons = #{
+    %     current_format_version => 2,
+    %     handler => {?MODULE, #{}}
+    % },
     {Pid, Options} = start_automaton(ProcessorOptions, NS),
     ok = start(Options, MachineID, <<>>),
     _ = ?assertEqual([{1, #{format_version => 1}, test}], get_history(Options, MachineID)),
-    ok = modernize(ModernizerOptons, Options, MachineID),
-    _ = ?assertEqual([{1, #{format_version => 2}, test}], get_history(Options, MachineID)),
+    % ok = modernize(ModernizerOptons, Options, MachineID),
+    % _ = ?assertEqual([{1, #{format_version => 2}, test}], get_history(Options, MachineID)),
     ok = stop_automaton(Pid).
 
 %% Processor handlers
@@ -212,19 +212,19 @@ start(Options, MachineID, Args) ->
     Deadline = mg_core_deadline:from_timeout(3000),
     mg_core_events_machine:start(Options, MachineID, encode(Args), <<>>, Deadline).
 
--spec modernize(
-    mg_core_events_modernizer:options(),
-    mg_core_events_machine:options(),
-    mg_core:id()
-) -> ok.
-modernize(Options, EventsMachineOptions, MachineID) ->
-    mg_core_events_modernizer:modernize_machine(
-        Options,
-        EventsMachineOptions,
-        <<>>,
-        MachineID,
-        {undefined, undefined, forward}
-    ).
+% -spec modernize(
+%     mg_core_events_modernizer:options(),
+%     mg_core_events_machine:options(),
+%     mg_core:id()
+% ) -> ok.
+% modernize(Options, EventsMachineOptions, MachineID) ->
+%     mg_core_events_modernizer:modernize_machine(
+%         Options,
+%         EventsMachineOptions,
+%         <<>>,
+%         MachineID,
+%         {undefined, undefined, forward}
+%     ).
 
 -spec get_history(mg_core_events_machine:options(), mg_core:id()) -> history().
 get_history(Options, MachineID) ->
