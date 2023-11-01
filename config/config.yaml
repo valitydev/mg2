@@ -251,6 +251,20 @@ storage:
     request_timeout: 10s
     index_query_timeout: 10s
     batch_concurrency_limit: 50
+# Docs on what these options do
+# https://www.tiot.jp/riak-docs/riak/kv/3.2.0/developing/usage/replication
+# https://www.tiot.jp/riak-docs/riak/kv/3.2.0/learn/concepts/eventual-consistency/
+    r_options:
+        r: quorum
+        pr: quorum
+        sloppy_quorum: false
+    w_options:
+        w: 4
+        pw: 4
+        dw: 4
+        sloppy_quorum: false
+    d_options:
+        sloppy_quorum: false
 
 ## kafka settings example
 kafka:
