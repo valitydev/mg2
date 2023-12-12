@@ -53,6 +53,7 @@ construct_child_specs(
 ) ->
     Quotas = maps:get(quotas, Config, []),
     HealthChecks = maps:get(health_check, Config, #{}),
+    ClusterOpts = maps:get(cluster, Config, #{}),
 
     QuotasChildSpec = quotas_child_specs(Quotas, quota),
     EventSinkChildSpec = event_sink_ns_child_spec(EventSinkNS, event_sink, Pulse),
@@ -64,18 +65,35 @@ construct_child_specs(
             automaton => api_automaton_options(Namespaces, EventSinkNS, Pulse),
             event_sink => api_event_sink_options(Namespaces, EventSinkNS, Pulse),
             woody_server => WoodyServer,
-            additional_routes => [get_health_route(HealthChecks), get_prometheus_route()]
+            additional_routes => [
+                get_startup_route(),
+                get_health_route(HealthChecks),
+                get_prometheus_route()
+            ]
         }
     ),
+    ClusterSpec = mg_core_union:child_spec(ClusterOpts),
 
     lists:flatten([
         QuotasChildSpec,
         EventSinkChildSpec,
         EventMachinesChildSpec,
+        ClusterSpec,
         WoodyServerChildSpec
     ]).
 
 %%
+
+-spec get_startup_route() -> {iodata(), module(), _Opts :: any()}.
+get_startup_route() ->
+    EvHandler = {erl_health_event_handler, []},
+    Check = #{
+        startup => #{
+            runner => {machinegun_health_check, startup, []},
+            event_handler => EvHandler
+        }
+    },
+    erl_health_handle:get_startup_route(Check).
 
 -spec get_health_route(erl_health:check()) -> {iodata(), module(), _Opts :: any()}.
 get_health_route(Check0) ->

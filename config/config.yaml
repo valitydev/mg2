@@ -151,6 +151,20 @@ consul:
     connect_timeout: 200ms
     recv_timeout: 1s
 
+# New cluster assembler (instead consuela)
+# will be used if consuela undefined
+# if cluster undefined then standalone mode
+cluster:
+    discovery:
+        type: dns
+        options:
+            # hostname that will be resolved
+            domain_name: machinegun-headless
+            # name that will be used for construct full nodename (for example name@127.0.0.1)
+            sname: machinegun
+    # optional, default value 5000 ms
+    reconnect_timeout: 5000
+
 # if undefined will de used {mg_core_procreg_consuela, #{pulse => pulse(YamlConfig)}}
 # if consuela undefined will be used mg_core_procreg_gproc
 process_registry:

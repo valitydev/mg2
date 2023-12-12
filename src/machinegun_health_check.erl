@@ -2,6 +2,7 @@
 
 -export([consuela/0]).
 -export([global/0]).
+-export([startup/0]).
 
 -spec consuela() -> {erl_health:status(), erl_health:details()}.
 consuela() ->
@@ -12,18 +13,23 @@ consuela() ->
 
 -spec global() -> {erl_health:status(), erl_health:details()}.
 global() ->
-    ReplicaCount = os:getenv("REPLICA_COUNT", "1"),
-    ClusterSize = erlang:list_to_integer(ReplicaCount),
+    ClusterSize = mg_core_union:cluster_size(),
     ConnectedCount = erlang:length(erlang:nodes()),
     case is_quorum(ClusterSize, ConnectedCount) of
         true ->
             {passing, []};
         false ->
             Reason =
-                <<"no quorum. cluster size: ", (erlang:list_to_binary(ReplicaCount))/binary, ", connected: ",
-                    (erlang:integer_to_binary(ConnectedCount))/binary>>,
+                <<"union. no quorum. cluster size: ", (erlang:integer_to_binary(ClusterSize))/binary, ", online: ",
+                    (erlang:integer_to_binary(ConnectedCount + 1))/binary>>,
             {critical, Reason}
     end.
+
+-spec startup() -> {erl_health:status(), erl_health:details()}.
+startup() ->
+    %% maybe any checks?
+    logger:info("union. node ~p started", [node()]),
+    {passing, []}.
 
 %% Internal functions
 

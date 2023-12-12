@@ -325,7 +325,8 @@ machinegun(YamlConfig) ->
         {quotas, quotas(YamlConfig)},
         {namespaces, namespaces(YamlConfig)},
         {event_sink_ns, event_sink_ns(YamlConfig)},
-        {pulse, pulse(YamlConfig)}
+        {pulse, pulse(YamlConfig)},
+        {cluster, cluster(YamlConfig)}
     ].
 
 woody_server(YamlConfig) ->
@@ -452,6 +453,29 @@ health_check_fun(YamlConfig) ->
         <<"mg_core_procreg_global">> -> global
     end.
 
+cluster(YamlConfig) ->
+    case ?C:conf([consuela], YamlConfig, undefined) of
+        undefined ->
+            case ?C:conf([cluster, discovery, type], YamlConfig, undefined) of
+                undefined ->
+                    #{};
+                <<"dns">> ->
+                    DiscoveryOptsList = ?C:conf([cluster, discovery, options], YamlConfig),
+                    ReconnectTimeout = ?C:conf([cluster, reconnect_timeout], YamlConfig, 5000),
+                    #{
+                        discovery => #{
+                            module => mg_core_union,
+                            options => maps:from_list(DiscoveryOptsList)
+                        },
+                        reconnect_timeout => ReconnectTimeout
+                    };
+                _ ->
+                    #{}
+            end;
+        _ ->
+            #{}
+    end.
+
 quotas(YamlConfig) ->
     SchedulerLimit = ?C:conf([limits, scheduler_tasks], YamlConfig, 5000),
     [
@@ -489,9 +513,9 @@ storage(NS, YamlConfig) ->
                 connect_timeout => ?C:milliseconds(?C:conf([storage, connect_timeout], YamlConfig, <<"5s">>)),
                 request_timeout => ?C:milliseconds(?C:conf([storage, request_timeout], YamlConfig, <<"10s">>)),
                 index_query_timeout => ?C:milliseconds(?C:conf([storage, index_query_timeout], YamlConfig, <<"10s">>)),
-                r_options => decode_rwd_options(?C:conf([storage, r_options], YamlConfig, undefined)),
-                w_options => decode_rwd_options(?C:conf([storage, w_options], YamlConfig, undefined)),
-                d_options => decode_rwd_options(?C:conf([storage, d_options], YamlConfig, undefined)),
+                %% r_options => decode_rwd_options(?C:conf([storage, r_options], YamlConfig, undefined)),
+                %% w_options => decode_rwd_options(?C:conf([storage, w_options], YamlConfig, undefined)),
+                %% d_options => decode_rwd_options(?C:conf([storage, d_options], YamlConfig, undefined)),
                 pool_options => #{
                     % If `init_count` is greater than zero, then the service will not start
                     % if the riak is unavailable. The `pooler` synchronously creates `init_count`
