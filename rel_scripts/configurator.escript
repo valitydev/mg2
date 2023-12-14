@@ -585,6 +585,7 @@ namespace({Name, NSYamlConfig}, YamlConfig) ->
                 },
                 worker => genlib_map:compact(#{
                     registry => procreg(YamlConfig),
+                    message_queue_len_limit => ?C:conf([worker, message_queue_len_limit], YamlConfig, 500),
                     worker_options => #{
                         hibernate_timeout => ?NS_TIMEOUT(hibernate_timeout, <<"5s">>),
                         unload_timeout => ?NS_TIMEOUT(unload_timeout, <<"60s">>),
