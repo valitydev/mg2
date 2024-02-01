@@ -533,20 +533,21 @@ storage(NS, YamlConfig) ->
             }}
     end.
 
-decode_rwd_options(List) ->
-    lists:map(
-        fun(Item) ->
-            case Item of
-                {Key, Value} when is_binary(Key) andalso is_binary(Value) ->
-                    {?C:atom(Key), ?C:atom(Value)};
-                {Key, Value} when is_binary(Key) ->
-                    {?C:atom(Key), Value};
-                Value when is_binary(Value) ->
-                    ?C:atom(Value)
-            end
-        end,
-        List
-    ).
+%% FIXME Function is unused. Something is broken?
+%% decode_rwd_options(List) ->
+%%     lists:map(
+%%         fun(Item) ->
+%%             case Item of
+%%                 {Key, Value} when is_binary(Key) andalso is_binary(Value) ->
+%%                     {?C:atom(Key), ?C:atom(Value)};
+%%                 {Key, Value} when is_binary(Key) ->
+%%                     {?C:atom(Key), Value};
+%%                 Value when is_binary(Value) ->
+%%                     ?C:atom(Value)
+%%             end
+%%         end,
+%%         List
+%%     ).
 
 namespaces(YamlConfig) ->
     lists:foldl(
