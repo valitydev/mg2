@@ -238,13 +238,6 @@ child_spec_test() ->
     ChildSpec = mg_core_union:child_spec(?CLUSTER_OPTS),
     ?assertEqual(ExpectedSpec, ChildSpec).
 
--spec nxdomain_test() -> _.
-nxdomain_test() ->
-    ?assertError(
-        {resolve_error, {error, nxdomain}},
-        mg_core_union:discovery(#{<<"domain_name">> => <<"bad_name">>, <<"sname">> => <<"mg">>})
-    ).
-
 -spec for_full_cover_test() -> _.
 for_full_cover_test() ->
     ?assertEqual({noreply, #{}}, handle_cast([], #{})),

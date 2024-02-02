@@ -555,6 +555,8 @@ working_machine_status(C) ->
 %% timer
 %%
 -spec handle_timer(config()) -> _.
+%% FIXME Тест флапает: иногда в изначальной истории используемой машины
+%%       оказывается два события установки таймера.
 handle_timer(C) ->
     Options0 = automaton_options(C),
     % retry with extremely short timeout

@@ -22,6 +22,7 @@
     reconnect_timeout => ?RECONNECT_TIMEOUT
 }).
 
+-export([nxdomain_test/1]).
 -export([start_ok_test/1]).
 -export([unknown_nodedown_test/1]).
 -export([exists_nodedown_test/1]).
@@ -51,6 +52,9 @@ all() ->
 -spec groups() -> [{group_name(), list(), [test_case_name()]}].
 groups() ->
     [
+        {discovery, [], [
+            nxdomain_test
+        ]},
         {basic_operations, [], [
             start_ok_test,
             unknown_nodedown_test,
@@ -60,6 +64,13 @@ groups() ->
             cluster_size_test
         ]}
     ].
+
+-spec nxdomain_test(config()) -> test_result().
+nxdomain_test(_Config) ->
+    ?assertError(
+        {resolve_error, {error, nxdomain}},
+        mg_core_union:discovery(#{<<"domain_name">> => <<"bad_name">>, <<"sname">> => <<"mg">>})
+    ).
 
 -spec start_ok_test(config()) -> test_result().
 start_ok_test(_Config) ->
