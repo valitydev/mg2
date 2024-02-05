@@ -73,19 +73,20 @@ end_per_suite(C) ->
 full_test(_) ->
     Options = automaton_options(),
     AutomatonPid = start_automaton(Options),
+    ReportTo = self(),
     % TODO убрать константы
-    Pids =
+    IDs = lists:seq(1, 10),
+    _ =
         lists:map(
             fun(ID) ->
                 erlang:spawn_link(fun() ->
-                    check_chain(Options, ID),
+                    check_chain(Options, ID, ReportTo),
                     timer:sleep(100)
                 end)
             end,
-            lists:seq(1, 10)
+            IDs
         ),
-    ok = timer:sleep(5 * 1000),
-    ok = mg_core_ct_helper:stop_wait_all(Pids, shutdown, 5000),
+    ok = stop_await_chain_complete(IDs, 5000),
     ok = stop_automaton(AutomatonPid).
 
 %% TODO wait, simple_repair, kill, continuation
@@ -107,19 +108,33 @@ all_actions() ->
         [{repair, FlowAction} || FlowAction <- all_flow_actions()] ++
         [{call, FlowAction} || FlowAction <- all_flow_actions()].
 
--spec check_chain(mg_core_machine:options(), id()) -> ok.
-check_chain(Options, ID) ->
+-spec check_chain(mg_core_machine:options(), id(), pid()) -> ok.
+check_chain(Options, ID, ReportPid) ->
     _ = rand:seed(exsplus, {ID, ID, ID}),
-    check_chain(Options, ID, 0, all_actions(), not_exists).
+    check_chain(Options, ID, 0, all_actions(), not_exists, ReportPid).
 
--spec check_chain(mg_core_machine:options(), id(), seq(), [action()], state()) -> ok.
+-define(CHAIN_COMPLETE(ID), {chain_complete, ID}).
+
+-spec check_chain(mg_core_machine:options(), id(), seq(), [action()], state(), pid()) -> ok.
 % TODO убрать константы
-check_chain(_, _, 100000, _, _) ->
+check_chain(_, ID, 100000, _, _, ReportPid) ->
+    ReportPid ! ?CHAIN_COMPLETE(ID),
     ok;
-check_chain(Options, ID, Seq, AllActions, State) ->
+check_chain(Options, ID, Seq, AllActions, State, ReportPid) ->
     Action = lists_random(AllActions),
     NewState = next_state(State, Action, do_action(Options, ID, Seq, Action)),
-    check_chain(Options, ID, Seq + 1, AllActions, NewState).
+    check_chain(Options, ID, Seq + 1, AllActions, NewState, ReportPid).
+
+-spec stop_await_chain_complete([integer()], timeout()) -> ok | no_return().
+stop_await_chain_complete([], _Timeout) ->
+    ok;
+stop_await_chain_complete([ID | IDs], Timeout) ->
+    receive
+        ?CHAIN_COMPLETE(ID) ->
+            stop_await_chain_complete(IDs, Timeout)
+    after Timeout ->
+        erlang:exit(chain_timeout)
+    end.
 
 -spec do_action(mg_core_machine:options(), id(), seq(), action()) -> result().
 do_action(Options, ID, Seq, Action) ->
