@@ -122,6 +122,7 @@ simple_test(C) ->
     1 = mg_core_machine:call(Options, ID, get, ?REQ_CTX, mg_core_deadline:default()),
     ok = mg_core_machine:call(Options, ID, delayed_increment, ?REQ_CTX, mg_core_deadline:default()),
     ok = timer:sleep(2000),
+    %% FIXME Иногда флапает с '{badmatch,1}'
     2 = mg_core_machine:call(Options, ID, get, ?REQ_CTX, mg_core_deadline:default()),
 
     % call fail/simple_repair

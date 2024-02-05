@@ -24,9 +24,9 @@ services:
       kafka1:
         condition: service_healthy
       kafka2:
-        condition: service_started
+        condition: service_healthy
       kafka3:
-        condition: service_started
+        condition: service_healthy
       consul0:
         condition: service_started
       consul1:
@@ -83,8 +83,7 @@ services:
       retries: 5
     environment:
       KAFKA_BROKER_ID: 1
-      KAFKA_ADVERTISED_LISTENERS: OUTSIDE://kafka1:9092
-      KAFKA_LISTENERS: OUTSIDE://0.0.0.0:9092
+      KAFKA_LISTENERS: OUTSIDE://kafka1:9092
       KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: OUTSIDE:PLAINTEXT
       KAFKA_INTER_BROKER_LISTENER_NAME: OUTSIDE
       KAFKA_ZOOKEEPER_CONNECT: 'zookeeper:2181'
@@ -93,13 +92,19 @@ services:
     <<: *kafka-broker
     environment:
       KAFKA_BROKER_ID: 2
-      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka2:9092
+      KAFKA_LISTENERS: OUTSIDE://kafka2:9092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: OUTSIDE:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: OUTSIDE
+      KAFKA_ZOOKEEPER_CONNECT: 'zookeeper:2181'
 
   kafka3:
     <<: *kafka-broker
     environment:
       KAFKA_BROKER_ID: 3
-      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka3:9092
+      KAFKA_LISTENERS: OUTSIDE://kafka3:9092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: OUTSIDE:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: OUTSIDE
+      KAFKA_ZOOKEEPER_CONNECT: 'zookeeper:2181'
 
   consul1: &consul-server
     image: docker.io/consul:${CONSUL_VERSION}
