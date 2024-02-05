@@ -49,7 +49,8 @@
 all() ->
     [
         {group, with_gproc},
-        {group, with_consuela}
+        {group, with_consuela},
+        {group, with_global}
     ].
 
 -spec groups() -> [{group_name(), list(_), [test_name()]}].
@@ -57,6 +58,7 @@ groups() ->
     [
         {with_gproc, [], [{group, base}]},
         {with_consuela, [], [{group, base}]},
+        {with_global, [], [{group, base}]},
         {base, [], [
             simple_test
         ]}
@@ -81,6 +83,8 @@ init_per_group(with_gproc, C) ->
     [{registry, mg_core_procreg_gproc} | C];
 init_per_group(with_consuela, C) ->
     [{registry, {mg_core_procreg_consuela, #{pulse => ?MODULE}}} | C];
+init_per_group(with_global, C) ->
+    [{registry, mg_core_procreg_global} | C];
 init_per_group(base, C) ->
     C.
 
