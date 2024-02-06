@@ -117,9 +117,14 @@
 %%
 -type seconds() :: non_neg_integer().
 -type scheduler_type() :: overseer | timers | timers_retries | notification.
+%% TODO Refactor and simplify scheduler options specs. Maybe use introduce
+%%      configurator module to construct options for child specs and make it its
+%%      exclusive responsibility as in public API.
 -type scheduler_opt() ::
     disable
     | #{
+        % actual scheduling start delay (defaults to 1000)
+        start_interval => non_neg_integer(),
         % how much tasks in total scheduler is ready to enqueue for processing
         capacity => non_neg_integer(),
         % wait at least this delay before subsequent scanning of persistent store for queued tasks
