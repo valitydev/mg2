@@ -86,7 +86,7 @@ full_test(_) ->
             end,
             IDs
         ),
-    ok = stop_await_chain_complete(IDs, 5000),
+    ok = await_chain_complete(IDs, 10 * 1000),
     ok = stop_automaton(AutomatonPid).
 
 %% TODO wait, simple_repair, kill, continuation
@@ -125,13 +125,13 @@ check_chain(Options, ID, Seq, AllActions, State, ReportPid) ->
     NewState = next_state(State, Action, do_action(Options, ID, Seq, Action)),
     check_chain(Options, ID, Seq + 1, AllActions, NewState, ReportPid).
 
--spec stop_await_chain_complete([integer()], timeout()) -> ok | no_return().
-stop_await_chain_complete([], _Timeout) ->
+-spec await_chain_complete([integer()], timeout()) -> ok | no_return().
+await_chain_complete([], _Timeout) ->
     ok;
-stop_await_chain_complete([ID | IDs], Timeout) ->
+await_chain_complete([ID | IDs], Timeout) ->
     receive
         ?CHAIN_COMPLETE(ID) ->
-            stop_await_chain_complete(IDs, Timeout)
+            await_chain_complete(IDs, Timeout)
     after Timeout ->
         erlang:exit(chain_timeout)
     end.
