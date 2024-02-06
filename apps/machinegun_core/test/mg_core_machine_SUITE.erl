@@ -92,6 +92,10 @@ init_per_group(base, C) ->
 end_per_group(_, _C) ->
     ok.
 
+-define(TIMER_DELAY, 1).
+-define(SCHEDULER_START_INTERVAL, 1000).
+-define(DEVIATION_MS, 200).
+
 %%
 %% tests
 %%
@@ -121,7 +125,7 @@ simple_test(C) ->
     ok = mg_core_machine:call(Options, ID, increment, ?REQ_CTX, mg_core_deadline:default()),
     1 = mg_core_machine:call(Options, ID, get, ?REQ_CTX, mg_core_deadline:default()),
     ok = mg_core_machine:call(Options, ID, delayed_increment, ?REQ_CTX, mg_core_deadline:default()),
-    ok = timer:sleep(2000),
+    ok = timer:sleep(?TIMER_DELAY * 1000 + ?SCHEDULER_START_INTERVAL + ?DEVIATION_MS),
     %% FIXME Иногда флапает с '{badmatch,1}'
     2 = mg_core_machine:call(Options, ID, get, ?REQ_CTX, mg_core_deadline:default()),
 
@@ -201,7 +205,7 @@ process_machine(_, _, {call, get}, _, ?REQ_CTX, _, [TestKey, TestValue]) ->
 process_machine(_, _, {call, increment}, _, ?REQ_CTX, _, [TestKey, TestValue]) ->
     {{reply, ok}, sleep, [TestKey, TestValue + 1]};
 process_machine(_, _, {call, delayed_increment}, _, ?REQ_CTX, _, State) ->
-    {{reply, ok}, {wait, genlib_time:unow() + 1, ?REQ_CTX, 5000}, State};
+    {{reply, ok}, {wait, genlib_time:unow() + ?TIMER_DELAY, ?REQ_CTX, 5000}, State};
 process_machine(_, _, {call, remove}, _, ?REQ_CTX, _, State) ->
     {{reply, ok}, remove, State};
 process_machine(_, _, timeout, _, ?REQ_CTX, _, [TestKey, TestValue]) ->
@@ -227,7 +231,7 @@ stop_automaton(Pid) ->
 
 -spec automaton_options(config()) -> mg_core_machine:options().
 automaton_options(C) ->
-    Scheduler = #{},
+    Scheduler = #{start_interval => ?SCHEDULER_START_INTERVAL},
     Namespace = <<"test">>,
     #{
         namespace => Namespace,

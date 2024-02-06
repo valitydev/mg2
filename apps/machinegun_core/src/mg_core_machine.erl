@@ -1433,6 +1433,7 @@ scheduler_options(HandlerMod, Options, HandlerOptions, Config) ->
     ),
     Handler = {HandlerMod, FullHandlerOptions},
     genlib_map:compact(#{
+        start_interval => maps:get(start_interval, Config, undefined),
         capacity => maps:get(capacity, Config, ?DEFAULT_SCHEDULER_CAPACITY),
         quota_name => maps:get(task_quota, Config, unlimited),
         quota_share => maps:get(task_share, Config, 1),
