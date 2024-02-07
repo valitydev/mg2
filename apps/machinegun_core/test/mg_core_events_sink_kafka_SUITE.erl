@@ -88,7 +88,7 @@ init_per_suite(C) ->
 
 -spec end_per_suite(config()) -> ok.
 end_per_suite(C) ->
-    mg_core_ct_helper:stop_applications(?config(apps, C)).
+    mg_cth:stop_applications(?config(apps, C)).
 
 %%
 %% tests

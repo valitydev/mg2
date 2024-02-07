@@ -17,7 +17,7 @@
 -module(mg_core_events_machine_SUITE).
 -include_lib("common_test/include/ct.hrl").
 -include_lib("stdlib/include/assert.hrl").
--include("ct_helper.hrl").
+-include_lib("mg_cth/include/mg_cth.hrl").
 
 %% tests descriptions
 -export([all/0]).
@@ -84,12 +84,12 @@ all() ->
 
 -spec init_per_suite(config()) -> config().
 init_per_suite(C) ->
-    Apps = mg_core_ct_helper:start_applications([machinegun_core]),
+    Apps = mg_cth:start_applications([machinegun_core]),
     [{apps, Apps} | C].
 
 -spec end_per_suite(config()) -> ok.
 end_per_suite(C) ->
-    mg_core_ct_helper:stop_applications(?config(apps, C)).
+    mg_cth:stop_applications(?config(apps, C)).
 
 %% Tests
 
@@ -258,7 +258,7 @@ get_corrupted_machine_fails(_C) ->
             lossfun => fun(I) -> (I rem LoseEvery) == 0 end,
             storage => {mg_core_storage_memory, #{}}
         }},
-    EventsStorage = mg_core_ct_helper:build_storage(<<NS/binary, "_events">>, LossyStorage),
+    EventsStorage = mg_cth:build_storage(<<NS/binary, "_events">>, LossyStorage),
     {Pid, Options} = start_automaton(BaseOptions#{events_storage => EventsStorage}),
     ok = start(Options, MachineID, <<>>),
     _ = ?assertEqual([], get_history(Options, MachineID)),
@@ -286,12 +286,12 @@ post_events_with_notification_test(_C) ->
         NS
     ),
     LossyStorage = mg_core_storage_memory,
-    EventsStorage = mg_core_ct_helper:build_storage(<<NS/binary, "_events">>, LossyStorage),
+    EventsStorage = mg_cth:build_storage(<<NS/binary, "_events">>, LossyStorage),
     {Pid, Options} = start_automaton(BaseOptions#{events_storage => EventsStorage}),
     ok = start(Options, MachineID, <<>>),
     _ = ?assertEqual([], get_history(Options, MachineID)),
     _NotificationID = notify(Options, MachineID, <<"notification_event">>),
-    {ok, _} = mg_core_ct_helper:poll_for_value(
+    {ok, _} = mg_cth:poll_for_value(
         fun() ->
             get_history(Options, MachineID)
         end,
@@ -437,7 +437,7 @@ events_machine_options(Base, StorageOptions, ProcessorOptions, NS) ->
         processor => {?MODULE, ProcessorOptions},
         machines => #{
             namespace => NS,
-            storage => mg_core_ct_helper:build_storage(NS, Storage),
+            storage => mg_cth:build_storage(NS, Storage),
             worker => #{
                 registry => mg_core_procreg_gproc
             },
@@ -456,7 +456,7 @@ events_machine_options(Base, StorageOptions, ProcessorOptions, NS) ->
                 }
             }
         },
-        events_storage => mg_core_ct_helper:build_storage(<<NS/binary, "_events">>, Storage)
+        events_storage => mg_cth:build_storage(<<NS/binary, "_events">>, Storage)
     }.
 
 -spec start(mg_core_events_machine:options(), mg_core:id(), term()) -> ok.

@@ -52,12 +52,12 @@ all() ->
 init_per_suite(C) ->
     % dbg:tracer(), dbg:p(all, c),
     % dbg:tpl({mg_core_events_sink_machine, '_', '_'}, x),
-    Apps = mg_core_ct_helper:start_applications([machinegun_core]),
+    Apps = mg_cth:start_applications([machinegun_core]),
     [{apps, Apps} | C].
 
 -spec end_per_suite(config()) -> ok.
 end_per_suite(C) ->
-    mg_core_ct_helper:stop_applications(?config(apps, C)).
+    mg_cth:stop_applications(?config(apps, C)).
 
 %%
 %% tests

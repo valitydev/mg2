@@ -17,7 +17,7 @@
 -module(mg_core_gen_squad_SUITE).
 -include_lib("common_test/include/ct.hrl").
 -include_lib("stdlib/include/assert.hrl").
--include("ct_helper.hrl").
+-include_lib("mg_cth/include/mg_cth.hrl").
 
 %% tests descriptions
 -export([all/0]).
@@ -56,12 +56,12 @@ all() ->
 
 -spec init_per_suite(config()) -> config().
 init_per_suite(C) ->
-    Apps = mg_core_ct_helper:start_applications([machinegun_core]),
+    Apps = mg_cth:start_applications([machinegun_core]),
     [{apps, Apps} | C].
 
 -spec end_per_suite(config()) -> ok.
 end_per_suite(C) ->
-    mg_core_ct_helper:stop_applications(?config(apps, C)).
+    mg_cth:stop_applications(?config(apps, C)).
 
 %%
 

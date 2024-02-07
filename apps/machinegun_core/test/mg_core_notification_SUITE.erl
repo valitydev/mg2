@@ -73,7 +73,7 @@ groups() ->
 
 -spec init_per_suite(config()) -> config().
 init_per_suite(C) ->
-    Apps = mg_core_ct_helper:start_applications([machinegun_core]),
+    Apps = mg_cth:start_applications([machinegun_core]),
     {ok, StoragePid} = mg_core_storage_memory:start_link(#{
         name => ?STORAGE_NAME,
         pulse => ?MODULE
@@ -83,7 +83,7 @@ init_per_suite(C) ->
 
 -spec end_per_suite(config()) -> ok.
 end_per_suite(C) ->
-    mg_core_ct_helper:stop_applications(?config(apps, C)).
+    mg_cth:stop_applications(?config(apps, C)).
 
 %%
 

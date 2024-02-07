@@ -79,12 +79,12 @@ groups() ->
 init_per_suite(C) ->
     % dbg:tracer(), dbg:p(all, c),
     % dbg:tpl({mg_core_machine, '_', '_'}, x),
-    Apps = mg_core_ct_helper:start_applications([consuela, machinegun_core]),
+    Apps = mg_cth:start_applications([consuela, machinegun_core]),
     [{apps, Apps} | C].
 
 -spec end_per_suite(config()) -> ok.
 end_per_suite(C) ->
-    mg_core_ct_helper:stop_applications(?config(apps, C)).
+    mg_cth:stop_applications(?config(apps, C)).
 
 -spec init_per_group(group_name(), config()) -> config().
 init_per_group(no_notification_opts, C) ->
@@ -139,7 +139,7 @@ simple_test(C) ->
     ID = ?config(id, C),
     % simple notification
     _NotificationID = mg_core_machine:notify(Options, ID, 42, ?REQ_CTX),
-    {ok, _} = mg_core_ct_helper:poll_for_value(
+    {ok, _} = mg_cth:poll_for_value(
         fun() ->
             mg_core_machine:call(Options, ID, get, ?REQ_CTX, mg_core_deadline:default())
         end,
@@ -160,7 +160,7 @@ retry_after_fail_test(C) ->
     % fail with notification, repair, retry notification
     _NotificationID = mg_core_machine:notify(Options, ID, [<<"fail_when">>, 0], ?REQ_CTX),
     %% wait for notification to kill the machine
-    {ok, _} = mg_core_ct_helper:poll_for_exception(
+    {ok, _} = mg_cth:poll_for_exception(
         fun() ->
             mg_core_machine:call(Options, ID, get, ?REQ_CTX, mg_core_deadline:default())
         end,
@@ -173,7 +173,7 @@ retry_after_fail_test(C) ->
     %% machine is repaired but notification has not retried yet
     0 = mg_core_machine:call(Options, ID, get, ?REQ_CTX, mg_core_deadline:default()),
     %% wait for notification to kill the machine a second time (it re_tried)
-    {ok, _} = mg_core_ct_helper:poll_for_exception(
+    {ok, _} = mg_cth:poll_for_exception(
         fun() ->
             mg_core_machine:call(Options, ID, get, ?REQ_CTX, mg_core_deadline:default())
         end,

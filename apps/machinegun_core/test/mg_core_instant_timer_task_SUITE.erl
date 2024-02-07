@@ -56,12 +56,12 @@ all() ->
 init_per_suite(C) ->
     % dbg:tracer(), dbg:p(all, c),
     % dbg:tpl({mg_core_machine, '_', '_'}, x),
-    Apps = mg_core_ct_helper:start_applications([machinegun_core]),
+    Apps = mg_cth:start_applications([machinegun_core]),
     [{apps, Apps} | C].
 
 -spec end_per_suite(config()) -> ok.
 end_per_suite(C) ->
-    mg_core_ct_helper:stop_applications(?config(apps, C)).
+    mg_cth:stop_applications(?config(apps, C)).
 
 %%
 %% tests
@@ -81,7 +81,7 @@ instant_start_test(_C) ->
     F = fun() ->
         mg_core_machine:call(Options, ID, get, ?REQ_CTX, mg_core_deadline:default())
     end,
-    mg_core_ct_helper:assert_wait_expected(
+    mg_cth:assert_wait_expected(
         1,
         F,
         genlib_retry:new_strategy({linear, _Retries = 10, _Timeout = 100})
@@ -202,7 +202,7 @@ automaton_options(NS) ->
     #{
         namespace => NS,
         processor => ?MODULE,
-        storage => mg_core_ct_helper:build_storage(NS, mg_core_storage_memory),
+        storage => mg_cth:build_storage(NS, mg_core_storage_memory),
         worker => #{
             registry => mg_core_procreg_gproc
         },
@@ -224,7 +224,7 @@ automaton_options_wo_shedulers(NS) ->
     #{
         namespace => NS,
         processor => ?MODULE,
-        storage => mg_core_ct_helper:build_storage(NS, mg_core_storage_memory),
+        storage => mg_cth:build_storage(NS, mg_core_storage_memory),
         worker => #{
             registry => mg_core_procreg_gproc
         },

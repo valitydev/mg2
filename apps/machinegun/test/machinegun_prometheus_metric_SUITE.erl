@@ -157,7 +157,7 @@ groups() ->
 %%
 -spec init_per_suite(config()) -> config().
 init_per_suite(C) ->
-    Apps = machinegun_ct_helper:start_applications([
+    Apps = mg_cth:start_applications([
         gproc,
         {machinegun, machinegun_config()}
     ]),
@@ -165,7 +165,7 @@ init_per_suite(C) ->
 
 -spec end_per_suite(config()) -> ok.
 end_per_suite(C) ->
-    machinegun_ct_helper:stop_applications(?config(apps, C)).
+    mg_cth:stop_applications(?config(apps, C)).
 
 -spec init_per_group(group_name(), config()) -> config().
 init_per_group(_, C) ->
@@ -765,7 +765,7 @@ events_sink_kafka_sent_test(_C) ->
 
 -spec riak_pool_collector_test(config()) -> _.
 riak_pool_collector_test(_C) ->
-    ok = machinegun_ct_helper:await_ready(fun machinegun_ct_helper:riak_ready/0),
+    ok = mg_cth:await_ready(fun mg_cth:riak_ready/0),
     Storage =
         {mg_core_storage_riak, #{
             name => {?NS, caller, type},
@@ -795,7 +795,7 @@ riak_pool_collector_test(_C) ->
         machinegun_riak_prometheus_collector,
         fun(MF) -> Self ! MF end
     ),
-    MFs = machinegun_ct_helper:flush(),
+    MFs = mg_cth:flush(),
     MLabels = [
         #'LabelPair'{name = <<"namespace">>, value = <<"NS">>},
         #'LabelPair'{name = <<"name">>, value = <<"type">>}

@@ -204,7 +204,7 @@ init_per_group(_, C) ->
 init_per_group(C) ->
     %% TODO сделать нормальную генерацию урлов
     Config = mg_woody_api_config(C),
-    Apps = mg_ct_helper:start_applications([
+    Apps = mg_cth:start_applications([
         brod,
         machinegun_woody_api
     ]),
@@ -362,7 +362,7 @@ mg_woody_api_config(C) ->
 -spec end_per_group(group_name(), config()) -> ok.
 end_per_group(_, C) ->
     ok = proc_lib:stop(?config(processor_pid, C)),
-    mg_ct_helper:stop_applications(?config(apps, C)).
+    mg_cth:stop_applications(?config(apps, C)).
 
 %%
 %% base group tests
@@ -742,7 +742,7 @@ config_with_multiple_event_sinks(_C) ->
                     {mg_core_events_sink_kafka, #{
                         name => kafka,
                         topic => <<"mg_core_event_sink">>,
-                        client => mg_ct_helper:config(kafka_client_name)
+                        client => mg_cth:config(kafka_client_name)
                     }}
                 ]
             }
@@ -752,7 +752,7 @@ config_with_multiple_event_sinks(_C) ->
             default_processing_timeout => 5000
         }
     },
-    Apps = mg_ct_helper:start_applications([
+    Apps = mg_cth:start_applications([
         brod,
         woody
     ]),
@@ -761,7 +761,7 @@ config_with_multiple_event_sinks(_C) ->
         #{strategy => rest_for_one},
         mg_test_configurator:construct_child_specs(Config)
     ),
-    ok = mg_ct_helper:stop_applications(Apps).
+    ok = mg_cth:stop_applications(Apps).
 
 %%
 %% utils

@@ -50,12 +50,12 @@ all() ->
 %%
 -spec init_per_suite(config()) -> config().
 init_per_suite(C) ->
-    Apps = mg_core_ct_helper:start_applications([machinegun_core]),
+    Apps = mg_cth:start_applications([machinegun_core]),
     [{apps, Apps} | C].
 
 -spec end_per_suite(config()) -> ok.
 end_per_suite(C) ->
-    mg_core_ct_helper:stop_applications(?config(apps, C)).
+    mg_cth:stop_applications(?config(apps, C)).
 
 %%
 %% tests
@@ -162,7 +162,7 @@ automaton_options(NS, StorageName) ->
     #{
         namespace => NS,
         processor => ?MODULE,
-        storage => mg_core_ct_helper:build_storage(
+        storage => mg_cth:build_storage(
             NS,
             {mg_core_storage_memory, #{
                 existing_storage_name => StorageName

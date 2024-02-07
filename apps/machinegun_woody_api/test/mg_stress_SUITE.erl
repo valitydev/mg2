@@ -38,7 +38,7 @@ all() ->
 -spec init_per_suite(config()) -> config().
 init_per_suite(C) ->
     Config = mg_woody_api_config(C),
-    Apps = mg_ct_helper:start_applications([
+    Apps = mg_cth:start_applications([
         {hackney, [{use_default_pool, false}]},
         machinegun_woody_api
     ]),
@@ -87,7 +87,7 @@ init_per_suite(C) ->
 -spec end_per_suite(config()) -> ok.
 end_per_suite(C) ->
     ok = proc_lib:stop(?config(processor_pid, C)),
-    mg_ct_helper:stop_applications(?config(apps, C)).
+    mg_cth:stop_applications(?config(apps, C)).
 
 -spec mg_woody_api_config(config()) -> map().
 mg_woody_api_config(_C) ->
@@ -130,7 +130,7 @@ stress_test(C) ->
     Processes = [stress_test_start_processes(C, integer_to_binary(ID)) || ID <- lists:seq(1, N)],
 
     ok = timer:sleep(TestTimeout),
-    ok = mg_ct_helper:stop_wait_all(Processes, shutdown, 2000).
+    ok = mg_cth:stop_wait_all(Processes, shutdown, 2000).
 
 -spec stress_test_start_processes(term(), mg_core:id()) -> _.
 stress_test_start_processes(C, ID) ->

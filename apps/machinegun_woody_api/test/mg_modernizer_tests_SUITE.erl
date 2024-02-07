@@ -88,7 +88,7 @@ init_per_suite(C) ->
     % dbg:tracer(),
     % dbg:p(all, c),
     % dbg:tpl({machinegun_woody_api, '_', '_'}, x),
-    Apps = mg_ct_helper:start_applications([gproc]),
+    Apps = mg_cth:start_applications([gproc]),
     % Запускаем memory storage, который сможет "пережить" рестарты mg
     % FIMXE Why is pulse a required option??
     {ok, StoragePid} = mg_core_storage_memory:start_link(#{name => ?MODULE, pulse => undefined}),
@@ -97,7 +97,7 @@ init_per_suite(C) ->
 
 -spec end_per_suite(config()) -> ok.
 end_per_suite(C) ->
-    mg_ct_helper:stop_applications(?config(suite_apps, C)).
+    mg_cth:stop_applications(?config(suite_apps, C)).
 
 %%
 
@@ -136,13 +136,13 @@ end_per_group(Name, C) when
     Name == modern_activities
 ->
     ok = proc_lib:stop(?config(processor_pid, C)),
-    mg_ct_helper:stop_applications(?config(group_apps, C));
+    mg_cth:stop_applications(?config(group_apps, C));
 end_per_group(_, _C) ->
     ok.
 
 -spec start_mg_woody_api(group_name(), config()) -> config().
 start_mg_woody_api(Name, C) ->
-    Apps = mg_ct_helper:start_applications([machinegun_woody_api]),
+    Apps = mg_cth:start_applications([machinegun_woody_api]),
     [
         {group_name, Name},
         {group_apps, Apps},

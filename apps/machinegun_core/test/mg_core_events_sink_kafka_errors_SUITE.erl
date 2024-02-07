@@ -88,7 +88,7 @@ init_per_suite(C) ->
 
 -spec end_per_suite(config()) -> ok.
 end_per_suite(C) ->
-    _ = mg_core_ct_helper:stop_applications(?config(apps, C)),
+    _ = mg_cth:stop_applications(?config(apps, C)),
     ok.
 
 -spec init_per_testcase(test_name(), config()) -> config().
@@ -122,7 +122,7 @@ add_events_connect_failed_test(C) ->
             add_events(C)
         )
     after
-        _ = mg_core_ct_helper:stop_applications(Apps),
+        _ = mg_cth:stop_applications(Apps),
         _ = (catch ct_proxy:stop(Proxy))
     end.
 
@@ -153,7 +153,7 @@ add_events_ssl_failed_test(C) ->
             )
         )
     after
-        _ = mg_core_ct_helper:stop_applications(Apps),
+        _ = mg_cth:stop_applications(Apps),
         _ = (catch ct_proxy:stop(Proxy))
     end.
 
@@ -180,7 +180,7 @@ add_events_timeout_test(C) ->
             add_events(C)
         )
     after
-        _ = mg_core_ct_helper:stop_applications(Apps),
+        _ = mg_cth:stop_applications(Apps),
         _ = (catch gen_tcp:close(LSock))
     end.
 
@@ -201,7 +201,7 @@ add_events_second_timeout_test(C) ->
             add_events(C)
         )
     after
-        _ = mg_core_ct_helper:stop_applications(Apps)
+        _ = mg_cth:stop_applications(Apps)
     end.
 
 -spec add_events_econnrefused_test(config()) -> _.
@@ -221,7 +221,7 @@ add_events_econnrefused_test(C) ->
             add_events(C)
         )
     after
-        _ = mg_core_ct_helper:stop_applications(Apps)
+        _ = mg_cth:stop_applications(Apps)
     end.
 
 -spec add_events_ehostunreach_test(config()) -> _.
@@ -243,7 +243,7 @@ add_events_ehostunreach_test(C) ->
             add_events(C)
         )
     after
-        _ = mg_core_ct_helper:stop_applications(Apps)
+        _ = mg_cth:stop_applications(Apps)
     end.
 
 -spec add_events_enetunreach_test(config()) -> _.
@@ -264,7 +264,7 @@ add_events_enetunreach_test(C) ->
             add_events(C)
         )
     after
-        _ = mg_core_ct_helper:stop_applications(Apps)
+        _ = mg_cth:stop_applications(Apps)
     end.
 
 -spec add_events_nxdomain_test(config()) -> _.
@@ -284,7 +284,7 @@ add_events_nxdomain_test(C) ->
             add_events(C)
         )
     after
-        _ = mg_core_ct_helper:stop_applications(Apps)
+        _ = mg_cth:stop_applications(Apps)
     end.
 
 -spec event_sink_options() -> mg_core_events_sink_kafka:options().

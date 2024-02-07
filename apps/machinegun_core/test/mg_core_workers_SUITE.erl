@@ -27,7 +27,7 @@
 -module(mg_core_workers_SUITE).
 -include_lib("common_test/include/ct.hrl").
 -include_lib("stdlib/include/assert.hrl").
--include("ct_helper.hrl").
+-include_lib("mg_cth/include/mg_cth.hrl").
 
 %% tests descriptions
 -export([all/0]).
@@ -100,12 +100,12 @@ init_per_suite(C) ->
     % dbg:tracer(), dbg:p(all, c),
     % dbg:tpl({mg_core_workers_manager, '_', '_'}, x),
     % dbg:tpl({mg_core_workers, '_', '_'}, x),
-    Apps = mg_core_ct_helper:start_applications([consuela, machinegun_core]),
+    Apps = mg_cth:start_applications([consuela, machinegun_core]),
     [{apps, Apps} | C].
 
 -spec end_per_suite(config()) -> ok.
 end_per_suite(C) ->
-    mg_core_ct_helper:stop_applications(?config(apps, C)).
+    mg_cth:stop_applications(?config(apps, C)).
 
 -spec init_per_group(group_name(), config()) -> config().
 init_per_group(with_gproc, C) ->
@@ -430,7 +430,7 @@ run_load_test(
     _ = ct:pal("===> [~p] start runners done", [now_diff(Ts)]),
     ok = timer:sleep(Duration),
     _ = ct:pal("===> [~p] sleep done", [now_diff(Ts)]),
-    ok = mg_core_ct_helper:stop_wait_all(RunnerPids, shutdown, RunnersCount * 10),
+    ok = mg_cth:stop_wait_all(RunnerPids, shutdown, RunnersCount * 10),
     _ = ct:pal("===> [~p] stop runners done", [now_diff(Ts)]),
     ok = wait_machines_unload(maps:get(unload_timeout, WorkerOptions, 60 * 1000)),
     ok = stop_workers(WorkersPid),

@@ -98,16 +98,16 @@ groups() ->
 init_per_suite(C) ->
     % dbg:tracer(), dbg:p(all, c),
     % dbg:tpl({mg_machine, retry_strategy, '_'}, x),
-    Apps = machinegun_ct_helper:start_applications([cowboy]),
+    Apps = mg_cth:start_applications([cowboy]),
     [{suite_apps, Apps} | C].
 
 -spec end_per_suite(config()) -> ok.
 end_per_suite(C) ->
-    machinegun_ct_helper:stop_applications(?config(suite_apps, C)).
+    mg_cth:stop_applications(?config(suite_apps, C)).
 
 -spec init_per_group(group_name(), config()) -> config().
 init_per_group(auxiliary, C) ->
-    Apps = machinegun_ct_helper:start_applications([consuela]),
+    Apps = mg_cth:start_applications([consuela]),
     [{apps, Apps} | C];
 init_per_group(_, C) ->
     % NOTE
@@ -132,7 +132,7 @@ init_per_group(C) ->
         })
     ),
     Config = machinegun_config(HandlerInfo, C),
-    Apps = machinegun_ct_helper:start_applications([
+    Apps = mg_cth:start_applications([
         brod,
         consuela,
         {machinegun, Config}
@@ -278,7 +278,7 @@ end_per_group(_, C) ->
         undefined -> ok;
         Pid -> proc_lib:stop(Pid)
     end,
-    machinegun_ct_helper:stop_applications(?config(apps, C)).
+    mg_cth:stop_applications(?config(apps, C)).
 
 %%
 %% base group tests

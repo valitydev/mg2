@@ -17,7 +17,7 @@
 -module(mg_core_events_modernizer_SUITE).
 -include_lib("common_test/include/ct.hrl").
 -include_lib("stdlib/include/assert.hrl").
--include("ct_helper.hrl").
+-include_lib("mg_cth/include/mg_cth.hrl").
 
 %% tests descriptions
 -export([all/0]).
@@ -75,12 +75,12 @@ all() ->
 
 -spec init_per_suite(config()) -> config().
 init_per_suite(C) ->
-    Apps = mg_core_ct_helper:start_applications([machinegun_core]),
+    Apps = mg_cth:start_applications([machinegun_core]),
     [{apps, Apps} | C].
 
 -spec end_per_suite(config()) -> ok.
 end_per_suite(C) ->
-    mg_core_ct_helper:stop_applications(?config(apps, C)).
+    mg_cth:stop_applications(?config(apps, C)).
 
 %% Tests
 
@@ -193,7 +193,7 @@ events_machine_options(ProcessorOptions, NS) ->
         processor => {?MODULE, ProcessorOptions},
         machines => #{
             namespace => NS,
-            storage => mg_core_ct_helper:build_storage(NS, Storage),
+            storage => mg_cth:build_storage(NS, Storage),
             worker => #{
                 registry => mg_core_procreg_gproc
             },
@@ -204,7 +204,7 @@ events_machine_options(ProcessorOptions, NS) ->
             },
             pulse => Pulse
         },
-        events_storage => mg_core_ct_helper:build_storage(<<NS/binary, "_events">>, Storage)
+        events_storage => mg_cth:build_storage(<<NS/binary, "_events">>, Storage)
     }.
 
 -spec start(mg_core_events_machine:options(), mg_core:id(), term()) -> ok.
