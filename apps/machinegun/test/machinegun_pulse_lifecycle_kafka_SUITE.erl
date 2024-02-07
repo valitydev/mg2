@@ -184,25 +184,50 @@ pulse_options() ->
 -spec read_all_beats() -> [term()].
 read_all_beats() ->
     {ok, PartitionsCount} = brod:get_partitions_count(?CLIENT, ?TOPIC),
-    do_read_all(?BROKERS, ?TOPIC, PartitionsCount - 1, 0, []).
+    do_read_all(?BROKERS, ?TOPIC, PartitionsCount - 1, 0, [], genlib_retry:linear(5, 200)).
 
 -spec do_read_all(
     [brod:endpoint()],
     brod:topic(),
     brod:partition(),
     brod:offset(),
-    [term()]
+    [term()],
+    genlib_retry:strategy()
 ) -> [term()].
-do_read_all(_Hosts, _Topic, Partition, _Offset, Result) when Partition < 0 ->
+do_read_all(_Hosts, _Topic, Partition, _Offset, Result, _Strategy) when Partition < 0 ->
     lists:reverse(Result);
-do_read_all(Hosts, Topic, Partition, Offset, Result) ->
-    case brod:fetch(Hosts, Topic, Partition, Offset) of
-        {ok, {Offset, []}} ->
-            do_read_all(Hosts, Topic, Partition - 1, Offset, Result);
-        {ok, {NewOffset, Records}} when NewOffset =/= Offset ->
-            NewRecords = lists:reverse([
-                erlang:binary_to_term(Value)
-             || #kafka_message{value = Value} <- Records
-            ]),
-            do_read_all(Hosts, Topic, Partition, NewOffset, NewRecords ++ Result)
+do_read_all(Hosts, Topic, Partition, Offset, Result, Strategy) ->
+    call_with_retry(
+        fun() ->
+            case brod:fetch(Hosts, Topic, Partition, Offset) of
+                %% NOTE We create topic on suite init, so there could be race
+                %% condition.
+                {error, unknown_topic_or_partition} = Error ->
+                    erlang:throw({transient, Error});
+                {ok, {Offset, []}} ->
+                    do_read_all(Hosts, Topic, Partition - 1, Offset, Result, Strategy);
+                {ok, {NewOffset, Records}} when NewOffset =/= Offset ->
+                    NewRecords = lists:reverse([
+                        erlang:binary_to_term(Value)
+                     || #kafka_message{value = Value} <- Records
+                    ]),
+                    do_read_all(Hosts, Topic, Partition, NewOffset, NewRecords ++ Result, Strategy)
+            end
+        end,
+        Strategy
+    ).
+
+-spec call_with_retry(fun(() -> Result), genlib_retry:strategy()) -> Result.
+call_with_retry(Fun, Strategy) ->
+    try
+        Fun()
+    catch
+        throw:(Reason = {transient, _Details}) ->
+            case genlib_retry:next_step(Strategy) of
+                {wait, Timeout, NewStrategy} ->
+                    ok = timer:sleep(Timeout),
+                    call_with_retry(Fun, NewStrategy);
+                finish ->
+                    erlang:throw(Reason)
+            end
     end.
