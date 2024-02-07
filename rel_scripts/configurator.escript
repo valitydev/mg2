@@ -16,7 +16,7 @@
 %%%
 
 -mode(compile).
--define(C, machinegun_configuration_utils).
+-define(C, mg_configuration_utils).
 
 %%
 %% main
@@ -241,10 +241,10 @@ pulse(YamlConfig) ->
         #{
             topic => ?C:conf([topic], LifecyclePulseConfig),
             client => ?C:atom(?C:conf([client], LifecyclePulseConfig)),
-            encoder => fun mg_woody_api_life_sink:serialize/3
+            encoder => fun mg_woody_life_sink:serialize/3
         }
     end),
-    {machinegun_pulse,
+    {mg_pulse,
         genlib_map:compact(#{
             woody_event_handler_options => #{
                 formatter_opts => #{
@@ -371,13 +371,13 @@ health_check(YamlConfig) ->
                 [consuela],
                 YamlConfig,
                 #{},
-                #{consuela => {machinegun_health_check, consuela, []}}
+                #{consuela => {mg_health_check, consuela, []}}
             ),
             conf_with(
                 [process_registry],
                 YamlConfig,
                 #{},
-                #{procreg => {machinegun_health_check, health_check_fun(YamlConfig), []}}
+                #{procreg => {mg_health_check, health_check_fun(YamlConfig), []}}
             )
         ]
     ).
@@ -529,7 +529,7 @@ storage(NS, YamlConfig) ->
                 batching => #{
                     concurrency_limit => ?C:conf([storage, batch_concurrency_limit], YamlConfig, PoolSize)
                 },
-                sidecar => {machinegun_riak_prometheus, #{}}
+                sidecar => {mg_riak_prometheus, #{}}
             }}
     end.
 

@@ -59,7 +59,7 @@
 config(kafka_client_name) ->
     ?CLIENT.
 
--spec kafka_client_config([{string(), port()}]) -> [{atom(), _Value}].
+-spec kafka_client_config([{string(), pos_integer()}]) -> [{atom(), _Value}].
 kafka_client_config(Brokers) ->
     [
         {clients, [
