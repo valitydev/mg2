@@ -348,7 +348,7 @@ mg_woody_api_config(C) ->
                     {mg_core_events_sink_kafka, #{
                         name => kafka,
                         topic => ?ES_ID,
-                        client => mg_kafka_client
+                        client => mg_cth:config(kafka_client_name)
                     }}
                 ]
             }

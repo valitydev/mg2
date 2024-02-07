@@ -22,6 +22,7 @@
 -include_lib("common_test/include/ct.hrl").
 -include_lib("stdlib/include/assert.hrl").
 -include_lib("mg_proto/include/mg_proto_state_processing_thrift.hrl").
+-include_lib("mg_cth/include/mg_cth.hrl").
 
 %% tests descriptions
 -export([all/0]).
@@ -133,7 +134,7 @@ init_per_group(C) ->
     ),
     Config = machinegun_config(HandlerInfo, C),
     Apps = mg_cth:start_applications([
-        brod,
+        {brod, mg_cth:kafka_client_config(?BROKERS_ADVERTIZED)},
         consuela,
         {machinegun, Config}
     ]),
@@ -260,7 +261,7 @@ machinegun_config(#{endpoint := {IP, Port}}, C) ->
                     {mg_core_events_sink_kafka, #{
                         name => kafka,
                         topic => ?ES_ID,
-                        client => mg_kafka_client
+                        client => mg_cth:config(kafka_client_name)
                     }}
                 ]
             }

@@ -19,7 +19,7 @@
 -include_lib("stdlib/include/assert.hrl").
 -include_lib("common_test/include/ct.hrl").
 -include_lib("kafka_protocol/include/kpro_public.hrl").
-
+-include_lib("mg_cth/include/mg_cth.hrl").
 -include_lib("machinegun_core/include/pulse.hrl").
 
 %% tests descriptions
@@ -34,8 +34,6 @@
 -define(TOPIC, <<"test-life-sink">>).
 -define(SOURCE_NS, <<"source-ns">>).
 -define(SOURCE_ID, <<"source-id">>).
--define(CLIENT, mg_kafka_client).
--define(BROKERS, [{"kafka1", 9092}]).
 
 %%
 %% tests descriptions
@@ -60,7 +58,7 @@ init_per_suite(C) ->
         {brod, [
             {clients, [
                 {?CLIENT, [
-                    {endpoints, ?BROKERS},
+                    {endpoints, ?BROKERS_ADVERTIZED},
                     {auto_start_producers, true}
                 ]}
             ]}
@@ -82,7 +80,7 @@ init_per_suite(C) ->
         }
     ],
     ok =
-        case brod:create_topics(?BROKERS, TopicConfig, #{timeout => 5000}) of
+        case brod:create_topics(?BROKERS_ADVERTIZED, TopicConfig, #{timeout => 5000}) of
             ok -> ok;
             {error, topic_already_exists} -> ok
         end,
@@ -184,7 +182,7 @@ pulse_options() ->
 -spec read_all_beats() -> [term()].
 read_all_beats() ->
     {ok, PartitionsCount} = brod:get_partitions_count(?CLIENT, ?TOPIC),
-    do_read_all(?BROKERS, ?TOPIC, PartitionsCount - 1, 0, [], genlib_retry:linear(5, 200)).
+    do_read_all(?BROKERS_ADVERTIZED, ?TOPIC, PartitionsCount - 1, 0, [], genlib_retry:linear(5, 200)).
 
 -spec do_read_all(
     [brod:endpoint()],

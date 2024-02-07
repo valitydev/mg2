@@ -16,7 +16,10 @@
 
 -module(mg_cth).
 
+-include_lib("mg_cth/include/mg_cth.hrl").
+
 -export([config/1]).
+-export([kafka_client_config/1]).
 
 -export([start_application/1]).
 -export([start_applications/1]).
@@ -45,9 +48,6 @@
 
 %%
 
--define(CLIENT, mg_cth_kafka_client).
--define(BROKERS, [{"kafka1", 9092}, {"kafka2", 9092}, {"kafka3", 9092}]).
-
 -define(READINESS_RETRY_STRATEGY, genlib_retry:exponential(10, 2, 1000, 10000)).
 
 -type appname() :: atom().
@@ -59,6 +59,17 @@
 config(kafka_client_name) ->
     ?CLIENT.
 
+-spec kafka_client_config([{string(), port()}]) -> [{atom(), _Value}].
+kafka_client_config(Brokers) ->
+    [
+        {clients, [
+            {config(kafka_client_name), [
+                {endpoints, Brokers},
+                {auto_start_producers, true}
+            ]}
+        ]}
+    ].
+
 -spec start_application(app()) -> _Deps :: [appname()].
 start_application(consuela) ->
     genlib_app:start_application_with(consuela, [
@@ -68,14 +79,7 @@ start_application(consuela) ->
         }}
     ]);
 start_application(brod) ->
-    genlib_app:start_application_with(brod, [
-        {clients, [
-            {config(kafka_client_name), [
-                {endpoints, ?BROKERS},
-                {auto_start_producers, true}
-            ]}
-        ]}
-    ]);
+    genlib_app:start_application_with(brod, kafka_client_config(?BROKERS));
 start_application({AppName, Env}) ->
     genlib_app:start_application_with(AppName, Env);
 start_application(AppName) ->

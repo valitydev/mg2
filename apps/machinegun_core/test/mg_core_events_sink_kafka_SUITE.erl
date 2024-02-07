@@ -18,6 +18,7 @@
 -include_lib("stdlib/include/assert.hrl").
 -include_lib("common_test/include/ct.hrl").
 -include_lib("kafka_protocol/include/kpro_public.hrl").
+-include_lib("mg_cth/include/mg_cth.hrl").
 
 %% tests descriptions
 -export([all/0]).
@@ -34,8 +35,6 @@
 -define(TOPIC, <<"test_event_sink">>).
 -define(SOURCE_NS, <<"source_ns">>).
 -define(SOURCE_ID, <<"source_id">>).
--define(BROKERS, [{"kafka1", 9092}, {"kafka2", 9092}, {"kafka3", 9092}]).
--define(CLIENT, mg_core_kafka_client).
 
 %%
 %% tests descriptions
