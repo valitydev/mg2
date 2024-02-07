@@ -19,7 +19,6 @@
 -include_lib("mg_cth/include/mg_cth.hrl").
 
 -export([config/1]).
--export([mg_woody_config/1]).
 -export([kafka_client_config/1]).
 
 -export([start_application/1]).
@@ -59,60 +58,6 @@
 -spec config(option()) -> _.
 config(kafka_client_name) ->
     ?CLIENT.
-
--spec mg_woody_config(atom() | {atom(), _Opts}) -> map().
-mg_woody_config(Storage) ->
-    Scheduler = #{
-        task_quota => <<"scheduler_tasks_total">>
-    },
-    #{
-        woody_server => #{ip => {0, 0, 0, 0, 0, 0, 0, 0}, port => 8022, limits => #{}},
-        quotas => [
-            #{
-                name => <<"scheduler_tasks_total">>,
-                limit => #{value => 10},
-                update_interval => 100
-            }
-        ],
-        namespaces => #{
-            ?NS => #{
-                storage => Storage,
-                processor => #{
-                    url => <<"http://localhost:8023/processor">>,
-                    transport_opts => #{pool => ns, max_connections => 100}
-                },
-                default_processing_timeout => 5000,
-                schedulers => #{
-                    timers => Scheduler,
-                    notification => Scheduler
-                },
-                retries => #{
-                    storage => {exponential, infinity, 1, 10},
-                    timers => {exponential, infinity, 1, 10}
-                },
-                % сейчас существуют проблемы, которые не дают включить на постоянной основе эту
-                % опцию (а очень хочется, чтобы проверять работоспособность идемпотентных ретраев)
-                % TODO в будущем нужно это сделать
-                % сейчас же можно иногда включать и смотреть
-                % suicide_probability => 0.1,
-                event_sinks => [
-                    {mg_core_events_sink_machine, #{
-                        name => machine,
-                        machine_id => ?ES_ID
-                    }},
-                    {mg_core_events_sink_kafka, #{
-                        name => kafka,
-                        topic => ?ES_ID,
-                        client => config(kafka_client_name)
-                    }}
-                ]
-            }
-        },
-        event_sink_ns => #{
-            storage => mg_core_storage_memory,
-            default_processing_timeout => 5000
-        }
-    }.
 
 -spec kafka_client_config([{string(), pos_integer()}]) -> [{atom(), _Value}].
 kafka_client_config(Brokers) ->

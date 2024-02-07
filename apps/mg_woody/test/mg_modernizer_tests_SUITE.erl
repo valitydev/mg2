@@ -105,10 +105,9 @@ end_per_suite(C) ->
 init_per_group(Name = legacy_activities, C0) ->
     Config = mg_woody_config(Name, C0),
     C1 = start_mg_woody(Name, C0),
-    {ok, ProcessorPid} = mg_cth_processor:start(
+    {ok, ProcessorPid, _HandlerInfo} = mg_cth_processor:start(
         ?MODULE,
-        {0, 0, 0, 0},
-        8023,
+        {{0, 0, 0, 0}, 8023},
         genlib_map:compact(#{
             processor => {"/processor", #{call => fun legacy_call_handler/1}}
         }),
@@ -118,10 +117,9 @@ init_per_group(Name = legacy_activities, C0) ->
 init_per_group(Name = modern_activities, C0) ->
     Config = mg_woody_config(Name, C0),
     C1 = start_mg_woody(Name, C0),
-    {ok, ProcessorPid} = mg_cth_processor:start(
+    {ok, ProcessorPid, _HandlerInfo} = mg_cth_processor:start(
         ?MODULE,
-        {0, 0, 0, 0},
-        8023,
+        {{0, 0, 0, 0}, 8023},
         genlib_map:compact(#{
             processor => {"/processor", #{call => fun modern_call_handler/1}},
             modernizer => {"/modernizer", #{modernize => fun modernize_handler/1}}

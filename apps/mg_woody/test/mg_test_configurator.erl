@@ -36,8 +36,9 @@
 
 -type processor() :: mg_woody_processor:options().
 
--spec construct_child_specs(config()) -> _.
-
+-spec construct_child_specs(config() | undefined) -> _.
+construct_child_specs(undefined) ->
+    [];
 construct_child_specs(
     #{
         woody_server := WoodyServer,

@@ -110,12 +110,9 @@ init_per_group(_, C) ->
 -spec init_per_group(config()) -> config().
 init_per_group(C) ->
     %% TODO сделать нормальную генерацию урлов
-    Host = {0, 0, 0, 0},
-    Port = 8022,
-    {ok, ProcessorPid} = mg_cth_processor:start(
+    {ok, ProcessorPid, HandlerInfo} = mg_cth_processor:start(
         ?MODULE,
-        Host,
-        Port,
+        {{0, 0, 0, 0}, 0},
         genlib_map:compact(#{
             processor => {
                 "/processor",
@@ -125,10 +122,9 @@ init_per_group(C) ->
                     repair => fun default_repair_handler/1
                 }
             }
-        }),
-        mg_cth:mg_woody_config(?config(storage, C))
+        })
     ),
-    Config = mg_config(Host, Port, C),
+    Config = mg_config(HandlerInfo, C),
     Apps = mg_cth:start_applications([
         {brod, mg_cth:kafka_client_config(?BROKERS_ADVERTIZED)},
         consuela,
@@ -211,8 +207,8 @@ null() ->
 content(Body) ->
     {#{format_version => 42}, Body}.
 
--spec mg_config(inet:ip_address(), inet:port_number(), config()) -> list().
-mg_config(IP, Port, C) ->
+-spec mg_config(mg_cth_processor:handler_info(), config()) -> list().
+mg_config(#{endpoint := {IP, Port}}, C) ->
     Scheduler = #{
         scan_interval => #{continue => 500, completed => 15000},
         task_quota => <<"scheduler_tasks_total">>

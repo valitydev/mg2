@@ -202,10 +202,9 @@ init_per_group(C) ->
         brod,
         mg_woody
     ]),
-    {ok, ProcessorPid} = mg_cth_processor:start(
+    {ok, ProcessorPid, _HandlerInfo} = mg_cth_processor:start(
         ?MODULE,
-        {0, 0, 0, 0},
-        8023,
+        {{0, 0, 0, 0}, 8023},
         genlib_map:compact(#{
             processor => {
                 "/processor",
@@ -302,7 +301,57 @@ content(Body) ->
 
 -spec mg_woody_config(config()) -> map().
 mg_woody_config(C) ->
-    mg_cth:mg_woody_config(?config(storage, C)).
+    Scheduler = #{
+        task_quota => <<"scheduler_tasks_total">>
+    },
+    #{
+        woody_server => #{ip => {0, 0, 0, 0, 0, 0, 0, 0}, port => 8022, limits => #{}},
+        quotas => [
+            #{
+                name => <<"scheduler_tasks_total">>,
+                limit => #{value => 10},
+                update_interval => 100
+            }
+        ],
+        namespaces => #{
+            ?NS => #{
+                storage => ?config(storage, C),
+                processor => #{
+                    url => <<"http://localhost:8023/processor">>,
+                    transport_opts => #{pool => ns, max_connections => 100}
+                },
+                default_processing_timeout => 5000,
+                schedulers => #{
+                    timers => Scheduler,
+                    notification => Scheduler
+                },
+                retries => #{
+                    storage => {exponential, infinity, 1, 10},
+                    timers => {exponential, infinity, 1, 10}
+                },
+                % сейчас существуют проблемы, которые не дают включить на постоянной основе эту
+                % опцию (а очень хочется, чтобы проверять работоспособность идемпотентных ретраев)
+                % TODO в будущем нужно это сделать
+                % сейчас же можно иногда включать и смотреть
+                % suicide_probability => 0.1,
+                event_sinks => [
+                    {mg_core_events_sink_machine, #{
+                        name => machine,
+                        machine_id => ?ES_ID
+                    }},
+                    {mg_core_events_sink_kafka, #{
+                        name => kafka,
+                        topic => ?ES_ID,
+                        client => mg_cth:config(kafka_client_name)
+                    }}
+                ]
+            }
+        },
+        event_sink_ns => #{
+            storage => mg_core_storage_memory,
+            default_processing_timeout => 5000
+        }
+    }.
 
 -spec end_per_group(group_name(), config()) -> ok.
 end_per_group(_, C) ->

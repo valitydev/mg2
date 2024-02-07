@@ -59,10 +59,9 @@ init_per_suite(C) ->
         end
     end,
 
-    {ok, ProcessorPid} = mg_cth_processor:start(
+    {ok, ProcessorPid, _HandlerInfo} = mg_cth_processor:start(
         ?MODULE,
-        {0, 0, 0, 0},
-        8023,
+        {{0, 0, 0, 0}, 8023},
         #{
             processor =>
                 {"/processor", #{
