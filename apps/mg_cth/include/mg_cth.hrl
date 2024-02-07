@@ -1,6 +1,13 @@
 -ifndef(__mg_cth__).
 -define(__mg_cth__, 42).
 
+-define(NS, <<"NS">>).
+-define(ID, <<"ID">>).
+-define(EMPTY_ID, <<"">>).
+-define(ES_ID, <<"test_event_sink_2">>).
+
+-define(DEADLINE_TIMEOUT, 1000).
+
 -define(CLIENT, mg_cth_kafka_client).
 -define(BROKERS_ADVERTIZED, [{"kafka1", 9092}]).
 -define(BROKERS, [{"kafka1", 9092}, {"kafka2", 9092}, {"kafka3", 9092}]).

@@ -55,11 +55,12 @@ init_per_suite(C) ->
 
     SignalFunc = fun({Args, _Machine}) ->
         case Args of
-            _ -> mg_test_processor:default_result(signal, Args)
+            _ -> mg_cth_processor:default_result(signal, Args)
         end
     end,
 
-    {ok, ProcessorPid} = mg_test_processor:start(
+    {ok, ProcessorPid} = mg_cth_processor:start(
+        ?MODULE,
         {0, 0, 0, 0},
         8023,
         #{
@@ -149,7 +150,7 @@ stress_test_start_processes(C, ID) ->
 %%
 -spec start_machine(config(), mg_core:id()) -> _.
 start_machine(C, ID) ->
-    mg_automaton_client:start(automaton_options(C), ID, ID).
+    mg_cth_automaton_client:start(automaton_options(C), ID, ID).
 
 -spec create(config(), mg_core:id()) -> _.
 create(C, ID) ->
@@ -159,7 +160,7 @@ create(C, ID) ->
 
 -spec create_event(binary(), config(), mg_core:id()) -> _.
 create_event(Event, C, ID) ->
-    Event = mg_automaton_client:call(automaton_options(C), ID, Event).
+    Event = mg_cth_automaton_client:call(automaton_options(C), ID, Event).
 
 -spec automaton_options(config()) -> _.
 automaton_options(C) -> ?config(automaton_options, C).

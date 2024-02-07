@@ -1,5 +1,5 @@
 %%%
-%%% Copyright 2020 Valitydev
+%%% Copyright 2024 Valitydev
 %%%
 %%% Licensed under the Apache License, Version 2.0 (the "License");
 %%% you may not use this file except in compliance with the License.
@@ -14,10 +14,10 @@
 %%% limitations under the License.
 %%%
 
--module(mg_test_processor).
+-module(mg_cth_processor).
 
--export([start/4]).
--export([start_link/4]).
+-export([start/5]).
+-export([start_link/5]).
 -export([default_result/2]).
 
 %% processor handlers
@@ -62,9 +62,9 @@
 %%
 %% API
 %%
--spec start(host_address(), integer(), options(), any()) -> mg_core_utils:gen_start_ret().
-start(Host, Port, Options, MgWoodyApiConfig) ->
-    case start_link(Host, Port, Options, MgWoodyApiConfig) of
+-spec start(_Id, host_address(), integer(), options(), any()) -> mg_core_utils:gen_start_ret().
+start(Id, Host, Port, Options, MgWoodyConfig) ->
+    case start_link(Id, Host, Port, Options, MgWoodyConfig) of
         {ok, ProcessorPid} ->
             true = erlang:unlink(ProcessorPid),
             {ok, ProcessorPid};
@@ -72,12 +72,12 @@ start(Host, Port, Options, MgWoodyApiConfig) ->
             ErrorOrIgnore
     end.
 
--spec start_link(host_address(), integer(), options(), any()) -> mg_core_utils:gen_start_ret().
-start_link(Host, Port, Options, MgWoodyApiConfig) ->
+-spec start_link(_Id, host_address(), integer(), options(), any()) -> mg_core_utils:gen_start_ret().
+start_link(Id, Host, Port, Options, MgWoodyConfig) ->
     Flags = #{strategy => one_for_all},
     ChildsSpecs = [
         woody_server:child_spec(
-            ?MODULE,
+            Id,
             #{
                 ip => Host,
                 port => Port,
@@ -95,7 +95,7 @@ start_link(Host, Port, Options, MgWoodyApiConfig) ->
                 )
             }
         )
-        | mg_test_configurator:construct_child_specs(MgWoodyApiConfig)
+        | mg_test_configurator:construct_child_specs(MgWoodyConfig)
     ],
     mg_core_utils_supervisor_wrapper:start_link(Flags, ChildsSpecs).
 

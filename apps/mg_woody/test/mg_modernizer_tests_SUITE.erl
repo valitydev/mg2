@@ -105,7 +105,8 @@ end_per_suite(C) ->
 init_per_group(Name = legacy_activities, C0) ->
     Config = mg_woody_config(Name, C0),
     C1 = start_mg_woody(Name, C0),
-    {ok, ProcessorPid} = mg_test_processor:start(
+    {ok, ProcessorPid} = mg_cth_processor:start(
+        ?MODULE,
         {0, 0, 0, 0},
         8023,
         genlib_map:compact(#{
@@ -117,7 +118,8 @@ init_per_group(Name = legacy_activities, C0) ->
 init_per_group(Name = modern_activities, C0) ->
     Config = mg_woody_config(Name, C0),
     C1 = start_mg_woody(Name, C0),
-    {ok, ProcessorPid} = mg_test_processor:start(
+    {ok, ProcessorPid} = mg_cth_processor:start(
+        ?MODULE,
         {0, 0, 0, 0},
         8023,
         genlib_map:compact(#{
@@ -301,41 +303,41 @@ lookup_by_hash(Hash, Element, St) ->
 -spec start_machine(config()) -> _.
 start_machine(C) ->
     Options = ?config(automaton_options, C),
-    ok = mg_automaton_client:start(Options, ?ID, ?ID).
+    ok = mg_cth_automaton_client:start(Options, ?ID, ?ID).
 
 -spec no_modernize_avail(config()) -> _.
 no_modernize_avail(C) ->
     Options = ?config(automaton_options, C),
     % TODO
     #mg_stateproc_NamespaceNotFound{} =
-        (catch mg_automaton_client:modernize(Options, ?ID, {undefined, undefined, forward})).
+        (catch mg_cth_automaton_client:modernize(Options, ?ID, {undefined, undefined, forward})).
 
 -spec modernize_machine_part(config()) -> _.
 modernize_machine_part(C) ->
     Options = ?config(automaton_options, C),
-    ok = mg_automaton_client:modernize(Options, ?ID, {undefined, 1, forward}).
+    ok = mg_cth_automaton_client:modernize(Options, ?ID, {undefined, 1, forward}).
 
 -spec modernize_machine(config()) -> _.
 modernize_machine(C) ->
     Options = ?config(automaton_options, C),
-    ok = mg_automaton_client:modernize(Options, ?ID, {undefined, undefined, forward}).
+    ok = mg_cth_automaton_client:modernize(Options, ?ID, {undefined, undefined, forward}).
 
 -spec count_elements(config()) -> _.
 count_elements(C) ->
     Options = ?config(automaton_options, C),
-    Machine = mg_automaton_client:get_machine(Options, ?ID, {undefined, undefined, forward}),
+    Machine = mg_cth_automaton_client:get_machine(Options, ?ID, {undefined, undefined, forward}),
     Count = count(collapse(Machine, C)),
     true = is_integer(Count) and (Count >= 0).
 
 -spec store_fixed_element(config()) -> _.
 store_fixed_element(C) ->
     Options = ?config(automaton_options, C),
-    true = mg_automaton_client:call(Options, ?ID, [<<"store">>, ?FIXED_ELEMENT]).
+    true = mg_cth_automaton_client:call(Options, ?ID, [<<"store">>, ?FIXED_ELEMENT]).
 
 -spec store_random_element(config()) -> _.
 store_random_element(C) ->
     Options = ?config(automaton_options, C),
-    true = mg_automaton_client:call(Options, ?ID, [
+    true = mg_cth_automaton_client:call(Options, ?ID, [
         <<"store">>,
         [<<"BLARG">>, rand:uniform(1000000)]
     ]).
@@ -343,5 +345,5 @@ store_random_element(C) ->
 -spec lookup_fixed_element(config()) -> _.
 lookup_fixed_element(C) ->
     Options = ?config(automaton_options, C),
-    Machine = mg_automaton_client:get_machine(Options, ?ID, {undefined, undefined, forward}),
+    Machine = mg_cth_automaton_client:get_machine(Options, ?ID, {undefined, undefined, forward}),
     true = lookup(?FIXED_ELEMENT, collapse(Machine, C)).
