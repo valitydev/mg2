@@ -753,7 +753,7 @@ config_with_multiple_event_sinks(_C) ->
     {ok, _Pid} = mg_core_utils_supervisor_wrapper:start_link(
         {local, mg_core_sup_does_nothing},
         #{strategy => rest_for_one},
-        mg_test_configurator:construct_child_specs(Config)
+        mg_cth_configurator:construct_child_specs(Config)
     ),
     ok = mg_cth:stop_applications(Apps).
 

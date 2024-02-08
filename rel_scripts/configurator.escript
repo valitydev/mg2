@@ -72,7 +72,7 @@ sys_config(YamlConfig) ->
         {snowflake, snowflake(YamlConfig)},
         {brod, brod(YamlConfig)},
         {hackney, hackney(YamlConfig)},
-        {machinegun, machinegun(YamlConfig)},
+        {mg, machinegun(YamlConfig)},
         {opentelemetry, opentelemetry(YamlConfig)},
         {opentelemetry_exporter, opentelemetry_exporter(YamlConfig)}
     ].
@@ -87,7 +87,7 @@ logger_level(YamlConfig) ->
     ?C:log_level(?C:conf([logging, level], YamlConfig, <<"info">>)).
 
 logger(YamlConfig) ->
-    Root = ?C:conf([logging, root], YamlConfig, <<"/var/log/machinegun">>),
+    Root = ?C:conf([logging, root], YamlConfig, <<"/var/log/mg">>),
     LogfileName = ?C:conf([logging, json_log], YamlConfig, <<"log.json">>),
     FullLogname = filename:join(Root, LogfileName),
     OutType = ?C:atom(?C:conf([logging, out_type], YamlConfig, <<"file">>)),

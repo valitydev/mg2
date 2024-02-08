@@ -1,4 +1,4 @@
--module(mg_test_configurator).
+-module(mg_cth_configurator).
 
 -export([construct_child_specs/1]).
 

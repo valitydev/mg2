@@ -103,7 +103,7 @@ start_link(ID, {Host, Port}, Options, MgConfig) ->
                 )
             }
         )
-        | mg_test_configurator:construct_child_specs(MgConfig)
+        | mg_cth_configurator:construct_child_specs(MgConfig)
     ],
     case mg_core_utils_supervisor_wrapper:start_link(Flags, ChildsSpecs) of
         {ok, SupPid} ->
