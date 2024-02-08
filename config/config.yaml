@@ -180,7 +180,7 @@ limits:
         value: 90%
     scheduler_tasks: 5000
 logging:
-    root: /var/log/machinegun
+    root: /var/log/mg
     burst_limit_enable: false
     sync_mode_qlen: 100
     drop_mode_qlen: 1000
