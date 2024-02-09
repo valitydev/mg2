@@ -89,7 +89,7 @@ start_link(ID, {Host, Port}, Options, MgConfig) ->
             #{
                 ip => Host,
                 port => Port,
-                event_handler => {mg_woody_event_handler, mg_woody_test_pulse},
+                event_handler => {mg_woody_event_handler, mg_cth_pulse},
                 handlers => maps:values(
                     maps:map(
                         fun

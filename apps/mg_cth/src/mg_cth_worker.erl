@@ -1,4 +1,4 @@
--module(mg_woody_test_worker).
+-module(mg_cth_worker).
 
 -export([child_spec/3]).
 -export([start_link/1]).

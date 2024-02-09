@@ -1,5 +1,5 @@
 %%%
-%%% Copyright 2020 Valitydev
+%%% Copyright 2024 Valitydev
 %%%
 %%% Licensed under the Apache License, Version 2.0 (the "License");
 %%% you may not use this file except in compliance with the License.
@@ -14,7 +14,7 @@
 %%% limitations under the License.
 %%%
 
--module(mg_woody_test_pulse).
+-module(mg_cth_pulse).
 
 -include_lib("mg_core/include/pulse.hrl").
 -include_lib("mg_woody/include/pulse.hrl").
