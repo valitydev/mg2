@@ -81,11 +81,6 @@
 -export([config_with_multiple_event_sinks/1]).
 
 %%
-
--define(NS, <<"NS_WOODY">>).
--define(ID, <<"ID_WOODY">>).
-
-%%
 %% tests descriptions
 %%
 -type group_name() :: atom().

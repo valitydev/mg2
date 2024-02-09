@@ -46,11 +46,6 @@
 -export([consuela_health_check_passing/1]).
 
 %%
-
--define(NS, <<"NS_MG">>).
--define(ID, <<"ID_MG">>).
-
-%%
 %% tests descriptions
 %%
 -type group_name() :: atom().
