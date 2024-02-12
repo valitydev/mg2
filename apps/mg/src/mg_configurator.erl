@@ -54,6 +54,7 @@ construct_child_specs(
     Quotas = maps:get(quotas, Config, []),
     HealthChecks = maps:get(health_check, Config, #{}),
     ClusterOpts = maps:get(cluster, Config, #{}),
+    RoutingOpts = maps:get(routing, ClusterOpts, undefined),
 
     QuotasChildSpec = quotas_child_specs(Quotas, quota),
     EventSinkChildSpec = event_sink_ns_child_spec(EventSinkNS, event_sink, Pulse),
@@ -62,7 +63,7 @@ construct_child_specs(
         woody_server,
         #{
             pulse => Pulse,
-            automaton => api_automaton_options(Namespaces, EventSinkNS, Pulse),
+            automaton => api_automaton_options(Namespaces, EventSinkNS, Pulse, #{routing => RoutingOpts}),
             event_sink => api_event_sink_options(Namespaces, EventSinkNS, Pulse),
             woody_server => WoodyServer,
             additional_routes => [
@@ -167,8 +168,8 @@ machine_options(NS, Config, Pulse) ->
         suicide_probability => maps:get(suicide_probability, Config, undefined)
     }.
 
--spec api_automaton_options(namespaces(), event_sink_ns(), pulse()) -> mg_woody_automaton:options().
-api_automaton_options(NSs, EventSinkNS, Pulse) ->
+-spec api_automaton_options(namespaces(), event_sink_ns(), pulse(), map()) -> mg_woody_automaton:options().
+api_automaton_options(NSs, EventSinkNS, Pulse, RoutingOpts) ->
     maps:fold(
         fun(NS, ConfigNS, Options) ->
             Options#{
@@ -180,7 +181,7 @@ api_automaton_options(NSs, EventSinkNS, Pulse) ->
                 )
             }
         end,
-        #{},
+        RoutingOpts,
         NSs
     ).
 

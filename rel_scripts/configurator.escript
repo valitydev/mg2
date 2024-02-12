@@ -448,9 +448,13 @@ opentelemetry_conf(YamlConfig) ->
     ?C:conf([opentelemetry], YamlConfig, undefined).
 
 health_check_fun(YamlConfig) ->
-    case ?C:conf([process_registry, module], YamlConfig, <<"mg_core_procreg_consuela">>) of
-        <<"mg_core_procreg_consuela">> -> consuela;
-        <<"mg_core_procreg_global">> -> global
+    case cluster(YamlConfig) of
+        #{discovery := _} -> global;
+        _ ->
+            case ?C:conf([consuela], YamlConfig, undefined) of
+                undefined -> skip;
+                _ -> consuela
+            end
     end.
 
 cluster(YamlConfig) ->
@@ -462,11 +466,17 @@ cluster(YamlConfig) ->
                 <<"dns">> ->
                     DiscoveryOptsList = ?C:conf([cluster, discovery, options], YamlConfig),
                     ReconnectTimeout = ?C:conf([cluster, reconnect_timeout], YamlConfig, 5000),
+                    RoutingType = ?C:conf([cluster, routing], YamlConfig, <<"undefined">>),
+                    Capacity = ?C:conf([cluster, capacity], YamlConfig, 21),
+                    MaxHash = ?C:conf([cluster, max_hash], YamlConfig, 4095),
                     #{
                         discovery => #{
                             module => mg_core_union,
                             options => maps:from_list(DiscoveryOptsList)
                         },
+                        routing => ?C:atom(RoutingType),
+                        capacity => Capacity,
+                        max_hash => MaxHash,
                         reconnect_timeout => ReconnectTimeout
                     };
                 _ ->

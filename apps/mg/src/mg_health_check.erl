@@ -3,6 +3,7 @@
 -export([consuela/0]).
 -export([global/0]).
 -export([startup/0]).
+-export([skip/0]).
 
 -spec consuela() -> {erl_health:status(), erl_health:details()}.
 consuela() ->
@@ -29,6 +30,10 @@ global() ->
 startup() ->
     %% maybe any checks?
     logger:info("union. node ~p started", [node()]),
+    skip().
+
+-spec skip() -> {erl_health:status(), erl_health:details()}.
+skip() ->
     {passing, []}.
 
 %% Internal functions

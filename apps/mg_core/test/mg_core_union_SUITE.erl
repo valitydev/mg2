@@ -19,6 +19,9 @@
             <<"sname">> => <<"test_node">>
         }
     },
+    routing => host_index_based,
+    capacity => 3,
+    max_hash => 4095,
     reconnect_timeout => ?RECONNECT_TIMEOUT
 }).
 
