@@ -61,8 +61,6 @@
 -export_type([routing_type/0]).
 -export_type([routing_opts/0]).
 
--record(state, {}).
-
 -spec child_spec(cluster_options()) -> [supervisor:child_spec()].
 child_spec(#{discovery := _} = ClusterOpts) ->
     [
@@ -107,10 +105,10 @@ get_route(RoutingKey) ->
 start_link(ClusterOpts) ->
     gen_server:start_link({local, ?SERVER}, ?MODULE, ClusterOpts, []).
 
--spec init(cluster_options()) -> {ok, #state{}, {continue, {full_init, cluster_options()}}}.
+-spec init(cluster_options()) -> {ok, state(), {continue, {full_init, cluster_options()}}}.
 init(ClusterOpts) ->
     logger:info("mg_cluster. init with options: ~p", [ClusterOpts]),
-    {ok, #state{}, {continue, {full_init, ClusterOpts}}}.
+    {ok, #{}, {continue, {full_init, ClusterOpts}}}.
 
 -spec handle_continue({full_init, cluster_options()}, state()) -> {noreply, state()}.
 handle_continue(
