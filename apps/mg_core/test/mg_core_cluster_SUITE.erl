@@ -1,4 +1,4 @@
--module(mg_core_union_SUITE).
+-module(mg_core_cluster_SUITE).
 
 -include_lib("eunit/include/eunit.hrl").
 
@@ -13,7 +13,7 @@
 -define(RECONNECT_TIMEOUT, 1000).
 -define(CLUSTER_OPTS, #{
     discovery => #{
-        module => mg_core_union,
+        module => mg_core_cluster_router,
         options => #{
             <<"domain_name">> => <<"localhost">>,
             <<"sname">> => <<"test_node">>
@@ -25,7 +25,6 @@
     reconnect_timeout => ?RECONNECT_TIMEOUT
 }).
 
--export([nxdomain_test/1]).
 -export([start_ok_test/1]).
 -export([unknown_nodedown_test/1]).
 -export([exists_nodedown_test/1]).
@@ -55,9 +54,6 @@ all() ->
 -spec groups() -> [{group_name(), list(), [test_case_name()]}].
 groups() ->
     [
-        {discovery, [], [
-            nxdomain_test
-        ]},
         {basic_operations, [], [
             start_ok_test,
             unknown_nodedown_test,
@@ -68,16 +64,9 @@ groups() ->
         ]}
     ].
 
--spec nxdomain_test(config()) -> test_result().
-nxdomain_test(_Config) ->
-    ?assertError(
-        {resolve_error, {error, nxdomain}},
-        mg_core_union:discovery(#{<<"domain_name">> => <<"bad_name">>, <<"sname">> => <<"mg">>})
-    ).
-
 -spec start_ok_test(config()) -> test_result().
 start_ok_test(_Config) ->
-    {ok, Pid} = mg_core_union:start_link(?CLUSTER_OPTS),
+    {ok, Pid} = mg_core_cluster:start_link(?CLUSTER_OPTS),
     State = await_sys_get_state(Pid),
     #{known_nodes := ListNodes} = State,
     lists:foreach(
@@ -90,21 +79,21 @@ start_ok_test(_Config) ->
 
 -spec unknown_nodedown_test(config()) -> test_result().
 unknown_nodedown_test(_Config) ->
-    {ok, Pid} = mg_core_union:start_link(?CLUSTER_OPTS),
+    {ok, Pid} = mg_core_cluster:start_link(?CLUSTER_OPTS),
     nodedown_check(Pid, 'foo@127.0.0.1'),
     exit(Pid, normal).
 
 -spec exists_nodedown_test(config()) -> test_result().
 exists_nodedown_test(_Config) ->
-    {ok, Pid} = mg_core_union:start_link(?CLUSTER_OPTS),
+    {ok, Pid} = mg_core_cluster:start_link(?CLUSTER_OPTS),
     nodedown_check(Pid, node()),
     exit(Pid, normal).
 
 -spec unknown_nodeup_test(config()) -> test_result().
 unknown_nodeup_test(_Config) ->
-    {ok, Pid} = mg_core_union:start_link(?CLUSTER_OPTS),
+    {ok, Pid} = mg_core_cluster:start_link(?CLUSTER_OPTS),
     State = await_sys_get_state(Pid),
-    mg_core_union:set_state(State#{known_nodes => []}),
+    mg_core_cluster:set_state(State#{known_nodes => []}),
     Pid ! {nodeup, node()},
     #{known_nodes := List} = await_sys_get_state(Pid),
     ?assertEqual(List, [node()]),
@@ -112,7 +101,7 @@ unknown_nodeup_test(_Config) ->
 
 -spec exists_nodeup_test(config()) -> test_result().
 exists_nodeup_test(_Config) ->
-    {ok, Pid} = mg_core_union:start_link(?CLUSTER_OPTS),
+    {ok, Pid} = mg_core_cluster:start_link(?CLUSTER_OPTS),
     #{known_nodes := List1} = await_sys_get_state(Pid),
     ?assertEqual(List1, [node()]),
     Pid ! {nodeup, node()},
@@ -123,9 +112,9 @@ exists_nodeup_test(_Config) ->
 -spec cluster_size_test(config()) -> test_result().
 cluster_size_test(_Config) ->
     _ = os:putenv("REPLICA_COUNT", "3"),
-    ?assertEqual(3, mg_core_union:cluster_size()),
-    {ok, Pid} = mg_core_union:start_link(?CLUSTER_OPTS),
-    ?assertEqual(1, mg_core_union:cluster_size()),
+    ?assertEqual(3, mg_core_cluster:cluster_size()),
+    {ok, Pid} = mg_core_cluster:start_link(?CLUSTER_OPTS),
+    ?assertEqual(1, mg_core_cluster:cluster_size()),
     exit(Pid, normal).
 
 %% Internal functions

@@ -449,7 +449,8 @@ opentelemetry_conf(YamlConfig) ->
 
 health_check_fun(YamlConfig) ->
     case cluster(YamlConfig) of
-        #{discovery := _} -> global;
+        #{discovery := _} ->
+            global;
         _ ->
             case ?C:conf([consuela], YamlConfig, undefined) of
                 undefined -> skip;
@@ -471,7 +472,7 @@ cluster(YamlConfig) ->
                     MaxHash = ?C:conf([cluster, max_hash], YamlConfig, 4095),
                     #{
                         discovery => #{
-                            module => mg_core_union,
+                            module => mg_core_cluster_router,
                             options => maps:from_list(DiscoveryOptsList)
                         },
                         routing => ?C:atom(RoutingType),

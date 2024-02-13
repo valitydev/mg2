@@ -70,5 +70,5 @@ handle_function('Remove' = Call, {NS, IDIn} = Data, WoodyContext, Options) ->
 
 -spec target_node(term()) -> node().
 target_node(RoutingKey) ->
-    {ok, Node} = mg_core_union:get_route(RoutingKey),
+    {ok, Node} = mg_core_cluster:get_route(RoutingKey),
     Node.

@@ -73,7 +73,7 @@ construct_child_specs(
             ]
         }
     ),
-    ClusterSpec = mg_core_union:child_spec(ClusterOpts),
+    ClusterSpec = mg_core_cluster:child_spec(ClusterOpts),
 
     lists:flatten([
         QuotasChildSpec,

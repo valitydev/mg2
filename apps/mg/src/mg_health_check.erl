@@ -14,7 +14,7 @@ consuela() ->
 
 -spec global() -> {erl_health:status(), erl_health:details()}.
 global() ->
-    ClusterSize = mg_core_union:cluster_size(),
+    ClusterSize = mg_core_cluster:cluster_size(),
     ConnectedCount = erlang:length(erlang:nodes()),
     case is_quorum(ClusterSize, ConnectedCount) of
         true ->
