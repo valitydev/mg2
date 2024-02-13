@@ -37,8 +37,8 @@ make_routing_opts(host_index_based) ->
 -spec get_route(routing_key(), mg_core_cluster:state()) -> {ok, node()}.
 get_route(RoutingKey, #{capacity := Capacity, max_hash := MaxHash, routing_table := RoutingTable} = _State) ->
     ListAddrs = maps:keys(RoutingTable),
-    RangeMap = ranger:get_ranges(MaxHash, Capacity, ListAddrs),
-    Index = ranger:find(erlang:phash2(RoutingKey, MaxHash), RangeMap),
+    RangeMap = mg_core_dirange:get_ranges(MaxHash, Capacity, ListAddrs),
+    Index = mg_core_dirange:find(erlang:phash2(RoutingKey, MaxHash), RangeMap),
     Node = maps:get(Index, RoutingTable),
     {ok, Node}.
 
