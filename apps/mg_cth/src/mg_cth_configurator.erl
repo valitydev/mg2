@@ -197,7 +197,8 @@ event_sink_namespace_options(#{storage := Storage} = EventSinkNS) ->
 worker_manager_options(Config) ->
     maps:merge(
         #{
-            registry => mg_core_procreg_gproc,
+            %% Use 'global' process registry
+            registry => mg_core_procreg_global,
             sidecar => mg_cth_worker
         },
         maps:get(worker, Config, #{})
