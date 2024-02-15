@@ -169,7 +169,7 @@ automaton_options(NS, StorageName) ->
             }}
         ),
         worker => #{
-            registry => mg_core_procreg_gproc
+            registry => mg_core_procreg_global
         },
         notification => #{
             namespace => NS,
