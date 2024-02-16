@@ -73,6 +73,7 @@ all() ->
 -spec groups() -> [{group_name(), list(_), [test_name() | {group, group_name()}]}].
 groups() ->
     [
+        {with_global, [], [{group, base}]},
         {with_gproc, [], [{group, base}]},
         {with_consuela, [], [{group, base}]},
         {base, [], [
@@ -108,6 +109,16 @@ end_per_suite(C) ->
     mg_cth:stop_applications(?config(apps, C)).
 
 -spec init_per_group(group_name(), config()) -> config().
+init_per_group(with_global, C) ->
+    [
+        {registry, mg_core_procreg_global},
+        {load_pressure, 100},
+        {runner_retry_strategy, #{
+            noproc => genlib_retry:linear(3, 100),
+            default => finish
+        }}
+        | C
+    ];
 init_per_group(with_gproc, C) ->
     [
         {registry, mg_core_procreg_gproc},

@@ -9,7 +9,7 @@
 -define(DEADLINE_TIMEOUT, 1000).
 
 -define(CLIENT, mg_cth_kafka_client).
--define(BROKERS_ADVERTIZED, [{"kafka1", 9092}]).
+-define(BROKERS_ADVERTISED, [{"kafka1", 9092}]).
 -define(BROKERS, [{"kafka1", 9092}, {"kafka2", 9092}, {"kafka3", 9092}]).
 
 -define(flushMailbox(__Acc0),

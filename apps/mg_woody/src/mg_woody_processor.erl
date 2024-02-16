@@ -87,6 +87,9 @@ process_repair(Options, ReqCtx, Deadline, {Args, Machine}) ->
             {error, {failed, mg_woody_packer:unpack(repair_error, Error)}}
     end.
 
+%% TODO Investigate into this value and design of corresponding guard-timer.
+-define(KILL_TIMEOUT, 3000).
+
 -spec call_processor(
     options(),
     mg_core_events_machine:request_context(),
@@ -96,7 +99,7 @@ process_repair(Options, ReqCtx, Deadline, {Args, Machine}) ->
 ) -> {ok, term()} | {error, mg_proto_state_processing_thrift:'RepairFailed'()}.
 call_processor(Options, ReqCtx, Deadline, Function, Args) ->
     % TODO сделать нормально!
-    {ok, TRef} = timer:kill_after(call_duration_limit(Options, Deadline) + 3000),
+    {ok, TRef} = timer:kill_after(call_duration_limit(Options, Deadline) + ?KILL_TIMEOUT),
     try
         WoodyContext = mg_woody_utils:set_deadline(
             Deadline,

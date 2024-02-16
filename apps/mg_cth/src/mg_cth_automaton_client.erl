@@ -174,7 +174,7 @@ woody_call(#{url := BaseURL} = Options, Function, Args, Deadline) ->
         {{mg_proto_state_processing_thrift, 'Automaton'}, Function, Args},
         #{
             url => BaseURL ++ "/v1/automaton",
-            event_handler => {mg_woody_event_handler, mg_woody_test_pulse},
+            event_handler => {mg_woody_event_handler, mg_cth_pulse},
             transport_opts => TransportOptions
         },
         Context

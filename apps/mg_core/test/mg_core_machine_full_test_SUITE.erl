@@ -279,7 +279,8 @@ automaton_options() ->
         processor => ?MODULE,
         storage => mg_core_storage_memory,
         worker => #{
-            registry => mg_core_procreg_gproc
+            %% Use 'global' process registry
+            registry => mg_core_procreg_global
         },
         notification => #{
             namespace => NS,
