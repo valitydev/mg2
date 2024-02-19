@@ -148,10 +148,9 @@ handle_call(
 handle_call(get_cluster_size, _From, #{known_nodes := ListNodes} = State) ->
     {reply, erlang:length(ListNodes), State};
 handle_call(
-    {connecting, {RemoteTable, RemoteNode}},
+    {connecting, {RemoteTable, _RemoteNode}},
     _From,
     #{
-        known_nodes := ListNodes,
         scaling := partition_based,
         partitioning := PartitionsOpts,
         local_table := LocalTable,
@@ -164,17 +163,16 @@ handle_call(
         reply,
         {ok, LocalTable},
         State#{
-            known_nodes => lists:uniq([RemoteNode | ListNodes]),
             partitions_table => NewPartitionsTable,
             balancing_table => NewBalancingTable
         }
     };
 %% Not partition based cluster, only list nodes updating
-handle_call({connecting, {_RemoteTable, RemoteNode}}, _From, #{known_nodes := ListNodes} = State) ->
+handle_call({connecting, {_RemoteTable, _RemoteNode}}, _From, State) ->
     {
         reply,
         {ok, mg_core_cluster_partitions:empty_partitions()},
-        State#{known_nodes => lists:uniq([RemoteNode | ListNodes])}
+        State
     }.
 
 -spec handle_cast(term(), state()) -> {noreply, state()}.
@@ -185,15 +183,22 @@ handle_cast(_Request, State) ->
 handle_info({timeout, _TRef, {reconnect, Node}}, State) ->
     NewState = maybe_connect(Node, State),
     {noreply, NewState};
-handle_info({nodeup, RemoteNode}, #{known_nodes := ListNodes} = State) ->
-    %% do nothing because all work in connecting call
+handle_info({nodeup, RemoteNode}, #{discovering := DiscoveryOpts} = State) ->
+    %% do nothing because rebalance partitions in connecting call
     logger:info("mg_cluster. ~p receive nodeup ~p", [node(), RemoteNode]),
-    {noreply, State#{known_nodes => lists:uniq([RemoteNode | ListNodes])}};
-handle_info({nodedown, RemoteNode}, #{reconnect_timeout := Timeout} = State) ->
-    %% TODO maybe need fix (rebalance without node)
+    {ok, ListNodes} = mg_core_cluster_partitions:discovery(DiscoveryOpts),
+    {noreply, State#{known_nodes => ListNodes}};
+handle_info(
+    {nodedown, RemoteNode},
+    #{discovering := DiscoveryOpts, reconnect_timeout := Timeout, partitions_table := PartitionsTable} = State
+) ->
+    %% rebalance without node
     logger:warning("mg_cluster. ~p receive nodedown ~p", [node(), RemoteNode]),
+    {ok, ListNodes} = mg_core_cluster_partitions:discovery(DiscoveryOpts),
+    NewPartitionsTable = mg_core_cluster_partitions:del_partition(RemoteNode, PartitionsTable),
+    NewState = maybe_rebalance(#{}, State#{known_nodes => ListNodes, partitions_table => NewPartitionsTable}),
     _ = erlang:start_timer(Timeout, self(), {reconnect, RemoteNode}),
-    {noreply, State}.
+    {noreply, NewState}.
 
 -spec terminate(_Reason, state()) -> ok.
 terminate(_Reason, _State) ->
@@ -243,20 +248,18 @@ maybe_connect(
     #{
         discovering := Opts,
         local_table := LocalTable,
-        partitions_table := PartitionsTable,
         reconnect_timeout := ReconnectTimeout
     } = State
 ) ->
     {ok, ListNodes} = mg_core_cluster_partitions:discovery(Opts),
     case lists:member(Node, ListNodes) of
         false ->
-            %% node delete from cluster, rebalance without node
-            NewPartitionsTable = mg_core_cluster_partitions:del_partition(Node, PartitionsTable),
-            maybe_rebalance(#{}, State#{known_nodes => ListNodes, partitions_table => NewPartitionsTable});
+            %% node delete from cluster, do nothing
+            State#{known_nodes => ListNodes};
         true ->
             case connect(Node, ReconnectTimeout, LocalTable) of
                 {ok, RemoteTable} ->
-                    %% maybe new node, rebalance with node
+                    %% rebalance with node
                     maybe_rebalance(RemoteTable, State#{known_nodes => ListNodes});
                 _ ->
                     State#{known_nodes => ListNodes}

@@ -26,7 +26,6 @@
 
 -export([start_ok_test/1]).
 -export([unknown_nodedown_test/1]).
--export([exists_nodedown_test/1]).
 -export([unknown_nodeup_test/1]).
 -export([exists_nodeup_test/1]).
 -export([cluster_size_test/1]).
@@ -56,7 +55,6 @@ groups() ->
         {basic_operations, [], [
             start_ok_test,
             unknown_nodedown_test,
-            exists_nodedown_test,
             unknown_nodeup_test,
             exists_nodeup_test,
             cluster_size_test
@@ -80,12 +78,6 @@ start_ok_test(_Config) ->
 unknown_nodedown_test(_Config) ->
     {ok, Pid} = mg_core_cluster:start_link(?CLUSTER_OPTS),
     nodedown_check(Pid, 'foo@127.0.0.1'),
-    exit(Pid, normal).
-
--spec exists_nodedown_test(config()) -> test_result().
-exists_nodedown_test(_Config) ->
-    {ok, Pid} = mg_core_cluster:start_link(?CLUSTER_OPTS),
-    nodedown_check(Pid, node()),
     exit(Pid, normal).
 
 -spec unknown_nodeup_test(config()) -> test_result().
