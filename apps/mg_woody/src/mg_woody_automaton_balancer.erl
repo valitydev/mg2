@@ -1,4 +1,4 @@
--module(mg_woody_automaton_router).
+-module(mg_woody_automaton_balancer).
 
 %% woody handler
 -behaviour(woody_server_thrift_handler).
@@ -69,6 +69,6 @@ handle_function('Remove' = Call, {NS, IDIn} = Data, WoodyContext, Options) ->
 %% internal functions
 
 -spec target_node(term()) -> node().
-target_node(RoutingKey) ->
-    {ok, Node} = mg_core_cluster:get_route(RoutingKey),
+target_node(BalancingKey) ->
+    {ok, Node} = mg_core_cluster:get_node(BalancingKey),
     Node.

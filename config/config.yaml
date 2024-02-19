@@ -162,6 +162,12 @@ cluster:
             domain_name: machinegun-headless
             # name that will be used for construct full nodename (for example name@127.0.0.1)
             sname: machinegun
+    # optional, supported values: global_based | partition_based, default global_based
+    scaling: partition_based
+    # required when scaling = partition_based
+    partitioning:
+        capacity: 31
+        max_hash: 4095
     # optional, default value 5000 ms
     reconnect_timeout: 5000
 

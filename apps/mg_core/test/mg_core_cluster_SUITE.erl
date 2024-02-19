@@ -12,16 +12,15 @@
 
 -define(RECONNECT_TIMEOUT, 1000).
 -define(CLUSTER_OPTS, #{
-    discovery => #{
-        module => mg_core_cluster_router,
-        options => #{
-            <<"domain_name">> => <<"localhost">>,
-            <<"sname">> => <<"test_node">>
-        }
+    discovering => #{
+        <<"domain_name">> => <<"localhost">>,
+        <<"sname">> => <<"test_node">>
     },
-    routing => host_index_based,
-    capacity => 3,
-    max_hash => 4095,
+    scaling => partition_based,
+    partitioning => #{
+        capacity => 3,
+        max_hash => 4095
+    },
     reconnect_timeout => ?RECONNECT_TIMEOUT
 }).
 

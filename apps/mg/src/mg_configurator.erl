@@ -54,7 +54,7 @@ construct_child_specs(
     Quotas = maps:get(quotas, Config, []),
     HealthChecks = maps:get(health_check, Config, #{}),
     ClusterOpts = maps:get(cluster, Config, #{}),
-    RoutingOpts = maps:get(routing, ClusterOpts, undefined),
+    Scaling = maps:get(scaling, ClusterOpts, global_based),
 
     QuotasChildSpec = quotas_child_specs(Quotas, quota),
     EventSinkChildSpec = event_sink_ns_child_spec(EventSinkNS, event_sink, Pulse),
@@ -63,7 +63,7 @@ construct_child_specs(
         woody_server,
         #{
             pulse => Pulse,
-            automaton => api_automaton_options(Namespaces, EventSinkNS, Pulse, #{routing => RoutingOpts}),
+            automaton => api_automaton_options(Namespaces, EventSinkNS, Pulse, #{scaling => Scaling}),
             event_sink => api_event_sink_options(Namespaces, EventSinkNS, Pulse),
             woody_server => WoodyServer,
             additional_routes => [

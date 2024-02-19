@@ -16,7 +16,7 @@
 -export([child_spec/1]).
 -export([cluster_size/0]).
 -export([connecting/1]).
--export([get_route/1]).
+-export([get_node/1]).
 
 -ifdef(TEST).
 -export([set_state/1]).
@@ -25,44 +25,35 @@
 -define(SERVER, ?MODULE).
 -define(RECONNECT_TIMEOUT, 5000).
 
--type discovery_options() :: #{
-    module := module(),
-    %% options is module specific structure
-    options := term()
-}.
+-type discovery_options() :: mg_core_cluster_partitions:discovery_options().
 
--type routing_type() :: host_index_based.
+-type scaling_type() :: global_based | partition_based.
+
 -type cluster_options() :: #{
-    discovery => discovery_options(),
+    discovering => discovery_options(),
     reconnect_timeout => non_neg_integer(),
-    routing => routing_type() | undefined,
-    capacity => non_neg_integer(),
-    max_hash => non_neg_integer()
-}.
--type address() :: term().
--type routing_opts() :: #{
-    routing_type => routing_type(),
-    address => address(),
-    node => node()
-}.
--type routing_table() :: #{address() => node()}.
--type state() :: #{
-    discovery => discovery_options(),
-    reconnect_timeout => non_neg_integer(),
-    routing => routing_type() | undefined,
-    capacity => non_neg_integer(),
-    max_hash => non_neg_integer(),
-    known_nodes => [node()],
-    routing_opts => routing_opts(),
-    routing_table => routing_table()
+    scaling => scaling_type(),
+    %% partitioning required if scaling = partition_based
+    partitioning => mg_core_cluster_partitions:partitions_options()
 }.
 
--export_type([state/0]).
--export_type([routing_type/0]).
--export_type([routing_opts/0]).
+-type state() :: #{
+    %% cluster static options
+    discovering => discovery_options(),
+    reconnect_timeout => non_neg_integer(),
+    scaling => scaling_type(),
+    partitioning => mg_core_cluster_partitions:partitions_options(),
+    %% dynamic
+    known_nodes => [node()],
+    local_table => mg_core_cluster_partitions:local_partition_table(),
+    balancing_table => mg_core_cluster_partitions:balancing_table(),
+    partitions_table => mg_core_cluster_partitions:partitions_table()
+}.
+
+-export_type([scaling_type/0]).
 
 -spec child_spec(cluster_options()) -> [supervisor:child_spec()].
-child_spec(#{discovery := _} = ClusterOpts) ->
+child_spec(#{discovering := _} = ClusterOpts) ->
     [
         #{
             id => ?MODULE,
@@ -90,13 +81,14 @@ cluster_size() ->
             gen_server:call(Pid, get_cluster_size)
     end.
 
--spec connecting(routing_opts()) -> routing_table().
-connecting(RoutingOpts) ->
-    gen_server:call(?MODULE, {connecting, RoutingOpts}).
+-spec connecting({mg_core_cluster_partitions:partitions_table(), node()}) ->
+    {ok, mg_core_cluster_partitions:local_partition_table()}.
+connecting(RemoteData) ->
+    gen_server:call(?MODULE, {connecting, RemoteData}).
 
--spec get_route(term()) -> {ok, node()}.
-get_route(RoutingKey) ->
-    gen_server:call(?MODULE, {get_route, RoutingKey}).
+-spec get_node(mg_core_cluster_partitions:balancing_key()) -> {ok, node()}.
+get_node(BalancingKey) ->
+    gen_server:call(?MODULE, {get_node, BalancingKey}).
 
 %%%===================================================================
 %%% Spawning and gen_server implementation
@@ -114,47 +106,76 @@ init(ClusterOpts) ->
 handle_continue(
     {
         full_init,
-        #{discovery := #{module := Mod, options := Opts}, routing := RoutingType} = ClusterOpts
+        #{
+            discovering := DiscoveryOpts,
+            scaling := ScalingType
+        } = ClusterOpts
     },
     _State
 ) ->
     _ = net_kernel:monitor_nodes(true),
-    {ok, ListNodes} = do_discovery(Mod, Opts),
-    RoutingOpts = do_make_routing_opts(Mod, RoutingType),
-    RoutingTable = try_connect_all(ListNodes, maps:get(reconnect_timeout, ClusterOpts), RoutingOpts),
-    {noreply, ClusterOpts#{known_nodes => ListNodes, routing_opts => RoutingOpts, routing_table => RoutingTable}}.
+    {ok, ListNodes} = mg_core_cluster_partitions:discovery(DiscoveryOpts),
+    LocalTable = mg_core_cluster_partitions:make_local_table(ScalingType),
+    PartitionsTable = try_connect_all(ListNodes, maps:get(reconnect_timeout, ClusterOpts), LocalTable),
+    BalancingTable = mg_core_cluster_partitions:make_balancing_table(
+        PartitionsTable,
+        maps:get(partitioning, ClusterOpts, undefined)
+    ),
+    {
+        noreply,
+        ClusterOpts#{
+            known_nodes => ListNodes,
+            local_table => LocalTable,
+            partitions_table => PartitionsTable,
+            balancing_table => BalancingTable
+        }
+    }.
 
 -spec handle_call(term(), {pid(), _}, state()) -> {reply, any(), state()}.
 handle_call({set_state, NewState}, _From, _State) ->
     {reply, ok, NewState};
-handle_call({get_route, RoutingKey}, _From, #{discovery := #{module := Mod}} = State) ->
-    Node = do_get_route(Mod, RoutingKey, State),
-    {reply, {ok, Node}, State};
-handle_call(get_cluster_size, _From, #{known_nodes := ListNodes} = State) ->
-    {reply, erlang:length(ListNodes), State};
-%% TODO move implementation into router module
 handle_call(
-    {connecting, #{address := RemoteAddress, routing_type := RemoteRoutingType, node := RemoteNode}},
+    {get_node, BalancingKey},
     _From,
     #{
-        routing_opts := #{address := LocalAddress, routing_type := LocalRoutingType, node := LocalNode},
-        routing_table := RoutingTable
+        partitions_table := PartitionsTable,
+        balancing_table := BalancingTable,
+        partitioning := PartitionsOpts
     } = State
 ) ->
-    case RemoteRoutingType =:= LocalRoutingType of
-        true ->
-            Route = #{RemoteAddress => RemoteNode},
-            {
-                reply,
-                {ok, #{LocalAddress => LocalNode}},
-                State#{routing_table => maps:merge(RoutingTable, Route)}
-            };
-        false ->
-            {reply, {error, unsupported_routing}, State}
-    end;
-%% if at least one node not configured routing
-handle_call({connecting, _RemoteRoutingOpts}, _From, State) ->
-    {reply, {ok, #{}}, State}.
+    Response = mg_core_cluster_partitions:get_node(BalancingKey, PartitionsTable, BalancingTable, PartitionsOpts),
+    {reply, Response, State};
+handle_call(get_cluster_size, _From, #{known_nodes := ListNodes} = State) ->
+    {reply, erlang:length(ListNodes), State};
+handle_call(
+    {connecting, {RemoteTable, RemoteNode}},
+    _From,
+    #{
+        known_nodes := ListNodes,
+        scaling := partition_based,
+        partitioning := PartitionsOpts,
+        local_table := LocalTable,
+        partitions_table := PartitionsTable
+    } = State
+) ->
+    NewPartitionsTable = mg_core_cluster_partitions:add_partitions(PartitionsTable, RemoteTable),
+    NewBalancingTable = mg_core_cluster_partitions:make_balancing_table(NewPartitionsTable, PartitionsOpts),
+    {
+        reply,
+        {ok, LocalTable},
+        State#{
+            known_nodes => lists:uniq([RemoteNode | ListNodes]),
+            partitions_table => NewPartitionsTable,
+            balancing_table => NewBalancingTable
+        }
+    };
+%% Not partition based cluster, only list nodes updating
+handle_call({connecting, {_RemoteTable, RemoteNode}}, _From, #{known_nodes := ListNodes} = State) ->
+    {
+        reply,
+        {ok, mg_core_cluster_partitions:empty_partitions()},
+        State#{known_nodes => lists:uniq([RemoteNode | ListNodes])}
+    }.
 
 -spec handle_cast(term(), state()) -> {noreply, state()}.
 handle_cast(_Request, State) ->
@@ -162,28 +183,14 @@ handle_cast(_Request, State) ->
 
 -spec handle_info(term(), state()) -> {noreply, state()}.
 handle_info({timeout, _TRef, {reconnect, Node}}, State) ->
-    {ListNodes, RoutingTable} = maybe_connect(Node, State),
-    {noreply, State#{known_nodes => ListNodes, routing_table => RoutingTable}};
-handle_info({nodeup, RemoteNode}, #{known_nodes := ListNodes} = State) ->
-    logger:info("mg_cluster. ~p receive nodeup ~p", [node(), RemoteNode]),
-    NewState =
-        case lists:member(RemoteNode, ListNodes) of
-            true ->
-                %% well known node connected, do nothing
-                State;
-            false ->
-                %% new node connected, need update list nodes
-                #{
-                    discovery := #{module := Mod, options := Opts},
-                    routing_opts := RoutingOpts,
-                    reconnect_timeout := Timeout
-                } = State,
-                {ok, NewListNodes} = do_discovery(Mod, Opts),
-                RoutingTable = try_connect_all(NewListNodes, Timeout, RoutingOpts),
-                State#{known_nodes => NewListNodes, routing_table => RoutingTable}
-        end,
+    NewState = maybe_connect(Node, State),
     {noreply, NewState};
+handle_info({nodeup, RemoteNode}, #{known_nodes := ListNodes} = State) ->
+    %% do nothing because all work in connecting call
+    logger:info("mg_cluster. ~p receive nodeup ~p", [node(), RemoteNode]),
+    {noreply, State#{known_nodes => lists:uniq([RemoteNode | ListNodes])}};
 handle_info({nodedown, RemoteNode}, #{reconnect_timeout := Timeout} = State) ->
+    %% TODO maybe need fix (rebalance without node)
     logger:warning("mg_cluster. ~p receive nodedown ~p", [node(), RemoteNode]),
     _ = erlang:start_timer(Timeout, self(), {reconnect, RemoteNode}),
     {noreply, State}.
@@ -201,92 +208,89 @@ code_change(_OldVsn, State, _Extra) ->
 %%%===================================================================
 
 %% cluster functions
--spec connect(node(), non_neg_integer(), routing_opts()) -> {ok, routing_table()}.
-connect(Node, ReconnectTimeout, #{address := Address} = RoutingOpts) ->
-    case Node =:= node() of
-        true ->
-            {ok, #{Address => Node}};
-        false ->
-            case net_adm:ping(Node) of
-                pong ->
-                    erpc:call(Node, ?MODULE, connecting, [RoutingOpts]);
-                _ ->
-                    _ = erlang:start_timer(ReconnectTimeout, self(), {reconnect, Node}),
-                    {ok, #{}}
-            end
+-spec connect(node(), non_neg_integer(), mg_core_cluster_partitions:local_partition_table()) ->
+    {ok, mg_core_cluster_partitions:partitions_table()} | {error, term()}.
+connect(Node, ReconnectTimeout, LocalTable) when Node =/= node() ->
+    case net_adm:ping(Node) of
+        pong ->
+            erpc:call(Node, ?MODULE, connecting, [{LocalTable, node()}]);
+        _ ->
+            _ = erlang:start_timer(ReconnectTimeout, self(), {reconnect, Node}),
+            {error, not_connected}
     end;
-%% if routing not configured
-connect(Node, ReconnectTimeout, _RoutingOpts) ->
-    ok =
-        case net_adm:ping(Node) of
-            pong ->
-                ok;
-            _ ->
-                _ = erlang:start_timer(ReconnectTimeout, self(), {reconnect, Node}),
-                ok
-        end,
-    {ok, #{}}.
+connect(_Node, _ReconnectTimeout, LocalTable) ->
+    {ok, LocalTable}.
 
--spec try_connect_all([node()], non_neg_integer(), map()) -> map().
-try_connect_all(ListNodes, ReconnectTimeout, RoutingOpts) ->
+-spec try_connect_all([node()], non_neg_integer(), mg_core_cluster_partitions:local_partition_table()) ->
+    mg_core_cluster_partitions:partitions_table().
+try_connect_all(ListNodes, ReconnectTimeout, LocalTable) ->
     lists:foldl(
         fun(Node, Acc) ->
-            {ok, Route} = connect(Node, ReconnectTimeout, RoutingOpts),
-            maps:merge(Acc, Route)
+            case connect(Node, ReconnectTimeout, LocalTable) of
+                {ok, RemoteTable} ->
+                    mg_core_cluster_partitions:add_partitions(Acc, RemoteTable);
+                _ ->
+                    Acc
+            end
         end,
-        #{},
+        mg_core_cluster_partitions:empty_partitions(),
         ListNodes
     ).
 
--spec maybe_connect(node(), state()) -> {[node()], RoutingTable :: map()}.
+-spec maybe_connect(node(), state()) -> state().
 maybe_connect(
     Node,
     #{
-        discovery := #{module := Mod, options := Opts},
-        routing_opts := RoutingOpts,
-        routing_table := RoutingTable,
-        reconnect_timeout := Timeout
-    }
+        discovering := Opts,
+        local_table := LocalTable,
+        partitions_table := PartitionsTable,
+        reconnect_timeout := ReconnectTimeout
+    } = State
 ) ->
-    {ok, ListNodes} = do_discovery(Mod, Opts),
-    NewRoutingTable =
-        case lists:member(Node, ListNodes) of
-            false ->
-                %% node deleted from cluster, do nothing
-                RoutingTable;
-            true ->
-                {ok, Route} = connect(Node, Timeout, RoutingOpts),
-                maps:merge(RoutingTable, Route)
-        end,
-    {ListNodes, NewRoutingTable}.
+    {ok, ListNodes} = mg_core_cluster_partitions:discovery(Opts),
+    case lists:member(Node, ListNodes) of
+        false ->
+            %% node delete from cluster, rebalance without node
+            NewPartitionsTable = mg_core_cluster_partitions:del_partition(Node, PartitionsTable),
+            maybe_rebalance(#{}, State#{known_nodes => ListNodes, partitions_table => NewPartitionsTable});
+        true ->
+            case connect(Node, ReconnectTimeout, LocalTable) of
+                {ok, RemoteTable} ->
+                    %% maybe new node, rebalance with node
+                    maybe_rebalance(RemoteTable, State#{known_nodes => ListNodes});
+                _ ->
+                    State#{known_nodes => ListNodes}
+            end
+    end.
 
-%% wrappers
--spec do_discovery(module(), term()) -> {ok, [node()]}.
-do_discovery(mg_core_cluster_router, Opts) ->
-    mg_core_cluster_router:discovery(Opts).
-
--spec do_make_routing_opts(module(), routing_type() | undefined) -> routing_opts().
-do_make_routing_opts(mg_core_cluster_router, RoutingType) ->
-    mg_core_cluster_router:make_routing_opts(RoutingType).
-
--spec do_get_route(module(), term(), state()) -> {ok, node()}.
-do_get_route(mg_core_cluster_router, RoutingKey, State) ->
-    mg_core_cluster_router:get_route(RoutingKey, State).
+-spec maybe_rebalance(mg_core_cluster_partitions:partitions_table(), state()) -> state().
+maybe_rebalance(
+    RemoteTable,
+    #{
+        scaling := partition_based,
+        partitioning := PartitionsOpts,
+        partitions_table := PartitionsTable
+    } = State
+) ->
+    NewPartitionsTable = mg_core_cluster_partitions:add_partitions(PartitionsTable, RemoteTable),
+    NewBalancingTable = mg_core_cluster_partitions:make_balancing_table(NewPartitionsTable, PartitionsOpts),
+    State#{partitions_table => NewPartitionsTable, balancing_table => NewBalancingTable};
+maybe_rebalance(_, State) ->
+    State.
 
 -ifdef(TEST).
 -include_lib("eunit/include/eunit.hrl").
 
 -define(CLUSTER_OPTS, #{
-    discovery => #{
-        module => mg_core_cluster_router,
-        options => #{
-            <<"domain_name">> => <<"localhost">>,
-            <<"sname">> => <<"test_node">>
-        }
+    discovering => #{
+        <<"domain_name">> => <<"localhost">>,
+        <<"sname">> => <<"test_node">>
     },
-    routing => host_index_based,
-    capacity => 3,
-    max_hash => 4095,
+    scaling => partition_based,
+    partitioning => #{
+        capacity => 3,
+        max_hash => 4095
+    },
     reconnect_timeout => ?RECONNECT_TIMEOUT
 }).
 
@@ -295,16 +299,8 @@ do_get_route(mg_core_cluster_router, RoutingKey, State) ->
 -spec connect_error_test() -> _.
 connect_error_test() ->
     ?assertEqual(
-        {ok, #{}},
-        connect(
-            'foo@127.0.0.1',
-            3000,
-            #{
-                routing_type => host_index_based,
-                address => 0,
-                node => node()
-            }
-        )
+        {error, not_connected},
+        connect('foo@127.0.0.1', 3000, #{})
     ).
 
 -spec child_spec_test() -> _.

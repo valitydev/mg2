@@ -449,7 +449,7 @@ opentelemetry_conf(YamlConfig) ->
 
 health_check_fun(YamlConfig) ->
     case cluster(YamlConfig) of
-        #{discovery := _} ->
+        #{discovering := _} ->
             global;
         _ ->
             case ?C:conf([consuela], YamlConfig, undefined) of
@@ -467,24 +467,27 @@ cluster(YamlConfig) ->
                 <<"dns">> ->
                     DiscoveryOptsList = ?C:conf([cluster, discovery, options], YamlConfig),
                     ReconnectTimeout = ?C:conf([cluster, reconnect_timeout], YamlConfig, 5000),
-                    RoutingType = ?C:conf([cluster, routing], YamlConfig, <<"undefined">>),
-                    Capacity = ?C:conf([cluster, capacity], YamlConfig, 21),
-                    MaxHash = ?C:conf([cluster, max_hash], YamlConfig, 4095),
-                    #{
-                        discovery => #{
-                            module => mg_core_cluster_router,
-                            options => maps:from_list(DiscoveryOptsList)
-                        },
-                        routing => ?C:atom(RoutingType),
-                        capacity => Capacity,
-                        max_hash => MaxHash,
+                    ScalingType = ?C:conf([cluster, scaling], YamlConfig, <<"global_based">>),
+                    PartitionsOpts = partitions_options(YamlConfig),
+                    genlib_map:compact(#{
+                        discovering => maps:from_list(DiscoveryOptsList),
+                        scaling => ?C:atom(ScalingType),
+                        partitioning => PartitionsOpts,
                         reconnect_timeout => ReconnectTimeout
-                    };
+                    });
                 _ ->
                     #{}
             end;
         _ ->
             #{}
+    end.
+
+partitions_options(YamlConfig) ->
+    case ?C:conf([cluster, partitioning], YamlConfig, undefined) of
+        undefined ->
+            undefined;
+        ListOpts ->
+            lists:foldl(fun({Key, Value}, Acc) -> Acc#{erlang:binary_to_atom(Key) => Value} end, #{}, ListOpts)
     end.
 
 quotas(YamlConfig) ->
@@ -758,6 +761,7 @@ event_sink(kafka, Name, ESYamlConfig) ->
         topic => ?C:conf([topic], ESYamlConfig)
     }}.
 
+%% TODO
 procreg(YamlConfig) ->
     % Use process_registry if it's set up or consuela if it's set up, gproc otherwise
     Default = conf_with(

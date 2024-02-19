@@ -31,7 +31,7 @@
 %% API types
 -type options() :: #{
     mg_core:ns() => ns_options(),
-    routing => host_index_based
+    scaling => mg_core_cluster:scaling_type()
 }.
 -type ns_options() :: #{
     machine := mg_core_events_machine:options(),
@@ -54,8 +54,8 @@
 %%
 
 -spec handler(options()) -> mg_woody_utils:woody_handler().
-handler(#{routing := RoutingType} = Options) when RoutingType =/= undefined ->
-    {"/v1/automaton", {{mg_proto_state_processing_thrift, 'Automaton'}, {mg_woody_automaton_router, Options}}};
+handler(#{scaling := partition_based} = Options) ->
+    {"/v1/automaton", {{mg_proto_state_processing_thrift, 'Automaton'}, {mg_woody_automaton_balancer, Options}}};
 handler(Options) ->
     {"/v1/automaton", {{mg_proto_state_processing_thrift, 'Automaton'}, {?MODULE, Options}}}.
 
