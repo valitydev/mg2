@@ -286,7 +286,8 @@ automaton_options() ->
             pulse => ?MODULE,
             storage => mg_core_storage_memory
         },
-        pulse => ?MODULE
+        pulse => ?MODULE,
+        scaling => global_based
     }.
 
 -spec lists_random(list(T)) -> T.

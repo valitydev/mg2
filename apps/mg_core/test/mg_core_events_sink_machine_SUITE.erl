@@ -153,13 +153,14 @@ event_sink_ns_options() ->
         },
         pulse => ?MODULE,
         default_processing_timeout => 1000,
-        events_storage => mg_core_storage_memory
+        events_storage => mg_core_storage_memory,
+        scaling => global_based
     }.
 
 -spec event_sink_options() -> mg_core_events_sink_machine:options().
 event_sink_options() ->
     NSOptions = event_sink_ns_options(),
-    NSOptions#{
+    (maps:without([scaling], NSOptions))#{
         name => machine,
         machine_id => ?ES_ID
     }.

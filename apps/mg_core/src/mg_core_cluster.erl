@@ -17,6 +17,7 @@
 -export([cluster_size/0]).
 -export([connecting/1]).
 -export([get_node/1]).
+-export([get_partitions_info/0]).
 
 -ifdef(TEST).
 -export([set_state/1]).
@@ -37,6 +38,13 @@
     partitioning => mg_core_cluster_partitions:partitions_options()
 }.
 
+-type partitions_info() :: #{
+    partitioning => mg_core_cluster_partitions:partitions_options(),
+    local_table => mg_core_cluster_partitions:local_partition_table(),
+    balancing_table => mg_core_cluster_partitions:balancing_table(),
+    partitions_table => mg_core_cluster_partitions:partitions_table()
+}.
+
 -type state() :: #{
     %% cluster static options
     discovering => discovery_options(),
@@ -51,6 +59,7 @@
 }.
 
 -export_type([scaling_type/0]).
+-export_type([partitions_info/0]).
 
 -spec child_spec(cluster_options()) -> [supervisor:child_spec()].
 child_spec(#{discovering := _} = ClusterOpts) ->
@@ -89,6 +98,10 @@ connecting(RemoteData) ->
 -spec get_node(mg_core_cluster_partitions:balancing_key()) -> {ok, node()}.
 get_node(BalancingKey) ->
     gen_server:call(?MODULE, {get_node, BalancingKey}).
+
+-spec get_partitions_info() -> partitions_info().
+get_partitions_info() ->
+    gen_server:call(?MODULE, get_partitions_info).
 
 %%%===================================================================
 %%% Spawning and gen_server implementation
@@ -134,19 +147,13 @@ handle_continue(
 -spec handle_call(term(), {pid(), _}, state()) -> {reply, any(), state()}.
 handle_call({set_state, NewState}, _From, _State) ->
     {reply, ok, NewState};
-handle_call(
-    {get_node, BalancingKey},
-    _From,
-    #{
-        partitions_table := PartitionsTable,
-        balancing_table := BalancingTable,
-        partitioning := PartitionsOpts
-    } = State
-) ->
-    Response = mg_core_cluster_partitions:get_node(BalancingKey, PartitionsTable, BalancingTable, PartitionsOpts),
+handle_call({get_node, BalancingKey}, _From, State) ->
+    Response = mg_core_cluster_partitions:get_node(BalancingKey, partitions_info(State)),
     {reply, Response, State};
 handle_call(get_cluster_size, _From, #{known_nodes := ListNodes} = State) ->
     {reply, erlang:length(ListNodes), State};
+handle_call(get_partitions_info, _From, State) ->
+    {reply, partitions_info(State), State};
 handle_call(
     {connecting, {RemoteTable, _RemoteNode}},
     _From,
@@ -280,6 +287,10 @@ maybe_rebalance(
     State#{partitions_table => NewPartitionsTable, balancing_table => NewBalancingTable};
 maybe_rebalance(_, State) ->
     State.
+
+-spec partitions_info(state()) -> partitions_info().
+partitions_info(State) ->
+    maps:with([partitioning, partitions_table, balancing_table, local_table], State).
 
 -ifdef(TEST).
 -include_lib("eunit/include/eunit.hrl").

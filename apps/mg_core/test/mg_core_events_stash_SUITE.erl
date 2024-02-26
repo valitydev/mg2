@@ -254,7 +254,8 @@ events_machine_options(Options) ->
                 timers => Scheduler,
                 timers_retries => Scheduler,
                 overseer => Scheduler
-            }
+            },
+            scaling => global_based
         },
         events_storage =>
             {mg_core_storage_memory, #{

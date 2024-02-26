@@ -18,7 +18,8 @@
 -type options() :: #{
     namespace := mg_core:ns(),
     pulse := mg_core_pulse:handler(),
-    storage := storage_options()
+    storage := storage_options(),
+    scaling => mg_core_cluster:scaling_type()
 }.
 
 -export_type([id/0]).
@@ -123,6 +124,7 @@ data_to_opaque(#{
 %%
 
 -spec storage_options(options()) -> mg_core_storage:options().
-storage_options(#{namespace := NS, storage := StorageOptions, pulse := Handler}) ->
+storage_options(#{namespace := NS, storage := StorageOptions, pulse := Handler} = Options) ->
+    Scaling = maps:get(scaling, Options, global_based),
     {Mod, Options} = mg_core_utils:separate_mod_opts(StorageOptions, #{}),
-    {Mod, Options#{name => {NS, ?MODULE, notifications}, pulse => Handler}}.
+    {Mod, Options#{name => {NS, ?MODULE, notifications}, pulse => Handler, scaling => Scaling}}.

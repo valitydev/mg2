@@ -37,7 +37,8 @@
 -export([add_partitions/2]).
 -export([del_partition/2]).
 -export([empty_partitions/0]).
--export([get_node/4]).
+-export([get_node/2]).
+-export([is_local_partition/2]).
 
 -spec discovery(discovery_options()) -> {ok, [node()]}.
 discovery(#{<<"domain_name">> := DomainName, <<"sname">> := Sname}) ->
@@ -64,11 +65,26 @@ make_balancing_table(PartitionsTable, #{capacity := Capacity, max_hash := MaxHas
     ListPartitions = maps:keys(PartitionsTable),
     mg_core_dirange:get_ranges(MaxHash, Capacity, ListPartitions).
 
--spec get_node(balancing_key(), partitions_table(), balancing_table(), partitions_options()) -> {ok, node()}.
-get_node(BalancingKey, PartitionsTable, BalancingTable, #{max_hash := MaxHash}) ->
+-spec get_node(balancing_key(), mg_core_cluster:partitions_info()) -> {ok, node()}.
+get_node(BalancingKey, PartitionsInfo) ->
+    #{
+        partitions_table := PartitionsTable,
+        balancing_table := BalancingTable,
+        partitioning := #{max_hash := MaxHash}
+    } = PartitionsInfo,
     Index = mg_core_dirange:find(erlang:phash2(BalancingKey, MaxHash), BalancingTable),
     Node = maps:get(Index, PartitionsTable),
     {ok, Node}.
+
+-spec is_local_partition(balancing_key(), mg_core_cluster:partitions_info()) -> boolean().
+is_local_partition(BalancingKey, PartitionsInfo) ->
+    #{
+        local_table := LocalTable,
+        balancing_table := BalancingTable,
+        partitioning := #{max_hash := MaxHash}
+    } = PartitionsInfo,
+    [LocalPartition] = maps:keys(LocalTable),
+    LocalPartition =:= mg_core_dirange:find(erlang:phash2(BalancingKey, MaxHash), BalancingTable).
 
 -spec add_partitions(partitions_table(), partitions_table()) -> partitions_table().
 add_partitions(KnownPartitions, NewPartitions) ->

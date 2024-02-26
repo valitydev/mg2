@@ -175,6 +175,8 @@ get(Options, Key) ->
     do_request(Options, {get, Key}).
 
 -spec search(options(), index_query()) -> search_result().
+search({_, #{scaling := partition_based, name := Name}} = Options, Query) ->
+    filter_by_partition(Name, do_request(Options, {search, Query}));
 search(Options, Query) ->
     do_request(Options, {search, Query}).
 
@@ -282,6 +284,28 @@ sidecar_child_spec(Options, ChildID) ->
         error ->
             undefined
     end.
+
+-spec filter_by_partition(name(), search_result()) -> search_result().
+filter_by_partition({NS, _, _}, Data) when is_list(Data) ->
+    PartitionsInfo = mg_core_cluster:get_partitions_info(),
+    lists:filter(
+        fun
+            ({_Index, Key}) -> do_filter_by_partition({NS, Key}, PartitionsInfo);
+            (Key) -> do_filter_by_partition({NS, Key}, PartitionsInfo)
+        end,
+        Data
+    );
+filter_by_partition({_NS, _, _} = Name, {Data, _Continuation}) ->
+    filter_by_partition(Name, Data);
+filter_by_partition(_Name, Data) ->
+    Data.
+
+-spec do_filter_by_partition(
+    mg_core_cluster_partitions:balancing_key(),
+    mg_core_cluster:partitions_info()
+) -> boolean().
+do_filter_by_partition(BalancingKey, PartitionsInfo) ->
+    mg_core_cluster_partitions:is_local_partition(BalancingKey, PartitionsInfo).
 
 %%
 %% logging

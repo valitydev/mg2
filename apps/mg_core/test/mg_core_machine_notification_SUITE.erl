@@ -309,7 +309,8 @@ automaton_options(_C) ->
                 scan_handicap => 1,
                 reschedule_time => 2
             }
-        }
+        },
+        scaling => global_based
     }.
 
 -spec notification_options() -> mg_core_notification:options().

@@ -142,7 +142,8 @@ automaton_options(NS) ->
         schedulers => #{
             timers => #{min_scan_delay => 1000},
             timers_retries => #{min_scan_delay => 1000}
-        }
+        },
+        scaling => global_based
     }.
 
 -spec handle_beat(_, mg_core_pulse:beat()) -> no_return().

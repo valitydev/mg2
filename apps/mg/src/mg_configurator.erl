@@ -147,7 +147,8 @@ machine_options(NS, Config, Pulse) ->
     Options = maps:with(
         [
             retries,
-            timer_processing_timeout
+            timer_processing_timeout,
+            scaling
         ],
         Config
     ),

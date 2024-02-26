@@ -467,11 +467,10 @@ cluster(YamlConfig) ->
                 <<"dns">> ->
                     DiscoveryOptsList = ?C:conf([cluster, discovery, options], YamlConfig),
                     ReconnectTimeout = ?C:conf([cluster, reconnect_timeout], YamlConfig, 5000),
-                    ScalingType = ?C:conf([cluster, scaling], YamlConfig, <<"global_based">>),
                     PartitionsOpts = partitions_options(YamlConfig),
                     genlib_map:compact(#{
                         discovering => maps:from_list(DiscoveryOptsList),
-                        scaling => ?C:atom(ScalingType),
+                        scaling => scaling(YamlConfig),
                         partitioning => PartitionsOpts,
                         reconnect_timeout => ReconnectTimeout
                     });
@@ -489,6 +488,9 @@ partitions_options(YamlConfig) ->
         ListOpts ->
             lists:foldl(fun({Key, Value}, Acc) -> Acc#{erlang:binary_to_atom(Key) => Value} end, #{}, ListOpts)
     end.
+
+scaling(YamlConfig) ->
+    ?C:atom(?C:conf([cluster, scaling], YamlConfig, <<"global_based">>)).
 
 quotas(YamlConfig) ->
     SchedulerLimit = ?C:conf([limits, scheduler_tasks], YamlConfig, 5000),
@@ -647,7 +649,8 @@ namespace({Name, NSYamlConfig}, YamlConfig) ->
                 schedulers => namespace_schedulers(NSYamlConfig),
                 event_sinks => [event_sink(ES) || ES <- ?C:conf([event_sinks], NSYamlConfig, [])],
                 suicide_probability => ?C:probability(?C:conf([suicide_probability], NSYamlConfig, 0)),
-                event_stash_size => ?C:conf([event_stash_size], NSYamlConfig, 0)
+                event_stash_size => ?C:conf([event_stash_size], NSYamlConfig, 0),
+                scaling => scaling(YamlConfig)
             },
             conf_with([modernizer], NSYamlConfig, #{}, fun(ModernizerYamlConfig) ->
                 #{
