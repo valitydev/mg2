@@ -137,7 +137,7 @@ get_history(_C) ->
 -spec start_event_sink(mg_core_events_sink_machine:ns_options()) -> pid().
 start_event_sink(Options) ->
     mg_core_utils:throw_if_error(
-        mg_core_utils_supervisor_wrapper:start_link(
+        genlib_adhoc_supervisor:start_link(
             #{strategy => one_for_all},
             [mg_core_events_sink_machine:child_spec(Options, event_sink)]
         )

@@ -750,7 +750,7 @@ config_with_multiple_event_sinks(_C) ->
         brod,
         woody
     ]),
-    {ok, _Pid} = mg_core_utils_supervisor_wrapper:start_link(
+    {ok, _Pid} = genlib_adhoc_supervisor:start_link(
         {local, mg_core_sup_does_nothing},
         #{strategy => rest_for_one},
         mg_cth_configurator:construct_child_specs(Config)

@@ -56,7 +56,7 @@ child_spec(SchedulerID, Options, ChildID) ->
 
 -spec start_link(scheduler_id(), options()) -> mg_core_utils:gen_start_ret().
 start_link(SchedulerID, Options) ->
-    mg_core_utils_supervisor_wrapper:start_link(
+    genlib_adhoc_supervisor:start_link(
         self_reg_name(SchedulerID),
         #{strategy => simple_one_for_one},
         [

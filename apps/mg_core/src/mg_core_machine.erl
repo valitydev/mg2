@@ -270,7 +270,7 @@ start_link(Options = #{namespace := NS}) ->
 
 -spec start_link(options(), _ChildID) -> mg_core_utils:gen_start_ret().
 start_link(Options, ChildID) ->
-    mg_core_utils_supervisor_wrapper:start_link(
+    genlib_adhoc_supervisor:start_link(
         #{strategy => one_for_one},
         [
             machine_sup_child_spec(Options, {ChildID, machine_sup}),
@@ -283,7 +283,7 @@ machine_sup_child_spec(Options, ChildID) ->
     #{
         id => ChildID,
         start =>
-            {mg_core_utils_supervisor_wrapper, start_link, [
+            {genlib_adhoc_supervisor, start_link, [
                 #{strategy => rest_for_one},
                 mg_core_utils:lists_compact([
                     mg_core_storage:child_spec(storage_options(Options), storage),
@@ -301,7 +301,7 @@ scheduler_sup_child_spec(Options, ChildID) ->
     #{
         id => ChildID,
         start =>
-            {mg_core_utils_supervisor_wrapper, start_link, [
+            {genlib_adhoc_supervisor, start_link, [
                 #{
                     strategy => one_for_one,
                     intensity => 10,
