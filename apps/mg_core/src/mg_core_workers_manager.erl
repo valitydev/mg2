@@ -43,14 +43,14 @@
 %% Types
 %% FIXME: some of these are listed as optional (=>)
 %%        whereas later in the code they are rigidly matched on (:=)
-%%        fixed for name and pulse
+%%        fixed for name and pulse, registry and worker_options
 -type options() :: #{
     name := name(),
     pulse := mg_core_pulse:handler(),
-    registry => mg_core_procreg:options(),
+    registry := mg_core_procreg:options(),
     message_queue_len_limit => queue_limit(),
     % all but `registry`
-    worker_options => mg_core_worker:options(),
+    worker_options := mg_core_worker:options(),
     sidecar => mg_core_utils:mod_opts()
 }.
 -type queue_limit() :: non_neg_integer().
