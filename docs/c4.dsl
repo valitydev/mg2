@@ -5,7 +5,10 @@ workspace {
 
         infra = softwareSystem "Infrastructure" {
 
-            eventstream = container "Kafka events stream" {}
+            eventstream = container "Kafka events stream" {
+
+            }
+
             riak = container "Riak ring" {
                 riak -> riak "Black magic"
             }
@@ -36,10 +39,6 @@ workspace {
         }
 
         machinegun = softwareSystem "Machinegun cluster" {
-
-            mg_pulse = container "Pulse handler" {
-
-            }
 
             mg_automaton = container "Automaton Thrift API" "Thrift service for managing machines in known namespaces" "erlang, http, thrift" {
                 processor -> this "Executes RPC" "http, thrift"
@@ -101,17 +100,6 @@ workspace {
                     }
                 }
 
-                mg_processor = component "Machine processor implementation" "" "erlang, http, thrift" {
-                    description "In case of external processor it uses hackney client with thrift API"
-
-                    this -> processor "Executes machine state processing RPC" "http, thrift"
-                }
-
-                mg_manager = component "Machines workers manager-supervisor" "" "erlang" {
-                    mg_automaton -> this "Calls machines" "erlang"
-                    this -> singleton_in_cluster_guarantee "Relies for instancing and addressing workers"
-                }
-
                 group "Schedulers" {
 
                     mg_scanner = component "Scanner for interrupted, timers queues and notification delivery scheduler" "" "erlang" {
@@ -128,19 +116,59 @@ workspace {
 
                     mg_task_runner = component "Tasks runner" "" "erlang" {
                         mg_scheduler -> this "Starts new task" "erlang"
-                        this -> mg_manager "Sends signal during task execution" "erlang"
                     }
                 }
 
-                mg_worker = component "Actual machine process" "" "erlang" {
-                    mg_manager -> this "Starts process and passes gen_server calls"
-                    this -> mg_es_lf_kafka "Publishes lifecycle events" "erlang"
-                    this -> mg_processor "Processes state" "erlang"
-                    this -> mg_es_kafka "Publishes business events" "erlang"
-                    this -> mg_es_machine "Publishes business events" "erlang"
-                    this -> mg_events_storage "Reads and writes" "erlang"
-                    this -> mg_machines_storage "Reads and writes" "erlang"
+                group "Machinery" {
+
+                    mg_processor = component "Machine processor implementation" "" "erlang, http, thrift" {
+                        description "In case of external processor it uses hackney client with thrift API"
+
+                        this -> processor "Executes machine state processing RPC" "http, thrift"
+                    }
+
+                    mg_manager = component "Machines workers manager-supervisor" "" "erlang" {
+                        mg_task_runner -> this "Sends signal during task execution" "erlang"
+                        mg_automaton -> this "Calls machines" "erlang"
+                        this -> singleton_in_cluster_guarantee "Relies for instancing and addressing workers"
+                    }
+
+                    mg_worker = component "Machine worker" "" "erlang" {
+                        mg_manager -> this "Starts process and passes machine calls"
+                    }
+
+                    mg_machine = component "Machine" "" "erlang" {
+                        mg_worker -> this "Handles calls with implementation"
+                        this -> mg_machines_storage "Reads and writes" "erlang"
+                        this -> mg_notification_storage "Writes" "erlang"
+                    }
+
+                    mg_event_machine = component "Event Machine" "" "erlang" {
+                        mg_machine -> this "Processes state"
+                        this -> mg_processor "Calls state processor"
+                        this -> mg_events_storage "Reads and writes" "erlang"
+                        this -> mg_es_kafka "Publishes business events" "erlang"
+                        this -> mg_es_machine "Publishes business events" "erlang"
+                    }
                 }
+            }
+
+            mg_pulse = container "Pulse handler" {
+                mg_scanner -> this "Pulse beats with lifecycle" "erlang"
+                mg_scheduler -> this "Pulse beats with lifecycle" "erlang"
+                mg_task_runner -> this "Pulse beats with lifecycle" "erlang"
+
+                mg_machines_storage -> this "Pulse beats with lifecycle" "erlang"
+                mg_events_storage -> this "Pulse beats with lifecycle" "erlang"
+                mg_notification_storage -> this "Pulse beats with lifecycle" "erlang"
+
+                mg_manager -> this "Pulse beats with lifecycle" "erlang"
+                mg_worker -> this "Pulse beats with lifecycle" "erlang"
+                mg_machine -> this "Pulse beats with lifecycle" "erlang"
+                mg_event_machine -> this "Pulse beats with lifecycle" "erlang"
+                mg_processor -> this "Pulse beats with lifecycle" "erlang"
+
+                this -> mg_es_lf_kafka "Publishes lifecycle events" "erlang"
             }
         }
     }
