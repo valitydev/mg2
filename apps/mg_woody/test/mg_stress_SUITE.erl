@@ -110,9 +110,7 @@ mg_woody_config(_C) ->
                     timers => #{}
                 },
                 retries => #{},
-                event_sinks => [
-
-                ],
+                event_sinks => [],
                 event_stash_size => 10
             }
         }
