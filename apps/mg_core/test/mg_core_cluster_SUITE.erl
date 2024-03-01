@@ -1,6 +1,7 @@
 -module(mg_core_cluster_SUITE).
 
 -include_lib("eunit/include/eunit.hrl").
+-include_lib("common_test/include/ct.hrl").
 
 %% API
 -export([
@@ -10,7 +11,7 @@
     groups/0
 ]).
 
--define(RECONNECT_TIMEOUT, 1000).
+-define(RECONNECT_TIMEOUT, 2000).
 -define(CLUSTER_OPTS, #{
     discovering => #{
         <<"domain_name">> => <<"localhost">>,
@@ -18,25 +19,77 @@
     },
     scaling => partition_based,
     partitioning => #{
-        capacity => 3,
+        capacity => 5,
         max_hash => 4095
     },
     reconnect_timeout => ?RECONNECT_TIMEOUT
 }).
+-define(NEIGHBOUR, 'peer@127.0.0.1').
 
--export([start_ok_test/1]).
--export([unknown_nodedown_test/1]).
--export([unknown_nodeup_test/1]).
--export([exists_nodeup_test/1]).
--export([cluster_size_test/1]).
+-export([peer_test/1]).
+-export([base_test/1]).
+-export([reconnect_rebalance_test/1]).
+-export([connecting_rebalance_test/1]).
+-export([double_connecting_test/1]).
+-export([deleted_node_down_test/1]).
 
 -type config() :: [{atom(), term()}].
 -type test_case_name() :: atom().
 -type group_name() :: atom().
 -type test_result() :: any() | no_return().
 
+-define(PARTITIONS_INFO_WITH_PEER, #{
+    partitioning => #{
+        capacity => 5,
+        max_hash => 4095
+    },
+    balancing_table => #{
+        {0, 818} => 0,
+        {819, 1637} => 1,
+        {1638, 2046} => 0,
+        {2047, 2456} => 1,
+        {2457, 2865} => 0,
+        {2866, 3275} => 1,
+        {3276, 3684} => 0,
+        {3685, 4095} => 1
+    },
+    local_table => #{
+        0 => 'test_node@127.0.0.1'
+    },
+    partitions_table => #{
+        0 => 'test_node@127.0.0.1',
+        1 => 'peer@127.0.0.1'
+    }
+}).
+-define(PARTITIONS_INFO_WO_PEER, #{
+    partitioning => #{
+        capacity => 5,
+        max_hash => 4095
+    },
+    balancing_table => #{
+        {0, 818} => 0,
+        {819, 1637} => 0,
+        {1638, 2456} => 0,
+        {2457, 3275} => 0,
+        {3276, 4095} => 0
+    },
+    local_table => #{
+        0 => 'test_node@127.0.0.1'
+    },
+    partitions_table => #{
+        0 => 'test_node@127.0.0.1'
+    }
+}).
+%% erlang:phash2({<<"Namespace">>, <<"ID">>}, 4095) = 1075
+-define(KEY, {<<"Namespace">>, <<"ID">>}).
+
 -spec init_per_suite(_) -> _.
 init_per_suite(Config) ->
+    WorkDir = os:getenv("WORK_DIR"),
+    EbinDir = WorkDir ++ "/_build/default/lib/mg_cth/ebin",
+    ok = start_peer(),
+    true = erpc:call(?NEIGHBOUR, code, add_path, [EbinDir]),
+    {ok, _Pid} = erpc:call(?NEIGHBOUR, mg_cth_neighbour, start, []),
     Config.
 
 -spec end_per_suite(_) -> _.
@@ -53,73 +106,85 @@ all() ->
 groups() ->
     [
         {basic_operations, [], [
-            start_ok_test,
-            unknown_nodedown_test,
-            unknown_nodeup_test,
-            exists_nodeup_test,
-            cluster_size_test
+            peer_test,
+            base_test,
+            reconnect_rebalance_test,
+            connecting_rebalance_test,
+            double_connecting_test,
+            deleted_node_down_test
         ]}
     ].
 
--spec start_ok_test(config()) -> test_result().
-start_ok_test(_Config) ->
+-spec peer_test(config()) -> test_result().
+peer_test(_Config) ->
+    {ok, 'ECHO'} = erpc:call(?NEIGHBOUR, mg_cth_neighbour, echo, ['ECHO']),
+    {ok, #{1 := 'peer@127.0.0.1'}} = erpc:call(?NEIGHBOUR, mg_cth_neighbour, connecting, [{#{}, node()}]).
+
+-spec base_test(config()) -> test_result().
+base_test(_Config) ->
     {ok, Pid} = mg_core_cluster:start_link(?CLUSTER_OPTS),
-    State = await_sys_get_state(Pid),
-    #{known_nodes := ListNodes} = State,
-    lists:foreach(
-        fun(Node) ->
-            ?assertEqual(pong, net_adm:ping(Node))
-        end,
-        ListNodes
-    ),
+    ?assertEqual(?PARTITIONS_INFO_WITH_PEER, mg_core_cluster:get_partitions_info()),
+    ?assertEqual(2, mg_core_cluster:cluster_size()),
+    ?assertEqual({ok, ?NEIGHBOUR}, mg_core_cluster:get_node(?KEY)),
+    ?assertEqual(false, mg_core_cluster_partitions:is_local_partition(?KEY, ?PARTITIONS_INFO_WITH_PEER)),
+    ?assertEqual(true, mg_core_cluster_partitions:is_local_partition(?KEY, ?PARTITIONS_INFO_WO_PEER)),
     exit(Pid, normal).
 
--spec unknown_nodedown_test(config()) -> test_result().
-unknown_nodedown_test(_Config) ->
+-spec reconnect_rebalance_test(config()) -> test_result().
+reconnect_rebalance_test(_Config) ->
+    %% node_down - rebalance - reconnect by timer - rebalance
     {ok, Pid} = mg_core_cluster:start_link(?CLUSTER_OPTS),
-    nodedown_check(Pid, 'foo@127.0.0.1'),
+    Pid ! {nodedown, ?NEIGHBOUR},
+    ?assertEqual(?PARTITIONS_INFO_WO_PEER, mg_core_cluster:get_partitions_info()),
+    ?assertEqual({ok, node()}, mg_core_cluster:get_node(?KEY)),
+    ?assertEqual(true, mg_core_cluster_partitions:is_local_partition(?KEY, ?PARTITIONS_INFO_WO_PEER)),
+
+    %% wait reconnecting
+    timer:sleep(?RECONNECT_TIMEOUT + 10),
+    ?assertEqual(?PARTITIONS_INFO_WITH_PEER, mg_core_cluster:get_partitions_info()),
+    ?assertEqual({ok, ?NEIGHBOUR}, mg_core_cluster:get_node(?KEY)),
+    ?assertEqual(false, mg_core_cluster_partitions:is_local_partition(?KEY, ?PARTITIONS_INFO_WITH_PEER)),
     exit(Pid, normal).
 
--spec unknown_nodeup_test(config()) -> test_result().
-unknown_nodeup_test(_Config) ->
+-spec connecting_rebalance_test(config()) -> test_result().
+connecting_rebalance_test(_Config) ->
     {ok, Pid} = mg_core_cluster:start_link(?CLUSTER_OPTS),
-    State = await_sys_get_state(Pid),
-    mg_core_cluster:set_state(State#{known_nodes => []}),
-    Pid ! {nodeup, node()},
-    #{known_nodes := List} = await_sys_get_state(Pid),
-    ?assertEqual(List, [node()]),
+    Pid ! {nodedown, ?NEIGHBOUR},
+    ?assertEqual(?PARTITIONS_INFO_WO_PEER, mg_core_cluster:get_partitions_info()),
+    ?assertEqual({ok, node()}, mg_core_cluster:get_node(?KEY)),
+
+    %% force connecting
+    ?assertEqual({ok, #{0 => node()}}, mg_core_cluster:connecting({#{1 => ?NEIGHBOUR}, ?NEIGHBOUR})),
+    ?assertEqual(?PARTITIONS_INFO_WITH_PEER, mg_core_cluster:get_partitions_info()),
+    ?assertEqual({ok, ?NEIGHBOUR}, mg_core_cluster:get_node(?KEY)),
     exit(Pid, normal).
 
--spec exists_nodeup_test(config()) -> test_result().
-exists_nodeup_test(_Config) ->
+-spec double_connecting_test(config()) -> test_result().
+double_connecting_test(_Config) ->
     {ok, Pid} = mg_core_cluster:start_link(?CLUSTER_OPTS),
-    #{known_nodes := List1} = await_sys_get_state(Pid),
-    ?assertEqual(List1, [node()]),
-    Pid ! {nodeup, node()},
-    #{known_nodes := List2} = await_sys_get_state(Pid),
-    ?assertEqual(List2, [node()]),
+    ?assertEqual(?PARTITIONS_INFO_WITH_PEER, mg_core_cluster:get_partitions_info()),
+    %% double connect
+    ?assertEqual({ok, #{0 => node()}}, mg_core_cluster:connecting({#{1 => ?NEIGHBOUR}, ?NEIGHBOUR})),
+    ?assertEqual(?PARTITIONS_INFO_WITH_PEER, mg_core_cluster:get_partitions_info()),
     exit(Pid, normal).
 
--spec cluster_size_test(config()) -> test_result().
-cluster_size_test(_Config) ->
-    _ = os:putenv("REPLICA_COUNT", "3"),
-    ?assertEqual(3, mg_core_cluster:cluster_size()),
+-spec deleted_node_down_test(config()) -> test_result().
+deleted_node_down_test(_Config) ->
     {ok, Pid} = mg_core_cluster:start_link(?CLUSTER_OPTS),
-    ?assertEqual(1, mg_core_cluster:cluster_size()),
+    ?assertEqual(?PARTITIONS_INFO_WITH_PEER, mg_core_cluster:get_partitions_info()),
+    Pid ! {nodedown, 'foo@127.0.0.1'},
+    %% wait reconnect timeout
+    ?assertEqual(?PARTITIONS_INFO_WITH_PEER, mg_core_cluster:get_partitions_info()),
     exit(Pid, normal).
 
 %% Internal functions
--spec nodedown_check(pid(), node()) -> _.
-nodedown_check(Pid, Node) ->
-    #{known_nodes := ListNodes1} = await_sys_get_state(Pid),
-    Pid ! {nodedown, Node},
-    timer:sleep(?RECONNECT_TIMEOUT + 10),
-    #{known_nodes := ListNodes2} = await_sys_get_state(Pid),
-    ?assertEqual(ListNodes1, ListNodes2).
 
--spec await_sys_get_state(pid()) -> any().
-await_sys_get_state(Pid) ->
-    case sys:get_state(Pid, 100) of
-        {error, _} -> await_sys_get_state(Pid);
-        State -> State
-    end.
+-spec start_peer() -> _.
+start_peer() ->
+    {ok, _Pid, _Node} = peer:start(#{
+        name => peer,
+        longnames => true,
+        host => "127.0.0.1"
+    }),
+    pong = net_adm:ping(?NEIGHBOUR),
+    ok.

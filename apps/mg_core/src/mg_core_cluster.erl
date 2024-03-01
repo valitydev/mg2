@@ -19,12 +19,14 @@
 -export([get_node/1]).
 -export([get_partitions_info/0]).
 
--ifdef(TEST).
--export([set_state/1]).
--endif.
-
 -define(SERVER, ?MODULE).
 -define(RECONNECT_TIMEOUT, 5000).
+
+-ifdef(TEST).
+-define(NEIGHBOUR, mg_cth_neighbour).
+-else.
+-define(NEIGHBOUR, ?MODULE).
+-endif.
 
 -type discovery_options() :: mg_core_cluster_partitions:discovery_options().
 
@@ -72,12 +74,6 @@ child_spec(#{discovering := _} = ClusterOpts) ->
 child_spec(_) ->
     % cluster not configured, skip
     [].
-
--ifdef(TEST).
--spec set_state(state()) -> ok.
-set_state(NewState) ->
-    gen_server:call(?MODULE, {set_state, NewState}).
--endif.
 
 -spec cluster_size() -> non_neg_integer().
 cluster_size() ->
@@ -145,8 +141,6 @@ handle_continue(
     }.
 
 -spec handle_call(term(), {pid(), _}, state()) -> {reply, any(), state()}.
-handle_call({set_state, NewState}, _From, _State) ->
-    {reply, ok, NewState};
 handle_call({get_node, BalancingKey}, _From, State) ->
     Response = mg_core_cluster_partitions:get_node(BalancingKey, partitions_info(State)),
     {reply, Response, State};
@@ -225,8 +219,8 @@ code_change(_OldVsn, State, _Extra) ->
 connect(Node, ReconnectTimeout, LocalTable) when Node =/= node() ->
     case net_adm:ping(Node) of
         pong ->
-            erpc:call(Node, ?MODULE, connecting, [{LocalTable, node()}]);
-        _ ->
+            erpc:call(Node, ?NEIGHBOUR, connecting, [{LocalTable, node()}]);
+        pang ->
             _ = erlang:start_timer(ReconnectTimeout, self(), {reconnect, Node}),
             {error, not_connected}
     end;
@@ -261,12 +255,12 @@ maybe_connect(
     {ok, ListNodes} = mg_core_cluster_partitions:discovery(Opts),
     case lists:member(Node, ListNodes) of
         false ->
-            %% node delete from cluster, do nothing
+            %% node delete from cluster, do nothing (rebalance was when node down detected)
             State#{known_nodes => ListNodes};
         true ->
             case connect(Node, ReconnectTimeout, LocalTable) of
                 {ok, RemoteTable} ->
-                    %% rebalance with node
+                    %% node connected after temporary split or new node added, rebalance with node
                     maybe_rebalance(RemoteTable, State#{known_nodes => ListNodes});
                 _ ->
                     State#{known_nodes => ListNodes}
@@ -310,13 +304,6 @@ partitions_info(State) ->
 
 -spec test() -> _.
 
--spec connect_error_test() -> _.
-connect_error_test() ->
-    ?assertEqual(
-        {error, not_connected},
-        connect('foo@127.0.0.1', 3000, #{})
-    ).
-
 -spec child_spec_test() -> _.
 child_spec_test() ->
     EmptyChildSpec = mg_core_cluster:child_spec(#{}),
@@ -334,10 +321,22 @@ child_spec_test() ->
     ChildSpec = mg_core_cluster:child_spec(?CLUSTER_OPTS),
     ?assertEqual(ExpectedSpec, ChildSpec).
 
--spec for_full_cover_test() -> _.
-for_full_cover_test() ->
-    ?assertEqual({noreply, #{}}, handle_cast([], #{})),
-    ?assertEqual(ok, terminate(term, #{})),
-    ?assertEqual({ok, #{}}, code_change(old, #{}, extra)).
+-spec maybe_connect_fail_test() -> _.
+maybe_connect_fail_test() ->
+    St = ?CLUSTER_OPTS#{
+        local_table => #{0 => node()}
+    },
+    Expected = #{
+        discovering => #{
+            <<"domain_name">> => <<"localhost">>,
+            <<"sname">> => <<"test_node">>
+        },
+        known_nodes => ['test_node@127.0.0.1', 'peer@127.0.0.1'],
+        local_table => #{0 => 'test_node@127.0.0.1'},
+        partitioning => #{capacity => 3, max_hash => 4095},
+        reconnect_timeout => 5000,
+        scaling => partition_based
+    },
+    ?assertEqual(Expected, maybe_connect('peer@127.0.0.1', St)).
 
 -endif.

@@ -124,7 +124,7 @@ data_to_opaque(#{
 %%
 
 -spec storage_options(options()) -> mg_core_storage:options().
-storage_options(#{namespace := NS, storage := StorageOptions, pulse := Handler} = Options) ->
-    Scaling = maps:get(scaling, Options, global_based),
+storage_options(#{namespace := NS, storage := StorageOptions, pulse := Handler} = Opts) ->
+    Scaling = maps:get(scaling, Opts, global_based),
     {Mod, Options} = mg_core_utils:separate_mod_opts(StorageOptions, #{}),
     {Mod, Options#{name => {NS, ?MODULE, notifications}, pulse => Handler, scaling => Scaling}}.

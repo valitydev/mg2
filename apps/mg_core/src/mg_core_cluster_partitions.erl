@@ -40,7 +40,21 @@
 -export([get_node/2]).
 -export([is_local_partition/2]).
 
+-ifdef(TEST).
+-export([get_addrs/1]).
+-export([addrs_to_nodes/2]).
+-export([host_to_index/1]).
+-define(TEST_NODES, [
+    'test_node@127.0.0.1',
+    'peer@127.0.0.1'
+]).
+-endif.
+
 -spec discovery(discovery_options()) -> {ok, [node()]}.
+-ifdef(TEST).
+discovery(_) ->
+    {ok, ?TEST_NODES}.
+-else.
 discovery(#{<<"domain_name">> := DomainName, <<"sname">> := Sname}) ->
     case get_addrs(unicode:characters_to_list(DomainName)) of
         {ok, ListAddrs} ->
@@ -49,6 +63,7 @@ discovery(#{<<"domain_name">> := DomainName, <<"sname">> := Sname}) ->
         Error ->
             error({resolve_error, Error})
     end.
+-endif.
 
 -spec make_local_table(mg_core_cluster:scaling_type()) -> local_partition_table().
 make_local_table(global_based) ->
@@ -72,7 +87,7 @@ get_node(BalancingKey, PartitionsInfo) ->
         balancing_table := BalancingTable,
         partitioning := #{max_hash := MaxHash}
     } = PartitionsInfo,
-    Index = mg_core_dirange:find(erlang:phash2(BalancingKey, MaxHash), BalancingTable),
+    {ok, Index} = mg_core_dirange:find(erlang:phash2(BalancingKey, MaxHash), BalancingTable),
     Node = maps:get(Index, PartitionsTable),
     {ok, Node}.
 
@@ -84,7 +99,7 @@ is_local_partition(BalancingKey, PartitionsInfo) ->
         partitioning := #{max_hash := MaxHash}
     } = PartitionsInfo,
     [LocalPartition] = maps:keys(LocalTable),
-    LocalPartition =:= mg_core_dirange:find(erlang:phash2(BalancingKey, MaxHash), BalancingTable).
+    {ok, LocalPartition} =:= mg_core_dirange:find(erlang:phash2(BalancingKey, MaxHash), BalancingTable).
 
 -spec add_partitions(partitions_table(), partitions_table()) -> partitions_table().
 add_partitions(KnownPartitions, NewPartitions) ->
@@ -119,10 +134,6 @@ addrs_to_nodes(ListAddrs, Sname) ->
     ).
 
 -spec host_to_index(string()) -> {ok, non_neg_integer()} | error.
--ifdef(TEST).
-host_to_index(_MaybeFqdn) ->
-    {ok, 0}.
--else.
 host_to_index(MaybeFqdn) ->
     [Host | _] = string:split(MaybeFqdn, ".", all),
     try
@@ -132,4 +143,25 @@ host_to_index(MaybeFqdn) ->
         _:_ ->
             error
     end.
+
+-ifdef(TEST).
+-include_lib("eunit/include/eunit.hrl").
+
+-spec test() -> _.
+
+-spec get_addrs_test() -> _.
+get_addrs_test() ->
+    {ok, [{127, 0, 0, 1} | _]} = get_addrs("localhost"),
+    ok.
+
+-spec addrs_to_nodes_test() -> _.
+addrs_to_nodes_test() ->
+    ?assertEqual(['foo@127.0.0.1'], addrs_to_nodes([{127, 0, 0, 1}], <<"foo">>)).
+
+-spec host_to_index_test() -> _.
+host_to_index_test() ->
+    ?assertEqual({ok, 0}, host_to_index("mg-0")),
+    ?assertEqual({ok, 1}, host_to_index("mg-1.example.com")),
+    ?assertEqual(error, host_to_index("ya.ru")).
+
 -endif.

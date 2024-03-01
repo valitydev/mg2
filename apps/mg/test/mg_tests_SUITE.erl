@@ -240,6 +240,7 @@ mg_config(#{endpoint := {IP, Port}}, C) ->
                     storage => {exponential, infinity, 1, 10},
                     timers => {exponential, infinity, 1, 10}
                 },
+                scaling => global_based,
                 % сейчас существуют проблемы, которые не дают включить на постоянной основе эту опцию
                 % (а очень хочется, чтобы проверять работоспособность идемпотентных ретраев)
                 % TODO в будущем нужно это сделать
@@ -248,6 +249,7 @@ mg_config(#{endpoint := {IP, Port}}, C) ->
                 event_sinks => [
                     {mg_core_events_sink_machine, #{
                         name => machine,
+                        scaling => global_based,
                         machine_id => ?ES_ID
                     }},
                     {mg_core_events_sink_kafka, #{
