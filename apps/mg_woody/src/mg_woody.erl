@@ -40,12 +40,9 @@
 
 -type automaton() :: mg_woody_automaton:options().
 
--type event_sink() :: mg_woody_event_sink:options().
-
 -type options() :: #{
     pulse := module(),
     automaton := automaton(),
-    event_sink := event_sink(),
     woody_server := woody_server(),
     additional_routes => [woody_server_thrift_http_handler:route(any())]
 }.
@@ -55,7 +52,6 @@ child_spec(ID, Options) ->
     #{
         woody_server := WoodyConfig,
         automaton := Automaton,
-        event_sink := EventSink,
         pulse := PulseHandler
     } = Options,
     WoodyOptions = maps:merge(
@@ -66,8 +62,7 @@ child_spec(ID, Options) ->
             port => maps:get(port, WoodyConfig),
             event_handler => {mg_woody_event_handler, PulseHandler},
             handlers => [
-                mg_woody_automaton:handler(Automaton),
-                mg_woody_event_sink:handler(EventSink)
+                mg_woody_automaton:handler(Automaton)
             ]
         },
         genlib_map:compact(#{

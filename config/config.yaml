@@ -43,17 +43,13 @@
 ###     There are multiple `shutdown_timeout` parameters defined in this example config:
 ###      * one for the woody server
 ###      * one for each machinegun namespace
-###      * and two for consuela presence and registry
 ###     To calculate the actual maximum time this service takes to shut down gracefully
 ###     you need to take the woody server `shutdown_timeout` parameter, add the maximum
-###     value between all of the `shutdown_timeout` parameters defined for each namespace,
-###     and then add the both of the consuela `shutdown_timeout`s:
+###     value between all of the `shutdown_timeout` parameters defined for each namespace:
 ###
 ###     max_shutdown_time =
 ###         woody_server.shutdown_timeout +
-###         max(namespaces[].shutdown_timeout) +
-###         consuela.presence.shutdown_timeout +
-###         consuela.registry.shutdown_timeout
+###         max(namespaces[].shutdown_timeout)
 ###
 ###
 
@@ -125,34 +121,7 @@ woody_server:
     http_keep_alive_timeout: 60s
     shutdown_timeout: 0s # woody server shutdown timeout (see notes above)
 
-# Distributed machine registry settings.
-#
-# Do not set if you plan to run machinegun in a non-distributed fashion,
-# for example in a development or testing scenarios.
-consuela:
-    presence:
-        check_interval: 5s
-        shutdown_timeout: 5s
-        tags:
-            - production
-    registry:
-        nodename: mhost1
-        session_ttl: 30s
-        session_renewal_interval: 10s
-        shutdown_timeout: 5s
-    discovery: {}
-
-# Consul client settings.
-#
-# Required when distributed machine registry is enabled.
-consul:
-    url: http://localhost:8500
-    acl_token_file: config/consul.token
-    connect_timeout: 200ms
-    recv_timeout: 1s
-
-# New cluster assembler (instead consuela)
-# will be used if consuela undefined
+# Cluster assembler
 # if cluster undefined then standalone mode
 cluster:
     discovery:
@@ -165,8 +134,7 @@ cluster:
     # optional, default value 5000 ms
     reconnect_timeout: 5000
 
-# if undefined will de used {mg_core_procreg_consuela, #{pulse => pulse(YamlConfig)}}
-# if consuela undefined will be used mg_core_procreg_gproc
+# if undefined then 'mg_core_procreg_gproc' will be used
 process_registry:
     module: mg_core_procreg_global
 
@@ -205,9 +173,6 @@ namespaces:
         # only for testing, default 0
         # suicide_probability: 0.1
         event_sinks:
-            machine:
-                type: machine
-                machine_id: main_event_sink
             kafka:
                 type: kafka
                 client: default_kafka_client
@@ -360,33 +325,3 @@ kafka:
             max_retries: 3
             # Time in milli-seconds to sleep before retry the failed produce request.
             retry_backoff: 500ms
-
-##
-## a short example for HG
-##
-# service_name: machinegun
-# namespaces:
-#     invoice:
-#         event_sink: payproc
-#         processor:
-#             url: http://hellgate:8022/v1/stateproc/invoice
-#     party:
-#         event_sink: payproc
-#         processor:
-#             url: http://hellgate:8022/v1/stateproc/party
-#     domain-config:
-#         processor:
-#             url: http://dominant:8022/v1/stateproc/party
-# storage:
-#     type: memory
-
-##
-## a minimal config
-##
-# service_name: machinegun
-# namespaces:
-#     mg_test_ns:
-#         processor:
-#             url: http://localhost:8022/processor
-# storage:
-#     type: memory

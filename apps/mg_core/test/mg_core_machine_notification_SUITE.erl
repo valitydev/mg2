@@ -79,7 +79,7 @@ groups() ->
 init_per_suite(C) ->
     % dbg:tracer(), dbg:p(all, c),
     % dbg:tpl({mg_core_machine, '_', '_'}, x),
-    Apps = mg_cth:start_applications([consuela, mg_core]),
+    Apps = mg_cth:start_applications([mg_core]),
     [{apps, Apps} | C].
 
 -spec end_per_suite(config()) -> ok.
