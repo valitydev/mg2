@@ -51,7 +51,8 @@
     worker := mg_core_workers_manager:ns_options(),
     pulse := mg_core_pulse:handler(),
     events_storage := mg_core_storage:options(),
-    default_processing_timeout := timeout()
+    default_processing_timeout := timeout(),
+    scaling => mg_core_cluster:scaling_type()
 }.
 -type ns_options() :: #{
     namespace := mg_core:ns(),

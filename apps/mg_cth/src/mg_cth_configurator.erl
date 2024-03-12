@@ -18,13 +18,15 @@
     schedulers := mg_core_machine:schedulers_opt(),
     default_processing_timeout := timeout(),
     suicide_probability => mg_core_machine:suicide_probability(),
-    event_stash_size := non_neg_integer()
+    event_stash_size := non_neg_integer(),
+    scaling => mg_core_cluster:scaling_type()
 }.
 
 -type event_sink_ns() :: #{
     default_processing_timeout := timeout(),
     storage => mg_core_storage:options(),
-    worker => mg_core_worker:options()
+    worker => mg_core_worker:options(),
+    scaling => mg_core_cluster:scaling_type()
 }.
 
 -type config() :: #{
