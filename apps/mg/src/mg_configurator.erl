@@ -42,6 +42,8 @@
 
 -type pulse() :: mg_core_pulse:handler().
 
+-type scaling_opts() :: #{scaling := mg_core_cluster:scaling_type()}.
+
 -spec construct_child_specs(config()) -> [supervisor:child_spec()].
 construct_child_specs(
     #{
@@ -169,8 +171,8 @@ machine_options(NS, Config, Pulse) ->
         suicide_probability => maps:get(suicide_probability, Config, undefined)
     }.
 
--spec api_automaton_options(namespaces(), event_sink_ns(), pulse(), map()) -> mg_woody_automaton:options().
-api_automaton_options(NSs, EventSinkNS, Pulse, RoutingOpts) ->
+-spec api_automaton_options(namespaces(), event_sink_ns(), pulse(), scaling_opts()) -> mg_woody_automaton:options().
+api_automaton_options(NSs, EventSinkNS, Pulse, ScalingOpts) ->
     maps:fold(
         fun(NS, ConfigNS, Options) ->
             Options#{
@@ -182,7 +184,7 @@ api_automaton_options(NSs, EventSinkNS, Pulse, RoutingOpts) ->
                 )
             }
         end,
-        RoutingOpts,
+        ScalingOpts,
         NSs
     ).
 
