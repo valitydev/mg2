@@ -59,7 +59,7 @@ construct_child_specs(
             woody_server => WoodyServer,
             automaton => api_automaton_options(Namespaces, EventSinkNS, #{scaling => Scaling}),
             event_sink => api_event_sink_options(Namespaces, EventSinkNS),
-            pulse => mg_woody_test_pulse
+            pulse => mg_cth_pulse
         }
     ),
 
@@ -200,8 +200,9 @@ event_sink_namespace_options(#{storage := Storage} = EventSinkNS) ->
 worker_manager_options(Config) ->
     maps:merge(
         #{
-            registry => mg_core_procreg_gproc,
-            sidecar => mg_woody_test_worker
+            %% Use 'global' process registry
+            registry => mg_core_procreg_global,
+            sidecar => mg_cth_worker
         },
         maps:get(worker, Config, #{})
     ).
@@ -225,7 +226,7 @@ add_bucket_postfix(SubNS, {mg_core_storage_riak, #{bucket := Bucket} = Options})
 
 -spec pulse() -> mg_core_pulse:handler().
 pulse() ->
-    mg_woody_test_pulse.
+    mg_cth_pulse.
 
 -spec modernizer_options(modernizer() | undefined) ->
     #{modernizer => mg_core_events_modernizer:options()}.

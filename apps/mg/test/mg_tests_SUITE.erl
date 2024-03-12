@@ -126,7 +126,7 @@ init_per_group(C) ->
     ),
     Config = mg_config(HandlerInfo, C),
     Apps = mg_cth:start_applications([
-        {brod, mg_cth:kafka_client_config(?BROKERS_ADVERTIZED)},
+        {brod, mg_cth:kafka_client_config(?BROKERS_ADVERTISED)},
         consuela,
         {mg, Config}
     ]),

@@ -63,7 +63,7 @@ services:
       - riakdb
 
   zookeeper:
-    image: docker.io/confluentinc/cp-zookeeper:${ZOOKEEPER_VERSION}
+    image: docker.io/confluentinc/cp-zookeeper:${CONFLUENT_PLATFORM_VERSION}
     healthcheck:
       test: echo ruok | nc 127.0.0.1 2181 || exit -1
       interval: 5s
@@ -74,40 +74,32 @@ services:
       ZOOKEEPER_CLIENT_PORT: 2181
 
   kafka1: &kafka-broker
-    image: docker.io/wurstmeister/kafka:${KAFKA_VERSION}
+    image: docker.io/confluentinc/cp-kafka:${CONFLUENT_PLATFORM_VERSION}
     depends_on:
-      zookeeper:
-        condition: service_healthy
+      - zookeeper
     healthcheck:
-      test: ["CMD", "kafka-topics.sh", "--list", "--zookeeper", "zookeeper:2181"]
+      test: ["CMD", "kafka-topics", "--list", "--zookeeper", "zookeeper:2181"]
       interval: 5s
       timeout: 10s
       retries: 5
     environment:
       KAFKA_BROKER_ID: 1
-      KAFKA_LISTENERS: OUTSIDE://kafka1:9092
-      KAFKA_ADVERTISED_LISTENERS: OUTSIDE://kafka1:9092
-      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: OUTSIDE:PLAINTEXT
-      KAFKA_INTER_BROKER_LISTENER_NAME: OUTSIDE
       KAFKA_ZOOKEEPER_CONNECT: 'zookeeper:2181'
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka1:9092
 
   kafka2:
     <<: *kafka-broker
     environment:
       KAFKA_BROKER_ID: 2
-      KAFKA_LISTENERS: OUTSIDE://kafka2:9092
-      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: OUTSIDE:PLAINTEXT
-      KAFKA_INTER_BROKER_LISTENER_NAME: OUTSIDE
       KAFKA_ZOOKEEPER_CONNECT: 'zookeeper:2181'
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka2:9092
 
   kafka3:
     <<: *kafka-broker
     environment:
       KAFKA_BROKER_ID: 3
-      KAFKA_LISTENERS: OUTSIDE://kafka3:9092
-      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: OUTSIDE:PLAINTEXT
-      KAFKA_INTER_BROKER_LISTENER_NAME: OUTSIDE
       KAFKA_ZOOKEEPER_CONNECT: 'zookeeper:2181'
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka3:9092
 
   consul1: &consul-server
     image: docker.io/consul:${CONSUL_VERSION}

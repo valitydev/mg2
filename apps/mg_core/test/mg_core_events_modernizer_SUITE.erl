@@ -195,7 +195,7 @@ events_machine_options(ProcessorOptions, NS) ->
             namespace => NS,
             storage => mg_cth:build_storage(NS, Storage),
             worker => #{
-                registry => mg_core_procreg_gproc
+                registry => mg_core_procreg_global
             },
             notification => #{
                 namespace => NS,

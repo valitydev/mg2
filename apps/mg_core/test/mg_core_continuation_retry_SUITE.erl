@@ -132,7 +132,7 @@ automaton_options() ->
         namespace => ?MH_NS,
         processor => ?MODULE,
         storage => mg_core_storage_memory,
-        worker => #{registry => mg_core_procreg_gproc},
+        worker => #{registry => mg_core_procreg_global},
         pulse => ?MODULE,
         notification => #{
             namespace => ?MH_NS,
