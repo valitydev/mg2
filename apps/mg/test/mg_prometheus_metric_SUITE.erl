@@ -841,6 +841,7 @@ mg_config() ->
         {namespaces, #{}},
         {event_sink_ns, #{
             storage => mg_core_storage_memory,
+            scaling => global_based,
             registry => mg_core_procreg_gproc
         }},
         {pulse, {mg_pulse, #{}}}

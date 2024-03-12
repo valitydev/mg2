@@ -176,6 +176,7 @@ mg_woody_config(Name, C) ->
                         timers => #{}
                     },
                     retries => #{},
+                    scaling => global_based,
                     event_stash_size => 0
                 },
                 case Name of
@@ -193,6 +194,7 @@ mg_woody_config(Name, C) ->
         },
         event_sink_ns => #{
             storage => mg_core_storage_memory,
+            scaling => global_based,
             default_processing_timeout => 5000
         }
     }.

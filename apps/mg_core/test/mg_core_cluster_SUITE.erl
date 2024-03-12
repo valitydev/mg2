@@ -86,7 +86,7 @@
 -spec init_per_suite(_) -> _.
 init_per_suite(Config) ->
     WorkDir = os:getenv("WORK_DIR"),
-    EbinDir = WorkDir ++ "/_build/default/lib/mg_cth/ebin",
+    EbinDir = WorkDir ++ "/_build/test/lib/mg_cth/ebin",
     ok = start_peer(),
     true = erpc:call(?NEIGHBOUR, code, add_path, [EbinDir]),
     {ok, _Pid} = erpc:call(?NEIGHBOUR, mg_cth_neighbour, start, []),

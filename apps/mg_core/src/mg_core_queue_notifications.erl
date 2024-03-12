@@ -177,7 +177,8 @@ machine_options(#{machine := MachineOptions}) ->
     MachineOptions.
 
 -spec notification_options(options()) -> mg_core_notification:options().
-notification_options(#{notification := NotificationOptions, scaling := Scaling}) ->
+notification_options(#{notification := NotificationOptions, machine := Machine}) ->
+    Scaling = maps:get(scaling, Machine, global_based),
     NotificationOptions#{scaling => Scaling}.
 
 -spec create_task(options(), mg_core_notification:id(), target_time()) -> task().

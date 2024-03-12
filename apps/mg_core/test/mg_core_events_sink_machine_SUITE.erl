@@ -160,7 +160,7 @@ event_sink_ns_options() ->
 -spec event_sink_options() -> mg_core_events_sink_machine:options().
 event_sink_options() ->
     NSOptions = event_sink_ns_options(),
-    (maps:without([scaling], NSOptions))#{
+    NSOptions#{
         name => machine,
         machine_id => ?ES_ID
     }.

@@ -47,6 +47,8 @@ construct_child_specs(
     } = Config
 ) ->
     Quotas = maps:get(quotas, Config, []),
+    ClusterOpts = maps:get(cluster, Config, #{}),
+    Scaling = maps:get(scaling, ClusterOpts, global_based),
 
     QuotasChSpec = quotas_child_specs(Quotas, quota),
     EventSinkChSpec = event_sink_ns_child_spec(EventSinkNS, event_sink),
@@ -55,7 +57,7 @@ construct_child_specs(
         woody_server,
         #{
             woody_server => WoodyServer,
-            automaton => api_automaton_options(Namespaces, EventSinkNS),
+            automaton => api_automaton_options(Namespaces, EventSinkNS, #{scaling => Scaling}),
             event_sink => api_event_sink_options(Namespaces, EventSinkNS),
             pulse => mg_woody_test_pulse
         }
@@ -113,7 +115,8 @@ machine_options(NS, Config) ->
     Options = maps:with(
         [
             retries,
-            timer_processing_timeout
+            timer_processing_timeout,
+            scaling
         ],
         Config
     ),
@@ -134,8 +137,8 @@ machine_options(NS, Config) ->
         suicide_probability => maps:get(suicide_probability, Config, undefined)
     }.
 
--spec api_automaton_options(_, event_sink_ns()) -> mg_woody_automaton:options().
-api_automaton_options(NSs, EventSinkNS) ->
+-spec api_automaton_options(_, event_sink_ns(), _Opts) -> mg_woody_automaton:options().
+api_automaton_options(NSs, EventSinkNS, Opts) ->
     maps:fold(
         fun(NS, ConfigNS, Options) ->
             Options#{
@@ -147,7 +150,7 @@ api_automaton_options(NSs, EventSinkNS) ->
                 )
             }
         end,
-        #{},
+        Opts,
         NSs
     ).
 

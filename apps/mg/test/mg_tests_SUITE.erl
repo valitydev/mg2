@@ -249,7 +249,6 @@ mg_config(#{endpoint := {IP, Port}}, C) ->
                 event_sinks => [
                     {mg_core_events_sink_machine, #{
                         name => machine,
-                        scaling => global_based,
                         machine_id => ?ES_ID
                     }},
                     {mg_core_events_sink_kafka, #{
@@ -262,6 +261,7 @@ mg_config(#{endpoint := {IP, Port}}, C) ->
         }},
         {event_sink_ns, #{
             storage => mg_core_storage_memory,
+            scaling => global_based,
             default_processing_timeout => 5000
         }},
         {pulse, {mg_pulse, #{}}}
