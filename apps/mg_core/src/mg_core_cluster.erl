@@ -332,7 +332,7 @@ maybe_connect_fail_test() ->
             <<"sname">> => <<"test_node">>
         },
         known_nodes => ['test_node@127.0.0.1', 'peer@127.0.0.1'],
-        local_table => #{0 => 'test_node@127.0.0.1'},
+        local_table => #{0 => 'nonode@nohost'},
         partitioning => #{capacity => 3, max_hash => 4095},
         reconnect_timeout => 5000,
         scaling => partition_based
