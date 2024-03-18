@@ -113,11 +113,13 @@ mg_woody_config(_C) ->
                 event_sinks => [
                     {mg_core_events_sink_machine, #{name => default, machine_id => ?ES_ID}}
                 ],
+                scaling => global_based,
                 event_stash_size => 10
             }
         },
         event_sink_ns => #{
             storage => mg_core_storage_memory,
+            scaling => global_based,
             default_processing_timeout => 5000
         }
     }.

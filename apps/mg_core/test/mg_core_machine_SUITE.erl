@@ -250,7 +250,8 @@ automaton_options(C) ->
             timers => Scheduler,
             timers_retries => Scheduler,
             overseer => Scheduler
-        }
+        },
+        scaling => global_based
     }.
 
 -spec handle_beat(_, mg_core_pulse:beat()) -> ok.

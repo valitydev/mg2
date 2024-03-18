@@ -179,7 +179,8 @@ automaton_options(NS, StorageName) ->
         pulse => ?MODULE,
         schedulers => #{
             overseer => Scheduler
-        }
+        },
+        scaling => global_based
     }.
 
 -spec handle_beat(_, mg_core_pulse:beat()) -> ok.

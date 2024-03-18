@@ -2,6 +2,8 @@ services:
 
   testrunner:
     image: $DEV_IMAGE_TAG
+    environment:
+      WORK_DIR: $PWD
     build:
       dockerfile: Dockerfile.dev
       context: .
@@ -10,7 +12,7 @@ services:
         THRIFT_VERSION: $THRIFT_VERSION
     volumes:
       - .:$PWD
-    hostname: $SERVICE_NAME
+    hostname: ${SERVICE_NAME}-0
     cap_add:
       - NET_ADMIN
     working_dir: $PWD

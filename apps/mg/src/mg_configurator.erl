@@ -42,6 +42,8 @@
 
 -type pulse() :: mg_core_pulse:handler().
 
+-type scaling_opts() :: #{scaling := mg_core_cluster:scaling_type()}.
+
 -spec construct_child_specs(config()) -> [supervisor:child_spec()].
 construct_child_specs(
     #{
@@ -54,6 +56,7 @@ construct_child_specs(
     Quotas = maps:get(quotas, Config, []),
     HealthChecks = maps:get(health_check, Config, #{}),
     ClusterOpts = maps:get(cluster, Config, #{}),
+    Scaling = maps:get(scaling, ClusterOpts, global_based),
 
     QuotasChildSpec = quotas_child_specs(Quotas, quota),
     EventSinkChildSpec = event_sink_ns_child_spec(EventSinkNS, event_sink, Pulse),
@@ -62,7 +65,7 @@ construct_child_specs(
         woody_server,
         #{
             pulse => Pulse,
-            automaton => api_automaton_options(Namespaces, EventSinkNS, Pulse),
+            automaton => api_automaton_options(Namespaces, EventSinkNS, Pulse, #{scaling => Scaling}),
             event_sink => api_event_sink_options(Namespaces, EventSinkNS, Pulse),
             woody_server => WoodyServer,
             additional_routes => [
@@ -72,7 +75,7 @@ construct_child_specs(
             ]
         }
     ),
-    ClusterSpec = mg_core_union:child_spec(ClusterOpts),
+    ClusterSpec = mg_core_cluster:child_spec(ClusterOpts),
 
     lists:flatten([
         QuotasChildSpec,
@@ -146,7 +149,8 @@ machine_options(NS, Config, Pulse) ->
     Options = maps:with(
         [
             retries,
-            timer_processing_timeout
+            timer_processing_timeout,
+            scaling
         ],
         Config
     ),
@@ -167,8 +171,8 @@ machine_options(NS, Config, Pulse) ->
         suicide_probability => maps:get(suicide_probability, Config, undefined)
     }.
 
--spec api_automaton_options(namespaces(), event_sink_ns(), pulse()) -> mg_woody_automaton:options().
-api_automaton_options(NSs, EventSinkNS, Pulse) ->
+-spec api_automaton_options(namespaces(), event_sink_ns(), pulse(), scaling_opts()) -> mg_woody_automaton:options().
+api_automaton_options(NSs, EventSinkNS, Pulse, ScalingOpts) ->
     maps:fold(
         fun(NS, ConfigNS, Options) ->
             Options#{
@@ -180,7 +184,7 @@ api_automaton_options(NSs, EventSinkNS, Pulse) ->
                 )
             }
         end,
-        #{},
+        ScalingOpts,
         NSs
     ).
 

@@ -216,7 +216,8 @@ automaton_options(NS) ->
             timers => Scheduler,
             timers_retries => Scheduler,
             overseer => Scheduler
-        }
+        },
+        scaling => global_based
     }.
 
 -spec automaton_options_wo_shedulers(mg_core:ns()) -> mg_core_machine:options().
@@ -236,7 +237,8 @@ automaton_options_wo_shedulers(NS) ->
         pulse => ?MODULE,
         schedulers => #{
             % none
-        }
+        },
+        scaling => global_based
     }.
 
 -spec handle_beat(_, mg_core_pulse:beat()) -> ok.

@@ -240,6 +240,7 @@ mg_config(#{endpoint := {IP, Port}}, C) ->
                     storage => {exponential, infinity, 1, 10},
                     timers => {exponential, infinity, 1, 10}
                 },
+                scaling => global_based,
                 % сейчас существуют проблемы, которые не дают включить на постоянной основе эту опцию
                 % (а очень хочется, чтобы проверять работоспособность идемпотентных ретраев)
                 % TODO в будущем нужно это сделать
@@ -260,6 +261,7 @@ mg_config(#{endpoint := {IP, Port}}, C) ->
         }},
         {event_sink_ns, #{
             storage => mg_core_storage_memory,
+            scaling => global_based,
             default_processing_timeout => 5000
         }},
         {pulse, {mg_pulse, #{}}}

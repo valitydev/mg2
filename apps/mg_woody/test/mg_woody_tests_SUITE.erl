@@ -329,6 +329,7 @@ mg_woody_config(C) ->
                     storage => {exponential, infinity, 1, 10},
                     timers => {exponential, infinity, 1, 10}
                 },
+                scaling => global_based,
                 % сейчас существуют проблемы, которые не дают включить на постоянной основе эту
                 % опцию (а очень хочется, чтобы проверять работоспособность идемпотентных ретраев)
                 % TODO в будущем нужно это сделать
@@ -349,6 +350,7 @@ mg_woody_config(C) ->
         },
         event_sink_ns => #{
             storage => mg_core_storage_memory,
+            scaling => global_based,
             default_processing_timeout => 5000
         }
     }.
@@ -712,6 +714,7 @@ config_with_multiple_event_sinks(_C) ->
                     overseer => #{}
                 },
                 retries => #{},
+                scaling => global_based,
                 event_sinks => [
                     {mg_core_events_sink_machine, #{name => default, machine_id => <<"SingleES">>}}
                 ]
@@ -728,6 +731,7 @@ config_with_multiple_event_sinks(_C) ->
                     overseer => #{}
                 },
                 retries => #{},
+                scaling => global_based,
                 event_sinks => [
                     {mg_core_events_sink_machine, #{
                         name => machine,
@@ -743,6 +747,7 @@ config_with_multiple_event_sinks(_C) ->
         },
         event_sink_ns => #{
             storage => mg_core_storage_memory,
+            scaling => global_based,
             default_processing_timeout => 5000
         }
     },

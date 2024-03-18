@@ -141,7 +141,8 @@ automaton_options() ->
         },
         retries => #{
             continuation => {intervals, ?TEST_INTERVALS}
-        }
+        },
+        scaling => global_based
     }.
 
 -spec handle_beat(_, mg_core_pulse:beat()) -> ok.

@@ -202,7 +202,8 @@ events_machine_options(ProcessorOptions, NS) ->
                 pulse => ?MODULE,
                 storage => mg_core_storage_memory
             },
-            pulse => Pulse
+            pulse => Pulse,
+            scaling => global_based
         },
         events_storage => mg_cth:build_storage(<<NS/binary, "_events">>, Storage)
     }.

@@ -51,7 +51,8 @@
     worker := mg_core_workers_manager:ns_options(),
     pulse := mg_core_pulse:handler(),
     events_storage := mg_core_storage:options(),
-    default_processing_timeout := timeout()
+    default_processing_timeout := timeout(),
+    scaling => mg_core_cluster:scaling_type()
 }.
 -type ns_options() :: #{
     namespace := mg_core:ns(),
@@ -59,7 +60,8 @@
     worker := mg_core_workers_manager:ns_options(),
     pulse := mg_core_pulse:handler(),
     events_storage := storage_options(),
-    default_processing_timeout := timeout()
+    default_processing_timeout := timeout(),
+    scaling := mg_core_cluster:scaling_type()
 }.
 % like mg_core_storage:options() except `name`
 -type storage_options() :: mg_core_utils:mod_opts(map()).
@@ -222,7 +224,7 @@ new_state() ->
 -spec machine_options(ns_options()) -> mg_core_machine:options().
 machine_options(
     Options = #{
-        namespace := Namespace, storage := Storage, worker := Worker, pulse := Pulse
+        namespace := Namespace, storage := Storage, worker := Worker, pulse := Pulse, scaling := Scaling
     }
 ) ->
     #{
@@ -230,7 +232,8 @@ machine_options(
         processor => {?MODULE, Options},
         storage => Storage,
         worker => Worker,
-        pulse => Pulse
+        pulse => Pulse,
+        scaling => Scaling
     }.
 
 -spec events_storage_options(ns_options()) -> mg_core_storage:options().
