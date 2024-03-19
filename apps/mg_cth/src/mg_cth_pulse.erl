@@ -28,5 +28,6 @@
 %%
 
 -spec handle_beat(_, term()) -> ok.
-handle_beat(_, Beat) ->
+handle_beat(Options, Beat) ->
+    ok = mg_pulse_otel:handle_beat(Options, Beat),
     ct:pal("~p", [Beat]).

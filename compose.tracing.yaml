@@ -1,5 +1,12 @@
 services:
+
   testrunner:
+    environment:
+      OTEL_TRACES_EXPORTER: otlp
+      OTEL_EXPORTER_OTLP_PROTOCOL: http_protobuf
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://jaeger:4318
+      OTEL_SERVICE_NAME: mg_testrunner
+      OTEL_TRACES_SAMPLER: parentbased_always_on
     depends_on:
       jaeger:
         condition: service_healthy
