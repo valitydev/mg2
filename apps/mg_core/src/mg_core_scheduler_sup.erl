@@ -66,7 +66,7 @@ start_link(SchedulerID, Options) ->
         [task_handler, pulse],
         Options
     ),
-    mg_core_utils_supervisor_wrapper:start_link(
+    genlib_adhoc_supervisor:start_link(
         #{strategy => one_for_all},
         mg_core_utils:lists_compact([
             mg_core_queue_scanner:child_spec(SchedulerID, ScannerOptions, queue),

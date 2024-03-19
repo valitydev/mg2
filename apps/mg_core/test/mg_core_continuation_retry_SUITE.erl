@@ -51,7 +51,7 @@ all() ->
 -spec init_per_suite(config()) -> config().
 init_per_suite(C) ->
     % dbg:tracer(), dbg:p(all, c),
-    % dbg:tpl({mg_core_events_sink_machine, '_', '_'}, x),
+    % dbg:tpl({mg_core_events_machine, '_', '_'}, x),
     Apps = mg_cth:start_applications([mg_core]),
     [{apps, Apps} | C].
 

@@ -147,7 +147,7 @@
 
 -spec start_link(options()) -> mg_core_utils:gen_start_ret().
 start_link(Options) ->
-    mg_core_utils_supervisor_wrapper:start_link(
+    genlib_adhoc_supervisor:start_link(
         #{strategy => rest_for_one},
         mg_core_utils:lists_compact([
             mg_core_utils:apply_mod_opts_if_defined(Options, child_spec, undefined, [storage]),

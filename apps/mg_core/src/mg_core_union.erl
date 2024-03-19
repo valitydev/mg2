@@ -78,7 +78,6 @@ set_state(NewState) ->
 cluster_size() ->
     case whereis(?MODULE) of
         undefined ->
-            %% for backward compatibility with consul
             ReplicaCount = os:getenv("REPLICA_COUNT", "1"),
             erlang:list_to_integer(ReplicaCount);
         Pid when is_pid(Pid) ->

@@ -43,14 +43,14 @@
 %% Types
 %% FIXME: some of these are listed as optional (=>)
 %%        whereas later in the code they are rigidly matched on (:=)
-%%        fixed for name and pulse
+%%        fixed for name and pulse, registry and worker_options
 -type options() :: #{
     name := name(),
     pulse := mg_core_pulse:handler(),
-    registry => mg_core_procreg:options(),
+    registry := mg_core_procreg:options(),
     message_queue_len_limit => queue_limit(),
     % all but `registry`
-    worker_options => mg_core_worker:options(),
+    worker_options := mg_core_worker:options(),
     sidecar => mg_core_utils:mod_opts()
 }.
 -type queue_limit() :: non_neg_integer().
@@ -89,7 +89,7 @@ child_spec(Options, ChildID) ->
 
 -spec start_link(options()) -> mg_core_utils:gen_start_ret().
 start_link(Options) ->
-    mg_core_utils_supervisor_wrapper:start_link(
+    genlib_adhoc_supervisor:start_link(
         #{strategy => rest_for_one},
         mg_core_utils:lists_compact([
             manager_child_spec(Options),
@@ -106,7 +106,7 @@ manager_child_spec(Options) ->
     ],
     #{
         id => manager,
-        start => {mg_core_utils_supervisor_wrapper, start_link, Args},
+        start => {genlib_adhoc_supervisor, start_link, Args},
         type => supervisor
     }.
 

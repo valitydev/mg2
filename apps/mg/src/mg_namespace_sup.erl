@@ -36,7 +36,7 @@ child_spec(Namespaces, ChildID) ->
 
 -spec start_link(namespaces(), _ChildID) -> mg_core_utils:gen_start_ret().
 start_link(Namespaces, ChildID) ->
-    {ok, SupPid} = mg_core_utils_supervisor_wrapper:start_link(
+    {ok, SupPid} = genlib_adhoc_supervisor:start_link(
         #{strategy => simple_one_for_one},
         [
             #{

@@ -49,7 +49,6 @@
 all() ->
     [
         {group, with_gproc},
-        {group, with_consuela},
         {group, with_global}
     ].
 
@@ -57,7 +56,6 @@ all() ->
 groups() ->
     [
         {with_gproc, [], [{group, base}]},
-        {with_consuela, [], [{group, base}]},
         {with_global, [], [{group, base}]},
         {base, [], [
             simple_test
@@ -71,7 +69,7 @@ groups() ->
 init_per_suite(C) ->
     % dbg:tracer(), dbg:p(all, c),
     % dbg:tpl({mg_core_machine, '_', '_'}, x),
-    Apps = mg_cth:start_applications([consuela, mg_core]),
+    Apps = mg_cth:start_applications([mg_core]),
     [{apps, Apps} | C].
 
 -spec end_per_suite(config()) -> ok.
@@ -81,8 +79,6 @@ end_per_suite(C) ->
 -spec init_per_group(group_name(), config()) -> config().
 init_per_group(with_gproc, C) ->
     [{registry, mg_core_procreg_gproc} | C];
-init_per_group(with_consuela, C) ->
-    [{registry, {mg_core_procreg_consuela, #{pulse => ?MODULE}}} | C];
 init_per_group(with_global, C) ->
     [{registry, mg_core_procreg_global} | C];
 init_per_group(base, C) ->

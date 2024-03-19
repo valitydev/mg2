@@ -23,7 +23,7 @@ start(_StartType, _StartArgs) ->
     Config = maps:from_list(genlib_app:env(?MODULE)),
     ok = setup_metrics(),
     ChildSpecs = mg_configurator:construct_child_specs(Config),
-    mg_core_utils_supervisor_wrapper:start_link(
+    genlib_adhoc_supervisor:start_link(
         {local, ?MODULE},
         #{strategy => rest_for_one},
         ChildSpecs

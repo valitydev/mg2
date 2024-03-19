@@ -158,14 +158,14 @@
 
 %% FIXME: some of these are listed as optional (=>)
 %%        whereas later in the code they are rigidly matched (:=)
-%%        fixed for namespace and pulse
+%%        fixed for namespace and pulse, worker
 -type options() :: #{
     namespace := mg_core:ns(),
     pulse := mg_core_pulse:handler(),
     storage => storage_options(),
     notification => mg_core_notification:options(),
     processor => mg_core_utils:mod_opts(),
-    worker => mg_core_workers_manager:ns_options(),
+    worker := mg_core_workers_manager:ns_options(),
     retries => retry_opt(),
     schedulers => schedulers_opt(),
     suicide_probability => suicide_probability(),
@@ -270,7 +270,7 @@ start_link(Options = #{namespace := NS}) ->
 
 -spec start_link(options(), _ChildID) -> mg_core_utils:gen_start_ret().
 start_link(Options, ChildID) ->
-    mg_core_utils_supervisor_wrapper:start_link(
+    genlib_adhoc_supervisor:start_link(
         #{strategy => one_for_one},
         [
             machine_sup_child_spec(Options, {ChildID, machine_sup}),
@@ -283,7 +283,7 @@ machine_sup_child_spec(Options, ChildID) ->
     #{
         id => ChildID,
         start =>
-            {mg_core_utils_supervisor_wrapper, start_link, [
+            {genlib_adhoc_supervisor, start_link, [
                 #{strategy => rest_for_one},
                 mg_core_utils:lists_compact([
                     mg_core_storage:child_spec(storage_options(Options), storage),
@@ -301,7 +301,7 @@ scheduler_sup_child_spec(Options, ChildID) ->
     #{
         id => ChildID,
         start =>
-            {mg_core_utils_supervisor_wrapper, start_link, [
+            {genlib_adhoc_supervisor, start_link, [
                 #{
                     strategy => one_for_one,
                     intensity => 10,

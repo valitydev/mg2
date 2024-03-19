@@ -44,10 +44,6 @@
 
 %%
 
--export([handle_beat/2]).
-
-%%
-
 -define(READINESS_RETRY_STRATEGY, genlib_retry:exponential(10, 2, 1000, 10000)).
 
 -type appname() :: atom().
@@ -71,13 +67,6 @@ kafka_client_config(Brokers) ->
     ].
 
 -spec start_application(app()) -> _Deps :: [appname()].
-start_application(consuela) ->
-    genlib_app:start_application_with(consuela, [
-        {registry, #{
-            nodename => "consul0",
-            namespace => <<"mg">>
-        }}
-    ]);
 start_application(brod) ->
     genlib_app:start_application_with(brod, kafka_client_config(?BROKERS));
 start_application({AppName, Env}) ->
@@ -229,17 +218,3 @@ poll_for_exception(Fun, Wanted, MaxTime, TimeAcc) ->
         throw:Wanted ->
             {ok, TimeAcc}
     end.
-
-%%
-
--type category() :: atom().
-
--spec handle_beat
-    (consuela_client:beat(), {client, category()}) -> ok;
-    (consuela_session_keeper:beat(), {keeper, category()}) -> ok;
-    (consuela_zombie_reaper:beat(), {reaper, category()}) -> ok;
-    (consuela_registry_server:beat(), {registry, category()}) -> ok.
-handle_beat(Beat, {Producer, Category}) ->
-    ct:pal(Category, "[~p] ~p", [Producer, Beat]);
-handle_beat(_Beat, _) ->
-    ok.

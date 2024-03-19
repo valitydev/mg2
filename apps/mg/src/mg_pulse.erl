@@ -26,7 +26,6 @@
 %% pulse types
 -type beat() ::
     mg_core_pulse:beat()
-    | mg_core_consuela_pulse_adapter:beat()
     | mg_core_queue_scanner:beat()
     | #woody_event{}
     | #woody_request_handle_error{}.

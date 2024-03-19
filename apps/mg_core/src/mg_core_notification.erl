@@ -41,7 +41,7 @@ child_spec(Options, ChildID) ->
     #{
         id => ChildID,
         start =>
-            {mg_core_utils_supervisor_wrapper, start_link, [
+            {genlib_adhoc_supervisor, start_link, [
                 #{strategy => rest_for_one},
                 mg_core_utils:lists_compact([
                     mg_core_storage:child_spec(storage_options(Options), storage)
