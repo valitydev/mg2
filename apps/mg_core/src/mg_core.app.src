@@ -23,7 +23,6 @@
         stdlib,
         genlib,
         gproc,
-        consuela,
         riakc,
         pooler,
         brod,

@@ -110,15 +110,9 @@ mg_woody_config(_C) ->
                     timers => #{}
                 },
                 retries => #{},
-                event_sinks => [
-                    {mg_core_events_sink_machine, #{name => default, machine_id => ?ES_ID}}
-                ],
+                event_sinks => [],
                 event_stash_size => 10
             }
-        },
-        event_sink_ns => #{
-            storage => mg_core_storage_memory,
-            default_processing_timeout => 5000
         }
     }.
 

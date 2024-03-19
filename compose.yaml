@@ -27,12 +27,6 @@ services:
         condition: service_healthy
       kafka3:
         condition: service_healthy
-      consul0:
-        condition: service_started
-      consul1:
-        condition: service_started
-      consul2:
-        condition: service_started
     ports:
       - "8022"
     command: /sbin/init
@@ -98,22 +92,6 @@ services:
       KAFKA_BROKER_ID: 3
       KAFKA_ZOOKEEPER_CONNECT: 'zookeeper:2181'
       KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka3:9092
-
-  consul1: &consul-server
-    image: docker.io/consul:${CONSUL_VERSION}
-    volumes:
-      - ./test_resources/consul.json:/etc/consul/consul.json
-    hostname: consul1
-    command:
-      agent -server -config-dir=/etc/consul
-
-  consul2:
-    <<: *consul-server
-    hostname: consul2
-
-  consul0:
-    <<: *consul-server
-    hostname: consul0
 
 volumes:
   schemas:
