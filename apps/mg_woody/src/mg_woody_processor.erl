@@ -101,14 +101,10 @@ call_processor(Options, ReqCtx, Deadline, Function, Args) ->
     % TODO сделать нормально!
     {ok, TRef} = timer:kill_after(call_duration_limit(Options, Deadline) + ?KILL_TIMEOUT),
     try
-        WoodyContext = mg_woody_utils:set_deadline(
-            Deadline,
-            request_context_to_woody_context(ReqCtx)
-        ),
         woody_client:call(
             {{mg_proto_state_processing_thrift, 'Processor'}, Function, Args},
             Options,
-            WoodyContext
+            mg_woody_utils:set_deadline(Deadline, request_context_to_woody_context(ReqCtx))
         )
     of
         {ok, _} = Result ->
@@ -126,10 +122,10 @@ call_processor(Options, ReqCtx, Deadline, Function, Args) ->
 
 -spec request_context_to_woody_context(mg_core_events_machine:request_context()) ->
     woody_context:ctx().
-request_context_to_woody_context(null) ->
-    woody_context:new();
-request_context_to_woody_context(ReqCtx) ->
-    mg_woody_utils:opaque_to_woody_context(ReqCtx).
+request_context_to_woody_context(#{<<"woody">> := OpaqueWoodyCtx}) ->
+    mg_woody_utils:opaque_to_woody_context(OpaqueWoodyCtx);
+request_context_to_woody_context(_Other) ->
+    woody_context:new().
 
 -spec call_duration_limit(options(), mg_core_deadline:deadline()) -> timeout().
 call_duration_limit(Options, undefined) ->

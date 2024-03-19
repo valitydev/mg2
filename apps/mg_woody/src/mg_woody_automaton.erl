@@ -62,7 +62,7 @@ handler(Options) ->
 
 handle_function('Start', {NS, IDIn, Args}, WoodyContext, Options) ->
     ID = unpack(id, IDIn),
-    ReqCtx = mg_woody_utils:woody_context_to_opaque(WoodyContext),
+    ReqCtx = to_request_context(otel_ctx:get_current(), WoodyContext),
     Deadline = get_deadline(NS, WoodyContext, Options),
     ok = mg_woody_utils:handle_error(
         #{
@@ -84,7 +84,7 @@ handle_function('Start', {NS, IDIn, Args}, WoodyContext, Options) ->
     ),
     {ok, ok};
 handle_function('Repair', {MachineDesc, Args}, WoodyContext, Options) ->
-    ReqCtx = mg_woody_utils:woody_context_to_opaque(WoodyContext),
+    ReqCtx = to_request_context(otel_ctx:get_current(), WoodyContext),
     {NS, ID, Range} = unpack(machine_descriptor, MachineDesc),
     Deadline = get_deadline(NS, WoodyContext, Options),
     Response =
@@ -110,7 +110,7 @@ handle_function('Repair', {MachineDesc, Args}, WoodyContext, Options) ->
     end;
 handle_function('SimpleRepair', {NS, RefIn}, WoodyContext, Options) ->
     Deadline = get_deadline(NS, WoodyContext, Options),
-    ReqCtx = mg_woody_utils:woody_context_to_opaque(WoodyContext),
+    ReqCtx = to_request_context(otel_ctx:get_current(), WoodyContext),
     ID = unpack(ref, RefIn),
     ok = mg_woody_utils:handle_error(
         #{namespace => NS, machine_id => ID, request_context => ReqCtx, deadline => Deadline},
@@ -126,7 +126,7 @@ handle_function('SimpleRepair', {NS, RefIn}, WoodyContext, Options) ->
     ),
     {ok, ok};
 handle_function('Call', {MachineDesc, Args}, WoodyContext, Options) ->
-    ReqCtx = mg_woody_utils:woody_context_to_opaque(WoodyContext),
+    ReqCtx = to_request_context(otel_ctx:get_current(), WoodyContext),
     {NS, ID, Range} = unpack(machine_descriptor, MachineDesc),
     Deadline = get_deadline(NS, WoodyContext, Options),
     Response =
@@ -146,7 +146,7 @@ handle_function('Call', {MachineDesc, Args}, WoodyContext, Options) ->
         ),
     {ok, pack(call_response, Response)};
 handle_function('GetMachine', {MachineDesc}, WoodyContext, Options) ->
-    ReqCtx = mg_woody_utils:woody_context_to_opaque(WoodyContext),
+    ReqCtx = to_request_context(otel_ctx:get_current(), WoodyContext),
     {NS, ID, Range} = unpack(machine_descriptor, MachineDesc),
     Machine =
         mg_woody_utils:handle_error(
@@ -164,7 +164,7 @@ handle_function('GetMachine', {MachineDesc}, WoodyContext, Options) ->
 handle_function('Remove', {NS, IDIn}, WoodyContext, Options) ->
     ID = unpack(id, IDIn),
     Deadline = get_deadline(NS, WoodyContext, Options),
-    ReqCtx = mg_woody_utils:woody_context_to_opaque(WoodyContext),
+    ReqCtx = to_request_context(otel_ctx:get_current(), WoodyContext),
     ok = mg_woody_utils:handle_error(
         #{namespace => NS, machine_id => ID, request_context => ReqCtx, deadline => Deadline},
         fun() ->
@@ -180,7 +180,7 @@ handle_function('Remove', {NS, IDIn}, WoodyContext, Options) ->
     {ok, ok};
 handle_function('Modernize', {MachineDesc}, WoodyContext, Options) ->
     {NS, ID, Range} = unpack(machine_descriptor, MachineDesc),
-    ReqCtx = mg_woody_utils:woody_context_to_opaque(WoodyContext),
+    ReqCtx = to_request_context(otel_ctx:get_current(), WoodyContext),
     mg_woody_utils:handle_error(
         #{namespace => NS, machine_id => ID, request_context => ReqCtx},
         fun() ->
@@ -203,7 +203,7 @@ handle_function('Modernize', {MachineDesc}, WoodyContext, Options) ->
         pulse(NS, Options)
     );
 handle_function('Notify', {MachineDesc, Args}, WoodyContext, Options) ->
-    ReqCtx = mg_woody_utils:woody_context_to_opaque(WoodyContext),
+    ReqCtx = to_request_context(otel_ctx:get_current(), WoodyContext),
     {NS, ID, Range} = unpack(machine_descriptor, MachineDesc),
     NotificationID =
         mg_woody_utils:handle_error(
@@ -274,3 +274,10 @@ simplify_machine_status({error, Reason, _}) ->
     {failed, exception_to_string(Reason)};
 simplify_machine_status(_) ->
     working.
+
+-spec to_request_context(otel_ctx:t(), woody_context:ctx()) -> mg_core:request_context().
+to_request_context(OtelContext, WoodyContext) ->
+    #{
+        <<"otel">> => mg_core_otel:pack_otel_stub(OtelContext),
+        <<"woody">> => mg_woody_utils:woody_context_to_opaque(WoodyContext)
+    }.

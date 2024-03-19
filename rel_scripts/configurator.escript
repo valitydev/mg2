@@ -267,6 +267,8 @@ health_check(YamlConfig) ->
         ]
     ).
 
+%% TODO Retire this option, rely upon OTEL env variables
+%%      https://empayre.youtrack.cloud/issue/TD-838
 opentelemetry(YamlConfig) ->
     case opentelemetry_conf(YamlConfig) of
         undefined ->
@@ -305,6 +307,8 @@ opentelemetry(YamlConfig) ->
             ]
     end.
 
+%% TODO Retire this option, rely upon OTEL env variables
+%%      https://empayre.youtrack.cloud/issue/TD-838
 opentelemetry_exporter(YamlConfig) ->
     case opentelemetry_conf(YamlConfig) of
         undefined ->

@@ -58,6 +58,8 @@
 %%
 
 -include_lib("mg_core/include/pulse.hrl").
+-include_lib("opentelemetry_api/include/otel_tracer.hrl").
+-include_lib("opentelemetry_api/include/opentelemetry.hrl").
 
 %% API
 -export_type([retry_opt/0]).
@@ -503,14 +505,28 @@ handle_load(ID, Options, ReqCtx) ->
     ),
     load_storage_machine(ReqCtx, State2).
 
--spec handle_call(
-    _Call,
-    mg_core_worker:call_context(),
-    maybe(request_context()),
-    deadline(),
-    state()
-) -> {{reply, _Resp} | noreply, state()}.
-handle_call(Call, CallContext, ReqCtx, Deadline, S = #{storage_machine := StorageMachine}) ->
+-define(SPAN_NAME(Call), <<"internal Machine:", (atom_to_binary(Call))/binary>>).
+-define(SPAN_OPTS, #{kind => ?SPAN_KIND_INTERNAL}).
+
+-spec handle_call(_Call, mg_core_worker:call_context(), maybe(request_context()), deadline(), state()) ->
+    {{reply, _Resp} | noreply, state()}.
+handle_call(Call, CallContext, ReqCtx, Deadline, S) ->
+    %% FIXME Consider adding new pulse beats to wrap 'processing calls' here.
+    ok = attach_otel_ctx(ReqCtx),
+    ?with_span(?SPAN_NAME(call), ?SPAN_OPTS, fun(_SpanCtx) ->
+        do_handle_call(Call, CallContext, ReqCtx, Deadline, S)
+    end).
+
+-define(NOREPLY(State), {noreply, State}).
+-define(REPLY_OK(State), {{reply, ok}, State}).
+-define(REPLY_ERROR(Error, State), begin
+    _ = ?record_exception(error, Error, [], #{}),
+    {{reply, {error, Error}}, State}
+end).
+
+-spec do_handle_call(_Call, mg_core_worker:call_context(), maybe(request_context()), deadline(), state()) ->
+    {{reply, _Resp} | noreply, state()}.
+do_handle_call(Call, CallContext, ReqCtx, Deadline, S = #{storage_machine := StorageMachine}) ->
     PCtx = new_processing_context(CallContext),
 
     % довольно сложное место, тут определяется приоритет реакции на внешние раздражители, нужно
@@ -520,57 +536,94 @@ handle_call(Call, CallContext, ReqCtx, Deadline, S = #{storage_machine := Storag
         {Call, unknown} ->
             {ok, S1} = load_storage_machine(ReqCtx, S),
             handle_call(Call, CallContext, ReqCtx, Deadline, S1);
-        % start
+        %% ====================================================================
+        %% 'start'
         {{start, Args}, nonexistent} ->
-            {noreply, process({init, Args}, PCtx, ReqCtx, Deadline, S)};
+            _ = ?update_name(?SPAN_NAME(start)),
+            ?NOREPLY(process({init, Args}, PCtx, ReqCtx, Deadline, S));
         {_, nonexistent} ->
-            {{reply, {error, {logic, machine_not_found}}}, S};
+            %% NOTE Any other call that is not 'start'
+            ?REPLY_ERROR({logic, machine_not_found}, S);
         {{start, _}, #{status := _}} ->
-            {{reply, {error, {logic, machine_already_exist}}}, S};
-        % fail
+            _ = ?update_name(?SPAN_NAME(start)),
+            ?REPLY_ERROR({logic, machine_already_exist}, S);
+        %% ====================================================================
+        %% 'fail'
+        %% NOTE Explicit fail used only in tests suites?
         {{fail, Exception}, _} ->
-            {{reply, ok}, handle_exception(Exception, ReqCtx, Deadline, S)};
+            _ = ?update_name(?SPAN_NAME(fail)),
+            ?REPLY_OK(handle_exception(Exception, ReqCtx, Deadline, S));
+        %% ====================================================================
         % сюда мы не должны попадать если машина не падала во время обработки запроса
         % (когда мы переходили в стейт processing)
+        %% FIXME Review naming ambiguity: 'ProcessingReqCtx' is a
+        %%       request context, not a processing context!
         {_, #{status := {processing, ProcessingReqCtx}}} ->
             % обработка машин в стейте processing идёт без дедлайна
             % машина должна либо упасть, либо перейти в другое состояние
-            S1 = process(continuation, undefined, ProcessingReqCtx, undefined, S),
+            %% NOTE Use _possibly_ different OTEL context for 'continuation' span
+            OtelCtx = request_context_to_otel_context(ProcessingReqCtx),
+            S1 = otel_tracer:with_span(OtelCtx, ?current_tracer, ?SPAN_NAME(continuation), ?SPAN_OPTS, fun(_) ->
+                process(continuation, undefined, ProcessingReqCtx, undefined, S)
+            end),
             handle_call(Call, CallContext, ReqCtx, Deadline, S1);
         % ничего не просходит, просто убеждаемся, что машина загружена
         {resume_interrupted_one, _} ->
-            {{reply, {ok, ok}}, S};
-        % call
+            ?REPLY_OK(S);
+        %% ====================================================================
+        %% 'call'
         {{call, SubCall}, #{status := sleeping}} ->
-            {noreply, process({call, SubCall}, PCtx, ReqCtx, Deadline, S)};
+            ?NOREPLY(process({call, SubCall}, PCtx, ReqCtx, Deadline, S));
         {{call, SubCall}, #{status := {waiting, _, _, _}}} ->
-            {noreply, process({call, SubCall}, PCtx, ReqCtx, Deadline, S)};
+            ?NOREPLY(process({call, SubCall}, PCtx, ReqCtx, Deadline, S));
         {{call, SubCall}, #{status := {retrying, _, _, _, _}}} ->
-            {noreply, process({call, SubCall}, PCtx, ReqCtx, Deadline, S)};
+            ?NOREPLY(process({call, SubCall}, PCtx, ReqCtx, Deadline, S));
         {{call, _}, #{status := {error, _, _}}} ->
-            {{reply, {error, {logic, machine_failed}}}, S};
-        % repair
+            ?REPLY_ERROR({logic, machine_failed}, S);
+        %% ====================================================================
+        %% 'repair'
         {{repair, Args}, #{status := {error, _, _}}} ->
-            {noreply, process({repair, Args}, PCtx, ReqCtx, Deadline, S)};
+            _ = ?update_name(?SPAN_NAME(repair)),
+            ?NOREPLY(process({repair, Args}, PCtx, ReqCtx, Deadline, S));
         {{repair, _}, #{status := _}} ->
-            {{reply, {error, {logic, machine_already_working}}}, S};
-        % simple_repair
+            _ = ?update_name(?SPAN_NAME(repair)),
+            ?REPLY_ERROR({logic, machine_already_working}, S);
+        %% ====================================================================
+        %% 'simple_repair'
         {simple_repair, #{status := {error, _, _}}} ->
-            {{reply, ok}, process_simple_repair(ReqCtx, Deadline, S)};
+            _ = ?update_name(?SPAN_NAME(simple_repair)),
+            ?REPLY_OK(process_simple_repair(ReqCtx, Deadline, S));
         {simple_repair, #{status := _}} ->
-            {{reply, {error, {logic, machine_already_working}}}, S};
-        % timers
+            _ = ?update_name(?SPAN_NAME(simple_repair)),
+            ?REPLY_ERROR({logic, machine_already_working}, S);
+        %% ====================================================================
+        %% 'timeout' (from timers and retry_timers queues)
         {{timeout, Ts0}, #{status := {waiting, Ts1, InitialReqCtx, _}}} when Ts0 =:= Ts1 ->
-            {noreply, process(timeout, PCtx, InitialReqCtx, Deadline, S)};
+            %% NOTE Use _possibly_ different OTEL context for 'timeout' signal span
+            OtelCtx = request_context_to_otel_context(InitialReqCtx),
+            ?NOREPLY(
+                otel_tracer:with_span(OtelCtx, ?current_tracer, ?SPAN_NAME(timeout), ?SPAN_OPTS, fun(_) ->
+                    process(timeout, PCtx, InitialReqCtx, Deadline, S)
+                end)
+            );
         {{timeout, Ts0}, #{status := {retrying, Ts1, _, _, InitialReqCtx}}} when Ts0 =:= Ts1 ->
-            {noreply, process(timeout, PCtx, InitialReqCtx, Deadline, S)};
+            %% NOTE Use _possibly_ different OTEL context for retry 'timeout' signal span
+            OtelCtx = request_context_to_otel_context(InitialReqCtx),
+            ?NOREPLY(
+                otel_tracer:with_span(OtelCtx, ?current_tracer, ?SPAN_NAME(timeout), ?SPAN_OPTS, fun(_) ->
+                    process(timeout, PCtx, InitialReqCtx, Deadline, S)
+                end)
+            );
         {{timeout, _}, #{status := _}} ->
-            {{reply, {ok, ok}}, S};
-        % notifications
+            ?REPLY_OK(S);
+        %% ====================================================================
+        %% 'notification'
         {{notification, _, _}, #{status := {error, _, _}}} ->
-            {{reply, {error, {logic, machine_failed}}}, S};
+            _ = ?update_name(?SPAN_NAME(notification)),
+            ?REPLY_ERROR({logic, machine_failed}, S);
         {{notification, NotificationID, Args}, #{status := _}} ->
-            {noreply, process_notification(NotificationID, Args, PCtx, ReqCtx, Deadline, S)}
+            _ = ?update_name(?SPAN_NAME(notification)),
+            ?NOREPLY(process_notification(NotificationID, Args, PCtx, ReqCtx, Deadline, S))
     end.
 
 -spec handle_unload(state()) -> ok.
@@ -1480,6 +1533,17 @@ try_suicide(
     end;
 try_suicide(#{}, _) ->
     ok.
+
+-spec attach_otel_ctx(mg_core_events_machine:request_context()) -> ok.
+attach_otel_ctx(ReqCtx) ->
+    mg_core_otel:maybe_attach_otel_ctx(request_context_to_otel_context(ReqCtx)).
+
+-spec request_context_to_otel_context(mg_core_events_machine:request_context()) -> otel_ctx:t().
+request_context_to_otel_context(#{<<"otel">> := OpaqueOtelCtx}) ->
+    OtelCtx0 = otel_ctx:get_current(),
+    mg_core_otel:restore_otel_stub(OtelCtx0, OpaqueOtelCtx);
+request_context_to_otel_context(_Other) ->
+    otel_ctx:get_current().
 
 %%
 %% retrying
