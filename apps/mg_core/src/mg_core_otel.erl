@@ -1,7 +1,6 @@
 -module(mg_core_otel).
 
 -include_lib("opentelemetry_api/include/opentelemetry.hrl").
--include_lib("opentelemetry/src/otel_tracer.hrl").
 
 -export([pack_otel_stub/1]).
 -export([restore_otel_stub/2]).
@@ -27,8 +26,8 @@ pack_otel_stub(Ctx) ->
     case otel_tracer:current_span_ctx(Ctx) of
         undefined ->
             [];
-        #span_ctx{trace_id = TraceID, span_id = SpanID, trace_flags = TraceFlags, is_recording = IsRecording} ->
-            [TraceID, SpanID, TraceFlags, IsRecording]
+        #span_ctx{trace_id = TraceID, span_id = SpanID, trace_flags = TraceFlags} ->
+            [trace_id_to_binary(TraceID), span_id_to_binary(SpanID), TraceFlags]
     end.
 
 %% @doc Restores OTEL context with current span. Restored span context
@@ -46,19 +45,9 @@ pack_otel_stub(Ctx) ->
 %% original machine start call as its parent. Same goes for 'timeouts'
 %% and 'retries' signals.
 -spec restore_otel_stub(otel_ctx:t(), packed_otel_stub()) -> otel_ctx:t().
-restore_otel_stub(Ctx, [TraceID, SpanID, TraceFlags, IsRecording]) ->
-    %% Use default tracer for stubbing
-    {_Mod, #tracer{on_end_processors = OnEndProcessors}} = opentelemetry:get_application_tracer(?MODULE),
-    SpanCtx = #span_ctx{
-        trace_flags = TraceFlags,
-        tracestate = [],
-        is_valid = true,
-        is_recording = IsRecording,
-        trace_id = TraceID,
-        span_id = SpanID,
-        %% Default tracer uses `otel_span_ets'
-        span_sdk = {otel_span_ets, OnEndProcessors}
-    },
+restore_otel_stub(Ctx, [TraceID, SpanID, TraceFlags]) ->
+    SpanCtx = otel_tracer:from_remote_span(binary_to_id(TraceID), binary_to_id(SpanID), TraceFlags),
+    %% NOTE Thus resored span context is considered being not recording and remote.
     otel_tracer:set_current_span(Ctx, SpanCtx);
 restore_otel_stub(Ctx, _Other) ->
     Ctx.
@@ -112,3 +101,19 @@ add_event(Name, Attributes) ->
 record_exception({Class, Reason, Stacktrace}, Attributes) ->
     _ = otel_span:record_exception(otel_tracer:current_span_ctx(), Class, Reason, Stacktrace, Attributes),
     ok.
+
+%%
+
+-spec trace_id_to_binary(opentelemetry:trace_id()) -> binary().
+trace_id_to_binary(TraceID) ->
+    {ok, EncodedTraceID} = otel_utils:format_binary_string("~32.16.0b", [TraceID]),
+    EncodedTraceID.
+
+-spec span_id_to_binary(opentelemetry:span_id()) -> binary().
+span_id_to_binary(SpanID) ->
+    {ok, EncodedSpanID} = otel_utils:format_binary_string("~16.16.0b", [SpanID]),
+    EncodedSpanID.
+
+-spec binary_to_id(binary()) -> non_neg_integer().
+binary_to_id(Opaque) when is_binary(Opaque) ->
+    binary_to_integer(Opaque, 16).

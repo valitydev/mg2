@@ -124,6 +124,9 @@ call_processor(Options, ReqCtx, Deadline, Function, Args) ->
     woody_context:ctx().
 request_context_to_woody_context(#{<<"woody">> := OpaqueWoodyCtx}) ->
     mg_woody_utils:opaque_to_woody_context(OpaqueWoodyCtx);
+%% NOTE Compatibility for older variant of ReqCtx used by previously scheduled machines
+request_context_to_woody_context(OpaqueWoodyCtx) when is_list(OpaqueWoodyCtx) ->
+    mg_woody_utils:opaque_to_woody_context(OpaqueWoodyCtx);
 request_context_to_woody_context(_Other) ->
     woody_context:new().
 
