@@ -16,9 +16,6 @@
 
 -module(mg_cth_pulse).
 
--include_lib("mg_core/include/pulse.hrl").
--include_lib("mg_woody/include/pulse.hrl").
-
 %% mg_pulse handler
 -behaviour(mg_core_pulse).
 -export([handle_beat/2]).
@@ -29,5 +26,6 @@
 
 -spec handle_beat(_, term()) -> ok.
 handle_beat(Options, Beat) ->
-    ok = mg_pulse_otel:handle_beat(Options, Beat),
+    ok = mg_woody_pulse_otel:handle_beat(Options, Beat),
+    ok = mg_core_pulse_otel:handle_beat(Options, Beat),
     ct:pal("~p", [Beat]).

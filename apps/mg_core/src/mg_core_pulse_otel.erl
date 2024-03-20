@@ -1,7 +1,6 @@
--module(mg_pulse_otel).
+-module(mg_core_pulse_otel).
 
 -include_lib("mg_core/include/pulse.hrl").
--include_lib("mg_woody/include/pulse.hrl").
 -include_lib("opentelemetry_api/include/opentelemetry.hrl").
 
 %% mg_pulse handler
@@ -12,23 +11,17 @@
 %% TODO Specify available options if any
 -type options() :: map().
 
+-type beat() ::
+    mg_core_pulse:beat()
+    | mg_core_queue_scanner:beat().
+
 -export_type([options/0]).
 
 %%
 %% mg_pulse handler
 %%
 
--spec handle_beat(options(), mg_pulse:beat()) -> ok.
-
-%%
-%% Woody API beats
-%% ============================================================================
-%%
-handle_beat(Options, #woody_event{event = Event, rpc_id = RpcID, event_meta = Meta}) ->
-    woody_event_handler_otel:handle_event(Event, RpcID, Meta, Options);
-%% Woody server's function handling error beat.
-handle_beat(_Options, #woody_request_handle_error{namespace = NS, machine_id = ID, exception = Exception}) ->
-    mg_core_otel:record_exception(Exception, machine_tags(NS, ID));
+-spec handle_beat(options(), beat()) -> ok.
 %%
 %% Machinegun core beats
 %% ============================================================================
