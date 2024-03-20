@@ -142,7 +142,7 @@ stress_test_start_processes(C, ID) ->
     Pid =
         erlang:spawn_link(
             fun() ->
-                otel_ctx:attach(OtelCtx),
+                _ = otel_ctx:attach(OtelCtx),
                 start_machine(C, ID),
                 create(C, ID)
             end
