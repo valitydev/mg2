@@ -203,8 +203,8 @@
     machine_id :: mg_core:id(),
     exception :: mg_core_utils:exception(),
     request_context :: mg_core:request_context(),
-    retry_strategy :: mg_core_retry:strategy(),
-    retry_action :: {wait, timeout(), mg_core_retry:strategy()} | finish
+    retry_strategy :: genlib_retry:strategy(),
+    retry_action :: {wait, timeout(), genlib_retry:strategy()} | finish
 }).
 
 %% Machine notification

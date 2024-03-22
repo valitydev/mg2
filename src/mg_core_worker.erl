@@ -21,6 +21,8 @@
 %% API
 -export_type([options/0]).
 -export_type([call_context/0]).
+-export_type([call_payload/0]).
+-export_type([req_ctx/0]).
 
 -export([child_spec/2]).
 -export([start_link/4]).
@@ -38,11 +40,11 @@
 %%
 %% API
 %%
--callback handle_load(_ID, _Args, _ReqCtx) -> {ok, _State} | {error, _Error}.
+-callback handle_load(_ID, _Args, req_ctx()) -> {ok, _State} | {error, _Error}.
 
 -callback handle_unload(_State) -> ok.
 
--callback handle_call(_Call, call_context(), _ReqCtx, mg_core_deadline:deadline(), _State) ->
+-callback handle_call(call_payload(), call_context(), req_ctx(), mg_core_deadline:deadline(), _State) ->
     {{reply, _Reply} | noreply, _State}.
 
 -type options() :: #{
@@ -54,8 +56,13 @@
 }.
 % в OTP он не описан, а нужно бы :(
 -type call_context() :: _.
+%% TODO Describe call payload and ctx
+-type call_payload() :: any().
+-type req_ctx() :: any().
 
 %% Internal types
+
+-type call_msg() :: {call, mg_core_deadline:deadline(), call_payload(), req_ctx(), otel_ctx:t()}.
 
 -type pulse() :: mg_core_pulse:handler().
 
@@ -71,7 +78,7 @@ child_spec(ChildID, Options) ->
         shutdown => shutdown_timeout(Options, ?DEFAULT_SHUTDOWN)
     }.
 
--spec start_link(options(), mg_core:ns(), mg_core:id(), _ReqCtx) -> mg_core_utils:gen_start_ret().
+-spec start_link(options(), mg_core:ns(), mg_core:id(), req_ctx()) -> mg_core_utils:gen_start_ret().
 start_link(Options, NS, ID, ReqCtx) ->
     mg_core_procreg:start_link(
         procreg_options(Options),
@@ -85,8 +92,8 @@ start_link(Options, NS, ID, ReqCtx) ->
     options(),
     mg_core:ns(),
     mg_core:id(),
-    _Call,
-    _ReqCtx,
+    call_payload(),
+    req_ctx(),
     mg_core_deadline:deadline(),
     pulse()
 ) -> _Result | {error, _}.
@@ -97,10 +104,11 @@ call(Options, NS, ID, Call, ReqCtx, Deadline, Pulse) ->
         request_context = ReqCtx,
         deadline = Deadline
     }),
+    OtelCtx = otel_ctx:get_current(),
     mg_core_procreg:call(
         procreg_options(Options),
         ?WRAP_ID(NS, ID),
-        {call, Deadline, Call, ReqCtx},
+        {call, Deadline, Call, ReqCtx, OtelCtx},
         mg_core_deadline:to_timeout(Deadline)
     ).
 
@@ -127,8 +135,12 @@ get_call_queue(Options, NS, ID) ->
         mg_core_utils:gen_reg_name_to_pid(self_ref(Options, NS, ID)),
         noproc
     ),
+    [Call || {'$gen_call', _, {call, _Deadline, Call, _ReqCtx, _OtelCtx}} <- get_call_messages(Pid)].
+
+-spec get_call_messages(pid()) -> [{'$gen_call', _From, call_msg()}].
+get_call_messages(Pid) ->
     {messages, Messages} = erlang:process_info(Pid, messages),
-    [Call || {'$gen_call', _, {call, _, Call, _}} <- Messages].
+    Messages.
 
 -spec is_alive(options(), mg_core:ns(), mg_core:id()) -> boolean().
 is_alive(Options, NS, ID) ->
@@ -150,7 +162,7 @@ list(Procreg, NS) ->
     #{
         id => _ID,
         mod => module(),
-        status => {loading, _Args, _ReqCtx} | {working, _State},
+        status => {loading, _Args, req_ctx()} | {working, _State},
         unload_tref => reference() | undefined,
         hibernate_timeout => timeout(),
         unload_timeout => timeout()
@@ -172,16 +184,17 @@ init({ID, Options = #{worker := WorkerModOpts}, ReqCtx}) ->
     },
     {ok, schedule_unload_timer(State)}.
 
--spec handle_call(_Call, mg_core_utils:gen_server_from(), state()) ->
+-spec handle_call(call_msg(), mg_core_utils:gen_server_from(), state()) ->
     mg_core_utils:gen_server_handle_call_ret(state()).
 
 % загрузка делается отдельно и лениво, чтобы не блокировать этим супервизор,
 % т.к. у него легко может начать расти очередь
 handle_call(
-    Call = {call, _, _, _},
+    Call = {call, _, _, _, OtelCtx},
     From,
     State = #{id := ID, mod := Mod, status := {loading, Args, ReqCtx}}
 ) ->
+    _ = otel_ctx:attach(OtelCtx),
     case Mod:handle_load(ID, Args, ReqCtx) of
         {ok, ModState} ->
             handle_call(Call, From, State#{status := {working, ModState}});
@@ -189,10 +202,11 @@ handle_call(
             {stop, normal, Error, State}
     end;
 handle_call(
-    {call, Deadline, Call, ReqCtx},
+    {call, Deadline, Call, ReqCtx, OtelCtx},
     From,
     State = #{mod := Mod, status := {working, ModState}}
 ) ->
+    _ = otel_ctx:attach(OtelCtx),
     case mg_core_deadline:is_reached(Deadline) of
         false ->
             {ReplyAction, NewModState} = Mod:handle_call(Call, From, ReqCtx, Deadline, ModState),

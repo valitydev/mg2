@@ -29,7 +29,8 @@
         cqerl,
         brod,
         msgpack,
-        snowflake
+        snowflake,
+        opentelemetry_api
     ]},
     {env, []},
     {modules, []},

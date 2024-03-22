@@ -135,7 +135,7 @@
     events_storage => storage_options(),
     processor => mg_core_utils:mod_opts(),
     machines => mg_core_machine:options(),
-    retries => #{_Subject => mg_core_retry:policy()},
+    retries => #{_Subject => genlib_retry:policy()},
     pulse => mg_core_pulse:handler(),
     event_sinks => [mg_core_events_sink:handler()],
     default_processing_timeout => timeout(),
@@ -926,11 +926,11 @@ opaque_to_notification_args([1, Args, HRangeOpaque]) ->
 
 %%
 
--spec get_retry_strategy(options(), _Subject :: storage, deadline()) -> mg_core_retry:strategy().
+-spec get_retry_strategy(options(), _Subject :: storage, deadline()) -> genlib_retry:strategy().
 get_retry_strategy(Options, Subject, Deadline) ->
     Retries = maps:get(retries, Options, #{}),
     Policy = maps:get(Subject, Retries, ?DEFAULT_RETRY_POLICY),
-    mg_core_retry:constrain(mg_core_retry:new_strategy(Policy), Deadline).
+    mg_core_retry:constrain(genlib_retry:new_strategy(Policy), Deadline).
 
 %%
 

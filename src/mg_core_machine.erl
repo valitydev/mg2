@@ -143,7 +143,7 @@
     }.
 -type retry_subj() :: storage | processor | timers | continuation.
 -type retry_opt() :: #{
-    retry_subj() => mg_core_retry:policy()
+    retry_subj() => genlib_retry:policy()
 }.
 -type schedulers_opt() :: #{scheduler_type() => scheduler_opt()}.
 % [0, 1]
@@ -210,7 +210,7 @@
 -type processor_result() :: {processor_reply_action(), processor_flow_action(), machine_state()}.
 -type request_context() :: mg_core:request_context().
 
--type processor_retry() :: mg_core_retry:strategy() | undefined.
+-type processor_retry() :: genlib_retry:strategy() | undefined.
 
 -type deadline() :: mg_core_deadline:deadline().
 -type maybe(T) :: T | undefined.
@@ -740,7 +740,7 @@ process_with_retry(Impact, ProcessingCtx, ReqCtx, Deadline, State, RetryStrategy
     end.
 
 -spec process_retry_next_step(processor_retry()) ->
-    {wait, timeout(), mg_core_retry:strategy()} | finish | ignore.
+    {wait, timeout(), genlib_retry:strategy()} | finish | ignore.
 process_retry_next_step(undefined) ->
     ignore;
 process_retry_next_step(RetryStrategy) ->
@@ -1089,11 +1089,11 @@ remove_from_storage(ReqCtx, Deadline, State) ->
     }),
     State#{storage_machine := nonexistent, storage_context := undefined}.
 
--spec retry_strategy(retry_subj(), options(), deadline()) -> mg_core_retry:strategy().
+-spec retry_strategy(retry_subj(), options(), deadline()) -> genlib_retry:strategy().
 retry_strategy(Subj, Options, Deadline) ->
     retry_strategy(Subj, Options, Deadline, undefined, undefined).
 
--spec retry_strategy(Subj, Options, Deadline, InitialTs, Attempt) -> mg_core_retry:strategy() when
+-spec retry_strategy(Subj, Options, Deadline, InitialTs, Attempt) -> genlib_retry:strategy() when
     Subj :: retry_subj(),
     Options :: options(),
     Deadline :: deadline(),
@@ -1102,7 +1102,7 @@ retry_strategy(Subj, Options, Deadline) ->
 retry_strategy(Subj, Options, Deadline, InitialTs, Attempt) ->
     Retries = maps:get(retries, Options, #{}),
     Policy = maps:get(Subj, Retries, ?DEFAULT_RETRY_POLICY),
-    Strategy = mg_core_retry:new_strategy(Policy, InitialTs, Attempt),
+    Strategy = genlib_retry:new_strategy(Policy, InitialTs, Attempt),
     mg_core_retry:constrain(Strategy, Deadline).
 
 -spec emit_pre_process_beats(processor_impact(), request_context(), deadline(), state()) -> ok.
@@ -1365,7 +1365,7 @@ try_suicide(#{}, _) ->
     options(),
     mg_core:id(),
     fun(() -> R),
-    mg_core_retry:strategy(),
+    genlib_retry:strategy(),
     request_context(),
     atom()
 ) -> R.

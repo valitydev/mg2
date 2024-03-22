@@ -274,7 +274,7 @@ stop_automaton(Pid) ->
     ok = proc_lib:stop(Pid, normal, 5000),
     ok.
 
--spec automaton_options(mg_core:ns(), mg_core_machine_storage:options(), mg_core_retry:policy()) ->
+-spec automaton_options(mg_core:ns(), mg_core_machine_storage:options(), genlib_retry:policy()) ->
     mg_core_machine:options().
 automaton_options(NS, Storage, RetryPolicy) ->
     Scheduler = #{

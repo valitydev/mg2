@@ -326,8 +326,15 @@ stress_test_do_test_call(Options, WorkersCount, RetrySt) ->
     % проверим, что отвечают действительно на наш запрос
     Call = {hello, erlang:make_ref()},
     case mg_core_workers_manager:call(Options, ID, Call, ?REQ_CTX, mg_core_deadline:default()) of
-        Call -> ok;
-        {error, Reason} -> maybe_retry(Reason, RetrySt)
+        Call ->
+            %% NOTE If stressed machine exists and has unempty queue then all
+            %%      those messages must match expected pattern
+            case mg_core_workers_manager:get_call_queue(Options, ID) of
+                [] -> ok;
+                Queue -> lists:foreach(fun(Msg) -> ?assertMatch({hello, _Ref}, Msg) end, Queue)
+            end;
+        {error, Reason} ->
+            maybe_retry(Reason, RetrySt)
     end.
 
 -spec manager_contention_test(config()) -> _.

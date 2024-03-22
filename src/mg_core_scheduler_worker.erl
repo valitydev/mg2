@@ -21,17 +21,18 @@
 -export([child_spec/3]).
 -export([start_link/2]).
 
--export([start_task/2]).
+-export([start_task/3]).
 
 %% Internal API
--export([do_start_task/3]).
--export([execute/3]).
+-export([do_start_task/4]).
+-export([execute/4]).
 
 -callback execute_task(Options :: any(), task()) -> ok.
 
 %% Internal types
 -type scheduler_id() :: mg_core_scheduler:id().
 -type task() :: mg_core_queue_task:task().
+-type maybe_span() :: opentelemetry:span_ctx() | undefined.
 
 -type options() :: #{
     task_handler := mg_core_utils:mod_opts(),
@@ -67,9 +68,9 @@ start_link(SchedulerID, Options) ->
         ]
     ).
 
--spec start_task(scheduler_id(), task()) -> {ok, pid(), monitor()} | {error, _}.
-start_task(SchedulerID, Task) ->
-    case supervisor:start_child(self_ref(SchedulerID), [Task]) of
+-spec start_task(scheduler_id(), task(), maybe_span()) -> {ok, pid(), monitor()} | {error, _}.
+start_task(SchedulerID, Task, SpanCtx) ->
+    case supervisor:start_child(self_ref(SchedulerID), [Task, SpanCtx]) of
         {ok, Pid} ->
             Monitor = erlang:monitor(process, Pid),
             {ok, Pid, Monitor};
@@ -77,12 +78,13 @@ start_task(SchedulerID, Task) ->
             Error
     end.
 
--spec do_start_task(scheduler_id(), options(), task()) -> mg_core_utils:gen_start_ret().
-do_start_task(SchedulerID, Options, Task) ->
-    proc_lib:start_link(?MODULE, execute, [SchedulerID, Options, Task]).
+-spec do_start_task(scheduler_id(), options(), task(), maybe_span()) -> mg_core_utils:gen_start_ret().
+do_start_task(SchedulerID, Options, Task, SpanCtx) ->
+    proc_lib:start_link(?MODULE, execute, [SchedulerID, Options, Task, SpanCtx]).
 
--spec execute(scheduler_id(), options(), task()) -> ok.
-execute(SchedulerID, #{task_handler := Handler} = Options, Task) ->
+-spec execute(scheduler_id(), options(), task(), maybe_span()) -> ok.
+execute(SchedulerID, #{task_handler := Handler} = Options, Task, SpanCtx) ->
+    _ = otel_tracer:set_current_span(SpanCtx),
     ok = proc_lib:init_ack({ok, self()}),
     Start = erlang:monotonic_time(),
     ok = emit_start_beat(Task, SchedulerID, Options),
