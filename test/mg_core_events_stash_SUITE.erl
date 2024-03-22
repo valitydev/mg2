@@ -45,7 +45,7 @@
 
 %% Common test handlers
 
--spec all() -> [test_name()].
+-spec all() -> [test_name() | {group, group_name()}].
 all() ->
     [
         {group, storage_memory},
@@ -76,7 +76,7 @@ end_per_suite(C) ->
 
 -spec init_per_group(group_name(), config()) -> config().
 init_per_group(storage_memory, C) ->
-    {ok, StoragePid} = mg_core_storage_memory:start(#{name => ?MODULE}),
+    {ok, StoragePid} = mg_core_storage_memory:start(#{name => ?MODULE, pulse => ?MODULE}),
     KVSOptions = {mg_core_storage_memory, #{existing_storage_name => ?MODULE}},
     MachineStorage = {mg_core_machine_storage_kvs, #{kvs => KVSOptions}},
     EventsStorage = {mg_core_events_storage_kvs, #{kvs => KVSOptions}},
@@ -205,11 +205,7 @@ events_machine_options(Options, C) ->
             worker => #{
                 registry => mg_core_procreg_gproc
             },
-            notification => #{
-                namespace => ?NS,
-                pulse => ?MODULE,
-                storage => {mg_core_machine_storage_kvs, #{kvs => mg_core_storage_memory}}
-            },
+            notification => mg_core_ct_helper:notification_storage_options(?NS, ?MODULE),
             pulse => ?MODULE,
             schedulers => #{
                 timers => Scheduler,

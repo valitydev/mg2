@@ -197,11 +197,7 @@ events_machine_options(ProcessorOptions, NS) ->
             worker => #{
                 registry => mg_core_procreg_gproc
             },
-            notification => #{
-                namespace => NS,
-                pulse => ?MODULE,
-                storage => mg_core_storage_memory
-            },
+            notification => mg_core_ct_helper:notification_storage_options(NS, ?MODULE),
             pulse => Pulse
         },
         events_storage => mg_core_ct_helper:build_storage(<<NS/binary, "_events">>, Storage)

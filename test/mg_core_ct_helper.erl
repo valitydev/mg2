@@ -28,6 +28,7 @@
 -export([assert_wait_expected/3]).
 
 -export([build_storage/2]).
+-export([notification_storage_options/2]).
 -export([bootstrap_machine_storage/3]).
 -export([bootstrap_events_storage/2]).
 
@@ -106,10 +107,22 @@ build_storage(NS, Module) when is_atom(Module) ->
 build_storage(NS, {Module, Options}) ->
     {Module, Options#{name => erlang:binary_to_atom(NS, utf8)}}.
 
+-spec notification_storage_options(binary(), mg_core_pulse:handler()) -> mg_core_notification_storage:options().
+notification_storage_options(NS, Pulse) ->
+    %% FIXME Always in-memory KVS?
+    {mg_core_notification_storage_kvs, #{
+        name => {NS, mg_core_machine, notification},
+        pulse => Pulse,
+        kvs => mg_core_storage_memory
+    }}.
+
 -spec bootstrap_machine_storage(cql | memory, mg_core:ns(), module()) ->
     mg_core_machine_storage:options().
 bootstrap_machine_storage(cql, NS, Processor) ->
     Options = build_machine_storage_cql_options(Processor, #{
+        %% TODO Fix missing option params
+        name => undefined,
+        pulse => undefined,
         node => {"scylla0", 9042},
         keyspace => mg
     }),
@@ -133,6 +146,9 @@ build_machine_storage_cql_options(Processor, Options) ->
     mg_core_events_storage:options().
 bootstrap_events_storage(cql, NS) ->
     Options = #{
+        %% TODO Fix missing option params
+        name => undefined,
+        pulse => undefined,
         node => {"scylla0", 9042},
         keyspace => mg
     },
