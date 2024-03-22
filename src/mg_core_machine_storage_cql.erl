@@ -91,7 +91,7 @@
 -type search_status_result() :: mg_core_machine_storage:search_status_result().
 -type search_target_result() :: mg_core_machine_storage:search_target_result().
 -type search_limit() :: mg_core_machine_storage:search_limit().
--type continuation() :: #cql_result{}.
+-type continuation() :: mg_core_storage_cql:cql_result().
 
 %% TODO LWW timestamp?
 -type context() :: [].
@@ -134,7 +134,7 @@ get(Options, NS, ID) ->
         end
     end).
 
--spec mk_get_query(options(), ns(), id()) -> #cql_query{}.
+-spec mk_get_query(options(), ns(), id()) -> mg_core_storage_cql:cql_query().
 mk_get_query(Options, NS, ID) ->
     % TODO
     % This is a bit wasteful, maybe we can somehow prepare statements beforehand
@@ -158,7 +158,7 @@ update(Options, NS, ID, Machine, MachinePrev, _Context) ->
     Query = mk_update_query(Options, NS, ID, Machine, genlib:define(MachinePrev, #{})),
     mg_core_storage_cql:execute_query(Options, Query, fun(void) -> [] end).
 
--spec mk_update_query(options(), ns(), id(), machine(), machine()) -> #cql_query{}.
+-spec mk_update_query(options(), ns(), id(), machine(), machine()) -> mg_core_storage_cql:cql_query().
 mk_update_query(Options, NS, ID, Machine, MachinePrev) ->
     % TODO
     % This is harder to memoize: set of affected columns is non-constant. This
@@ -185,7 +185,7 @@ remove(Options, NS, ID, _Context) ->
     Query = mk_remove_query(Options, NS, ID),
     mg_core_storage_cql:execute_query(Options, Query, fun(void) -> ok end).
 
--spec mk_remove_query(options(), ns(), id()) -> #cql_query{}.
+-spec mk_remove_query(options(), ns(), id()) -> mg_core_storage_cql:cql_query().
 mk_remove_query(Options, NS, ID) ->
     mg_core_storage_cql:mk_query(
         Options,
@@ -205,7 +205,7 @@ search(Options, NS, Search, Limit, undefined) ->
 search(_Options, _NS, _Search, _Limit, Continuation) ->
     mg_core_storage_cql:execute_continuation(Continuation, fun mk_search_page/1).
 
--spec mk_search_query(options(), ns(), Status :: atom(), search_limit()) -> search_status_query().
+-spec mk_search_query(options(), ns(), Status :: atom(), search_limit()) -> mg_core_storage_cql:cql_query().
 mk_search_query(Options, NS, Status, Limit) when is_atom(Status) ->
     Query = mg_core_storage_cql:mk_query(
         Options,
@@ -236,7 +236,8 @@ mk_search_query(Options, NS, {Status, From, To}, Limit) ->
     ),
     Query#cql_query{page_size = Limit}.
 
--spec mk_search_page(#cql_result{}) -> search_target_result().
+-spec mk_search_page(mg_core_storage_cql:cql_result()) ->
+    mg_core_machine_storage:search_page(search_target_result() | search_status_query()).
 mk_search_page(Result) ->
     Page = accumulate_page(Result, []),
     case cqerl:has_more_pages(Result) of
@@ -244,9 +245,7 @@ mk_search_page(Result) ->
         false -> {Page, undefined}
     end.
 
--spec accumulate_page
-    (#cql_result{}, [search_target_result()]) -> [search_target_result()];
-    (#cql_result{}, [search_status_result()]) -> [search_status_result()].
+-spec accumulate_page(mg_core_storage_cql:cql_result(), [Result]) -> [Result].
 accumulate_page(Result, Acc) ->
     case cqerl:head(Result) of
         [{target, TS}, {id, ID}] ->
@@ -385,7 +384,7 @@ write_changes(Details, Status, StatusPrev, Query) ->
         Details
     ).
 
--spec write_changed(atom(), T, T, query_update()) -> query_update().
+-spec write_changed(atom(), _Value, _OldValue, query_update()) -> query_update().
 write_changed(_Detail, V, V, Query) ->
     Query;
 write_changed(Detail, V, _, Query) ->
@@ -410,7 +409,7 @@ write_status_class(processing) -> ?STATUS_PROCESSING;
 write_status_class(error) -> ?STATUS_FAILED;
 write_status_class(retrying) -> ?STATUS_RETRYING.
 
--spec get_status_detail(_Key :: atom(), _Status) -> atom().
+-spec get_status_detail(_Key :: atom(), _Status) -> _Detail.
 get_status_detail(class, sleeping) -> sleeping;
 get_status_detail(class, {waiting, _, _, _}) -> waiting;
 get_status_detail(class, {retrying, _, _, _, _}) -> retrying;

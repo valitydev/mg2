@@ -21,6 +21,8 @@
 -export_type([cql_smallint/0]).
 -export_type([cql_timestamp/0]).
 -export_type([cql_datum/0]).
+-export_type([cql_query/0]).
+-export_type([cql_result/0]).
 
 -type options() :: #{
     % Base
@@ -48,6 +50,7 @@
 -type cql_datum() :: integer() | binary() | cql_blob() | boolean() | list(cql_datum()) | null.
 -type cql_query() :: iodata() | #cql_query{}.
 -type cql_error() :: {_Code :: integer(), _Description :: binary(), _Details}.
+-type cql_result() :: #cql_result{}.
 
 % NOTE
 % This should ensure that reads either see recent writes or fail.
@@ -74,7 +77,7 @@ get_client(#{node := Node, keyspace := Keyspace} = Options) ->
             erlang:throw({transient, {storage_unavailable, Reason}})
     end.
 
--spec mk_query(options(), verb(), iodata(), values()) -> #cql_query{}.
+-spec mk_query(options(), verb(), iodata(), values()) -> cql_query().
 mk_query(Options, Verb, Statement, Values) ->
     #cql_query{
         statement = Statement,
@@ -86,7 +89,7 @@ mk_query(Options, Verb, Statement, Values) ->
         reusable = true
     }.
 
--spec execute_query(options() | client(), cql_query(), fun((#cql_result{}) -> R)) -> R.
+-spec execute_query(options() | client(), cql_query(), fun((cql_result()) -> R)) -> R.
 execute_query(Options = #{}, Query, Then) ->
     execute_query(get_client(Options), Query, Then);
 execute_query(Client, Query, Then) ->
@@ -127,7 +130,7 @@ execute_batch(Options = #{}, Query, Batch) ->
             handle_error(timeout)
     end.
 
--spec execute_continuation(#cql_result{}, fun((#cql_result{}) -> R)) -> R.
+-spec execute_continuation(cql_result(), fun((cql_result()) -> R)) -> R.
 execute_continuation(Continuation, Then) ->
     ct:pal(" > CONTINUATION: ~p", [Continuation]),
     try cqerl_client:fetch_more(Continuation) of

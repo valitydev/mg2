@@ -74,7 +74,7 @@ get_events(Options, NS, MachineID, Range, Acc) ->
             Acc
     end.
 
--spec get_events(options(), machine_ns(), machine_id(), Direction :: integer(), events_range(), Acc :: [event()]) ->
+-spec get_events(options(), machine_ns(), machine_id(), +1 | -1, {events_range(), events_range()}, Acc :: [event()]) ->
     [event()].
 get_events(Options, NS, MachineID, +1, {PageRange, Rest}, Acc) ->
     % Range is forward: accumulate rest of events...
@@ -94,7 +94,7 @@ get_events_page(Options, NS, MachineID, PageRange, Acc) ->
         accumulate_events(Result, Acc)
     end).
 
--spec accumulate_events(#cql_result{}, Acc) -> Acc.
+-spec accumulate_events(mg_core_storage_cql:cql_result(), Acc) -> Acc.
 accumulate_events(Result, Acc) ->
     case cqerl:head(Result) of
         Record when is_list(Record) ->
@@ -121,7 +121,7 @@ read_event_body_metadata(#{body_format_vsn := null}) ->
 read_event_body_metadata(#{body_format_vsn := FV}) ->
     #{format_version => FV}.
 
--spec mk_get_query(options(), machine_ns(), machine_id(), events_range()) -> #cql_query{}.
+-spec mk_get_query(options(), machine_ns(), machine_id(), events_range()) -> mg_core_storage_cql:cql_query().
 mk_get_query(Options, NS, MachineID, Range) ->
     {From, To, Ordering} =
         case mg_core_dirange:bounds(Range) of

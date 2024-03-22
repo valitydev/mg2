@@ -48,7 +48,8 @@ prepare_update_query(_Options, State, StatePrev, Query) ->
         Query
     ).
 
--spec write_changes(fun((_Key, Query) -> Query), _Key, _Value, _OldValue, Query) -> Query when Query :: query_update().
+-spec write_changes(fun((_Key, _Value, _OldValue, Query) -> Query), _Key, _Value, _OldValue, Query) -> Query when
+    Query :: query_update().
 write_changes(Fun, Things, V, VPrev, Query) ->
     lists:foldl(
         fun(Thing, QAcc) ->

@@ -76,7 +76,7 @@ remove(Options, _NS, ID, Context) ->
 search(Options, _NS, Query, Limit, Continuation) ->
     mg_core_storage:search(kvs_options(Options), storage_search_query(Query, Limit, Continuation)).
 
--spec kvs_options(options()) -> mg_core_utils:mod_opts(mg_core_storage:options()).
+-spec kvs_options(options()) -> mg_core_storage:options().
 kvs_options(#{name := Name, pulse := Handler, kvs := KVSOptions}) ->
     {Mod, Options} = mg_core_utils:separate_mod_opts(KVSOptions, #{}),
     {Mod, Options#{name => Name, pulse => Handler}}.

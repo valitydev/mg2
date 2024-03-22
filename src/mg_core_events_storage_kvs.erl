@@ -83,7 +83,7 @@ events_to_kvs(MachineID, Events) ->
 kv_to_event(MachineID, Kv) ->
     mg_core_events:kv_to_event(mg_core_events:remove_machine_id(MachineID, Kv)).
 
--spec kvs_options(options()) -> mg_core_utils:mod_opts(mg_core_storage:options()).
+-spec kvs_options(options()) -> mg_core_storage:options().
 kvs_options(#{name := Name, pulse := Handler, kvs := KVSOptions}) ->
     {Mod, Options} = mg_core_utils:separate_mod_opts(KVSOptions, #{}),
     {Mod, Options#{name => Name, pulse => Handler}}.

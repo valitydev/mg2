@@ -14,6 +14,7 @@
 -export_type([data/0]).
 -export_type([context/0]).
 -export_type([options/0]).
+-export_type([search_query/0]).
 
 -type name() :: term().
 -type ns() :: mg_core:ns().
