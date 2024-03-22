@@ -48,6 +48,7 @@ prepare_update_query(_Options, State, StatePrev, Query) ->
         Query
     ).
 
+-spec write_changes(fun((_Key, Query) -> Query), _Key, _Value, _OldValue, Query) -> Query when Query :: query_update().
 write_changes(Fun, Things, V, VPrev, Query) ->
     lists:foldl(
         fun(Thing, QAcc) ->
@@ -63,11 +64,14 @@ write_changes(Fun, Things, V, VPrev, Query) ->
         Things
     ).
 
+-spec write_changed(fun((_Key, _Value, _OldValue, Query) -> Query), _Key, _Value, _OldValue, Query) -> Query when
+    Query :: query_update().
 write_changed(_, _, V, VPrev, Query) when V =:= VPrev ->
     Query;
 write_changed(Fun, Thing, V, VPrev, Query) ->
     Fun(Thing, V, VPrev, Query).
 
+-spec write_state(_Key, _Value, _OldValue, Query) -> Query when Query :: query_update().
 write_state(events, [], _, Query) ->
     Query;
 write_state(events, ES, _, Query) ->
@@ -115,6 +119,8 @@ write_delayed_actions(undefined, _, Query) ->
         delayed_remove => null
     }.
 
+-spec write_delayed_action(Column :: atom(), QueryAction :: atom(), _, Query) -> Query when
+    Query :: query_update().
 write_delayed_action(new_events_range, ER, _, Query) ->
     Query#{new_events_range => write_events_range(ER)};
 write_delayed_action(remove, R, _, Query) ->

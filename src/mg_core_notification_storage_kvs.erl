@@ -13,6 +13,7 @@
 -type data() :: mg_core_notification_storage:data().
 -type context() :: mg_core_storage:context().
 
+-type search_query() :: mg_core_notification_storage:search_query().
 -type search_limit() :: mg_core_machine_storage:search_limit().
 -type search_page(T) :: mg_core_machine_storage:search_page(T).
 -type continuation() :: mg_core_storage:continuation().
@@ -51,7 +52,7 @@ get(Options, _NS, NotificationID) ->
             undefined
     end.
 
--spec search(options(), ns(), {_From :: ts(), _To :: ts()}, search_limit(), continuation() | undefined) ->
+-spec search(options(), ns(), search_query(), search_limit(), continuation() | undefined) ->
     search_page({ts(), id()}).
 search(Options, _NS, {FromTime, ToTime}, Limit, Continuation) ->
     mg_core_storage:search(

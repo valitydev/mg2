@@ -119,6 +119,7 @@ bootstrap_machine_storage(cql, NS, Processor) ->
 bootstrap_machine_storage(memory, _NS, _Processor) ->
     {mg_core_machine_storage_kvs, #{kvs => mg_core_storage_memory}}.
 
+-spec build_machine_storage_cql_options(module(), Options) -> Options.
 build_machine_storage_cql_options(Processor, Options) when
     Processor == mg_core_events_machine
 ->

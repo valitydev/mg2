@@ -74,6 +74,8 @@ get_events(Options, NS, MachineID, Range, Acc) ->
             Acc
     end.
 
+-spec get_events(options(), machine_ns(), machine_id(), Direction :: integer(), events_range(), Acc :: [event()]) ->
+    [event()].
 get_events(Options, NS, MachineID, +1, {PageRange, Rest}, Acc) ->
     % Range is forward: accumulate rest of events...
     AccTail = get_events(Options, NS, MachineID, Rest, Acc),
@@ -85,12 +87,14 @@ get_events(Options, NS, MachineID, -1, {PageRange, Rest}, Acc) ->
     % ...then append rest of events.
     get_events(Options, NS, MachineID, Rest, AccTail).
 
+-spec get_events_page(options(), machine_ns(), machine_id(), events_range(), Acc :: [event()]) -> [event()].
 get_events_page(Options, NS, MachineID, PageRange, Acc) ->
     Query = mk_get_query(Options, NS, MachineID, PageRange),
     mg_core_storage_cql:execute_query(Options, Query, fun(Result) ->
         accumulate_events(Result, Acc)
     end).
 
+-spec accumulate_events(#cql_result{}, Acc) -> Acc.
 accumulate_events(Result, Acc) ->
     case cqerl:head(Result) of
         Record when is_list(Record) ->
@@ -99,6 +103,7 @@ accumulate_events(Result, Acc) ->
             Acc
     end.
 
+-spec read_event(Record :: #{atom() := term()}) -> event().
 read_event(#{event_id := ID, created_at := TS} = Record) ->
     #{
         id => ID,
@@ -106,14 +111,17 @@ read_event(#{event_id := ID, created_at := TS} = Record) ->
         body => read_event_body(Record)
     }.
 
+-spec read_event_body(Record :: #{atom() := term()}) -> mg_core_events:body().
 read_event_body(#{body := Body} = Record) ->
     {read_event_body_metadata(Record), mg_core_storage_cql:read_opaque(Body)}.
 
+-spec read_event_body_metadata(Record :: #{atom() := term()}) -> mg_core_events:metadata().
 read_event_body_metadata(#{body_format_vsn := null}) ->
     #{};
 read_event_body_metadata(#{body_format_vsn := FV}) ->
     #{format_version => FV}.
 
+-spec mk_get_query(options(), machine_ns(), machine_id(), events_range()) -> #cql_query{}.
 mk_get_query(Options, NS, MachineID, Range) ->
     {From, To, Ordering} =
         case mg_core_dirange:bounds(Range) of
@@ -164,6 +172,7 @@ store_events(Options, NS, MachineID, Events) ->
     Batch = [write_event(Event, Values) || Event <- Events],
     mg_core_storage_cql:execute_batch(Options, Query, Batch).
 
+-spec write_event(mg_core_events:event(), Values) -> Values when Values :: [{atom(), term()}].
 write_event(#{id := ID, created_at := TS, body := Body}, Values) ->
     write_event_body(Body, [
         {event_id, ID},
@@ -172,21 +181,25 @@ write_event(#{id := ID, created_at := TS, body := Body}, Values) ->
         | Values
     ]).
 
+-spec write_event_body(mg_core_events:body(), Values) -> Values when Values :: [{atom(), term()}].
 write_event_body({MD, Content}, Values) ->
     write_event_body_metadata(MD, [
         {body, mg_core_storage_cql:write_opaque(Content)}
         | Values
     ]).
 
+-spec write_event_body_metadata(mg_core_events:metadata(), Values) -> Values when Values :: [{atom(), term()}].
 write_event_body_metadata(#{format_version := FV}, Values) ->
     [{body_format_vsn, FV} | Values];
 write_event_body_metadata(#{}, Values) ->
     Values.
 
+-spec compute_event_page_offset(mg_core_events:id()) -> pos_integer().
 compute_event_page_offset(EventID) ->
     % What page this event belongs to?
     EventID - EventID rem ?EVENTS_PER_PAGE.
 
+-spec compute_event_page_cutoff(events_range()) -> pos_integer().
 compute_event_page_cutoff(Range) ->
     % Where does "current" page of the event range ends?
     compute_event_page_offset(mg_core_dirange:from(Range)) +

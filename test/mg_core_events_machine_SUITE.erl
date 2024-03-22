@@ -455,6 +455,7 @@ events_machine_options(Base, StorageOptions, ProcessorOptions, NS) ->
         events_storage => mg_core_ct_helper:build_storage(<<NS/binary, "_events">>, Storage)
     }.
 
+-spec machine_cql_storage() -> mg_core_utils:mod_opts(_Options).
 machine_cql_storage() ->
     {mg_core_machine_storage_cql, #{
         node => {"scylla0", 9042},

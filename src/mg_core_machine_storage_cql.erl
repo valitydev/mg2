@@ -205,6 +205,7 @@ search(Options, NS, Search, Limit, undefined) ->
 search(_Options, _NS, _Search, _Limit, Continuation) ->
     mg_core_storage_cql:execute_continuation(Continuation, fun mk_search_page/1).
 
+-spec mk_search_query(options(), ns(), Status :: atom(), search_limit()) -> search_status_query().
 mk_search_query(Options, NS, Status, Limit) when is_atom(Status) ->
     Query = mg_core_storage_cql:mk_query(
         Options,
@@ -235,6 +236,7 @@ mk_search_query(Options, NS, {Status, From, To}, Limit) ->
     ),
     Query#cql_query{page_size = Limit}.
 
+-spec mk_search_page(#cql_result{}) -> search_target_result().
 mk_search_page(Result) ->
     Page = accumulate_page(Result, []),
     case cqerl:has_more_pages(Result) of
@@ -408,6 +410,7 @@ write_status_class(processing) -> ?STATUS_PROCESSING;
 write_status_class(error) -> ?STATUS_FAILED;
 write_status_class(retrying) -> ?STATUS_RETRYING.
 
+-spec get_status_detail(_Key :: atom(), _Status) -> atom().
 get_status_detail(class, sleeping) -> sleeping;
 get_status_detail(class, {waiting, _, _, _}) -> waiting;
 get_status_detail(class, {retrying, _, _, _, _}) -> retrying;

@@ -71,8 +71,11 @@ put(Options, NS, ID, Data, Target, Context) ->
 delete(Options, NS, ID, Context) ->
     mg_core_utils:apply_mod_opts(Options, delete, [NS, ID, Context]).
 
+-spec search(options(), ns(), search_query(), search_limit()) -> mg_core_machine_storage:search_page({ts(), id()}).
 search(Options, NS, Query, Limit) ->
     mg_core_utils:apply_mod_opts(Options, search, [NS, Query, Limit, undefined]).
 
+-spec search(options(), ns(), search_query(), search_limit(), continuation() | undefined) ->
+    mg_core_machine_storage:search_page({ts(), id()}).
 search(Options, NS, Query, Limit, Continuation) ->
     mg_core_utils:apply_mod_opts(Options, search, [NS, Query, Limit, Continuation]).

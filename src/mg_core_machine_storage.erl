@@ -121,9 +121,13 @@ remove(Options, NS, ID, Context) ->
     _ = validate_machine_id(ID),
     mg_core_utils:apply_mod_opts(Options, remove, [NS, ID, Context]).
 
+-spec search(options(), ns(), search_status_query(), search_limit()) ->
+    mg_core_machine_storage:search_page(search_status_result()).
 search(Options, NS, SearchQuery, Limit) ->
     mg_core_utils:apply_mod_opts(Options, search, [NS, SearchQuery, Limit, undefined]).
 
+-spec search(options(), ns(), search_status_query(), search_limit(), continuation() | undefined) ->
+    mg_core_machine_storage:search_page(search_status_result()).
 search(Options, NS, SearchQuery, Limit, Continuation) ->
     mg_core_utils:apply_mod_opts(Options, search, [NS, SearchQuery, Limit, Continuation]).
 
