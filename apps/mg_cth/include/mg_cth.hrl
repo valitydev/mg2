@@ -10,7 +10,7 @@
 
 -define(CLIENT, mg_cth_kafka_client).
 -define(BROKERS_ADVERTISED, [{"kafka1", 9092}]).
--define(BROKERS, [{"kafka1", 9092}, {"kafka2", 9092}]).
+-define(BROKERS, [{"kafka1", 9092}, {"kafka2", 9092}, {"kafka3", 9092}]).
 
 -define(flushMailbox(__Acc0),
     (fun __Flush(__Acc) ->

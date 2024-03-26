@@ -255,6 +255,8 @@ kafka:
               port: 9092
             - host: "kafka2"
               port: 9092
+            - host: "kafka3"
+              port: 9092
         ssl:
             certfile: "client.crt"
             keyfile: "client.key"
