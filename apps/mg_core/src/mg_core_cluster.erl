@@ -22,12 +22,6 @@
 -define(SERVER, ?MODULE).
 -define(RECONNECT_TIMEOUT, 5000).
 
--ifdef(TEST).
--define(NEIGHBOUR, mg_cth_neighbour).
--else.
--define(NEIGHBOUR, ?MODULE).
--endif.
-
 -type discovery_options() :: mg_core_cluster_partitions:discovery_options().
 
 -type scaling_type() :: global_based | partition_based.
@@ -127,6 +121,7 @@ handle_continue(
     LocalTable = mg_core_cluster_partitions:make_local_table(ScalingType),
     PartitionsTable = try_connect_all(ListNodes, maps:get(reconnect_timeout, ClusterOpts), LocalTable),
     BalancingTable = mg_core_cluster_partitions:make_balancing_table(
+        ScalingType,
         PartitionsTable,
         maps:get(partitioning, ClusterOpts, undefined)
     ),
@@ -159,7 +154,11 @@ handle_call(
     } = State
 ) ->
     NewPartitionsTable = mg_core_cluster_partitions:add_partitions(PartitionsTable, RemoteTable),
-    NewBalancingTable = mg_core_cluster_partitions:make_balancing_table(NewPartitionsTable, PartitionsOpts),
+    NewBalancingTable = mg_core_cluster_partitions:make_balancing_table(
+        partition_based,
+        NewPartitionsTable,
+        PartitionsOpts
+    ),
     {
         reply,
         {ok, LocalTable},
@@ -219,7 +218,13 @@ code_change(_OldVsn, State, _Extra) ->
 connect(Node, ReconnectTimeout, LocalTable) when Node =/= node() ->
     case net_adm:ping(Node) of
         pong ->
-            erpc:call(Node, ?NEIGHBOUR, connecting, [{LocalTable, node()}]);
+            try
+                erpc:call(Node, ?MODULE, connecting, [{LocalTable, node()}])
+            catch
+                _:_ ->
+                    _ = erlang:start_timer(ReconnectTimeout, self(), {reconnect, Node}),
+                    {error, not_connected}
+            end;
         pang ->
             _ = erlang:start_timer(ReconnectTimeout, self(), {reconnect, Node}),
             {error, not_connected}
@@ -277,7 +282,11 @@ maybe_rebalance(
     } = State
 ) ->
     NewPartitionsTable = mg_core_cluster_partitions:add_partitions(PartitionsTable, RemoteTable),
-    NewBalancingTable = mg_core_cluster_partitions:make_balancing_table(NewPartitionsTable, PartitionsOpts),
+    NewBalancingTable = mg_core_cluster_partitions:make_balancing_table(
+        partition_based,
+        NewPartitionsTable,
+        PartitionsOpts
+    ),
     State#{partitions_table => NewPartitionsTable, balancing_table => NewBalancingTable};
 maybe_rebalance(_, State) ->
     State.
