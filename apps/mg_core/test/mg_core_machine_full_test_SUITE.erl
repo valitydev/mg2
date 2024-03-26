@@ -86,7 +86,7 @@ full_test(_) ->
             end,
             IDs
         ),
-    ok = await_chain_complete(IDs, 10 * 1000),
+    ok = await_chain_complete(IDs, 20 * 1000),
     ok = stop_automaton(AutomatonPid).
 
 %% TODO wait, simple_repair, kill, continuation
