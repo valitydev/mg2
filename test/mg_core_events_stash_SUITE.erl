@@ -52,7 +52,7 @@ all() ->
         {group, storage_cql}
     ].
 
--spec groups() -> [{group_name(), list(_Option), test_name()}].
+-spec groups() -> [{group_name(), list(_Option), [test_name() | {group, group_name()}]}].
 groups() ->
     [
         {storage_memory, [], [{group, base}]},

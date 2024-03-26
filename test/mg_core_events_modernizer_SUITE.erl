@@ -193,7 +193,7 @@ events_machine_options(ProcessorOptions, NS) ->
         processor => Processor,
         machines => #{
             namespace => NS,
-            storage => mg_core_ct_helper:bootstrap_machine_storage(memory, NS, Processor),
+            storage => mg_core_ct_helper:bootstrap_machine_storage(memory, NS, mg_core_events_machine),
             worker => #{
                 registry => mg_core_procreg_gproc
             },

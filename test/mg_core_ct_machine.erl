@@ -46,11 +46,11 @@ call(Options, MachineID, Args) ->
     Result = mg_core_events_machine:call(Options, MachineID, encode(Args), HRange, <<>>, Deadline),
     decode(Result).
 
--spec history(options(), mg_core:id()) -> ok.
+-spec history(options(), mg_core:id()) -> [event()].
 history(Options, MachineID) ->
     history(Options, MachineID, {undefined, undefined, forward}).
 
--spec history(options(), mg_core:id(), mg_core_events:history_range()) -> ok.
+-spec history(options(), mg_core:id(), mg_core_events:history_range()) -> [event()].
 history(Options, MachineID, HRange) ->
     Machine = mg_core_events_machine:get_machine(Options, MachineID, HRange),
     {_AuxState, History} = decode_machine(Machine),
