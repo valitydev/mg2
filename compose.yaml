@@ -21,6 +21,7 @@ services:
       - consul1
       - consul2
       - consul0
+      - scylla0
     working_dir: $PWD
     command: /sbin/init
 
@@ -88,6 +89,9 @@ services:
   consul0:
     <<: *consul-server
     hostname: consul0
+
+  scylla0:
+    image: docker.io/scylladb/scylla:5.4
 
 volumes:
   schemas:

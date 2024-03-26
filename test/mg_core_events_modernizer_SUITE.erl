@@ -185,22 +185,22 @@ stop_automaton(Pid) ->
 -spec events_machine_options(options(), mg_core:ns()) -> mg_core_events_machine:options().
 events_machine_options(ProcessorOptions, NS) ->
     Pulse = ?MODULE,
-    Storage = {mg_core_storage_memory, #{}},
+    Processor = {?MODULE, ProcessorOptions},
     #{
         pulse => Pulse,
         event_stash_size => 0,
         namespace => NS,
-        processor => {?MODULE, ProcessorOptions},
+        processor => Processor,
         machines => #{
             namespace => NS,
-            storage => mg_core_ct_helper:build_storage(NS, Storage),
+            storage => mg_core_ct_helper:bootstrap_machine_storage(memory, NS, Processor),
             worker => #{
                 registry => mg_core_procreg_gproc
             },
             notification => mg_core_ct_helper:notification_storage_options(NS, ?MODULE),
             pulse => Pulse
         },
-        events_storage => mg_core_ct_helper:build_storage(<<NS/binary, "_events">>, Storage)
+        events_storage => mg_core_ct_helper:bootstrap_events_storage(memory, NS)
     }.
 
 -spec start(mg_core_events_machine:options(), mg_core:id(), term()) -> ok.

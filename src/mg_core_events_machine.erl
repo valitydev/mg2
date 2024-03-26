@@ -220,7 +220,7 @@ call(Options, ID, Args, HRange, ReqCtx, Deadline) ->
 -spec get_machine(options(), id(), mg_core_events:history_range()) -> machine().
 get_machine(Options, ID, HRange) ->
     #{state := State, status := Status} = mg_core_machine:get(machine_options(Options), ID),
-    EffectiveState = maybe_apply_delayed_actions(opaque_to_state(State)),
+    EffectiveState = maybe_apply_delayed_actions(State),
     _ = mg_core_utils:throw_if_undefined(EffectiveState, {logic, machine_not_found}),
     machine(Options, ID, EffectiveState, Status, HRange).
 

@@ -151,12 +151,14 @@ read_machine_state(_Options, Record) ->
     }.
 
 -spec read_machine_events_stash(record()) -> [mg_core_events:event()].
-read_machine_events_stash(#{events_stash := ES}) ->
+read_machine_events_stash(#{events_stash := ES}) when ES =/= null ->
     read_events(ES);
 read_machine_events_stash(#{}) ->
     [].
 
 -spec read_machine_events_range(record()) -> mg_core_events:events_range().
+read_machine_events_range(#{events_range := null}) ->
+    undefined;
 read_machine_events_range(#{events_range := ER}) ->
     read_events_range(ER).
 
@@ -217,7 +219,7 @@ read_events_range([From, To]) ->
 -spec write_events_range(mg_core_events:events_range()) -> list(mg_core_events:id()).
 write_events_range(ER) ->
     {From, To} = mg_core_dirange:bounds(ER),
-    [From, To].
+    [genlib:define(From, null), genlib:define(To, null)].
 
 -spec read_remove_action(true | null) -> remove | undefined.
 read_remove_action(true) ->

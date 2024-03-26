@@ -142,7 +142,7 @@ build_machine_storage_cql_options(Processor, Options) ->
     % Assuming bootstrapping performed in the same module which is usual for test code.
     Options#{schema => Processor}.
 
--spec bootstrap_events_storage(cql | memory, mg_core:ns()) ->
+-spec bootstrap_events_storage(cql | memory, mg_core:ns() | mg_core_utils:mod_opts()) ->
     mg_core_events_storage:options().
 bootstrap_events_storage(cql, NS) ->
     Options = #{
@@ -155,6 +155,8 @@ bootstrap_events_storage(cql, NS) ->
     ok = mg_core_events_storage_cql:teardown(Options, NS),
     ok = mg_core_events_storage_cql:bootstrap(Options, NS),
     {mg_core_events_storage_cql, Options};
+bootstrap_events_storage(memory, {_Mod, _Opts} = KVSOptions) ->
+    {mg_core_events_storage_kvs, #{kvs => KVSOptions}};
 bootstrap_events_storage(memory, _NS) ->
     {mg_core_events_storage_kvs, #{kvs => mg_core_storage_memory}}.
 
