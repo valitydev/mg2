@@ -128,12 +128,12 @@ check_chain(Options, ID, Seq, AllActions, State, ReportPid) ->
 -spec await_chain_complete([integer()], timeout()) -> ok | no_return().
 await_chain_complete([], _Timeout) ->
     ok;
-await_chain_complete([ID | IDs], Timeout) ->
+await_chain_complete([ID | IDs] = IDsLeft, Timeout) ->
     receive
         ?CHAIN_COMPLETE(ID) ->
             await_chain_complete(IDs, Timeout)
     after Timeout ->
-        erlang:exit(chain_timeout)
+        erlang:exit({chain_timeout, IDsLeft})
     end.
 
 -spec do_action(mg_core_machine:options(), id(), seq(), action()) -> result().
