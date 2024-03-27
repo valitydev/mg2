@@ -106,9 +106,9 @@ full_test(_) ->
         IDs
     ),
     {ok, FinishTimestamps} = await_chain_complete(IDs, 60 * 1000),
-    erlang:display(
+    ct:pal("~p", [
         [{ID, erlang:convert_time_unit(T - StartTime, native, millisecond)} || {ID, T} <- FinishTimestamps]
-    ),
+    ]),
     ok = stop_automaton(AutomatonPid).
 
 %% TODO wait, simple_repair, kill, continuation
