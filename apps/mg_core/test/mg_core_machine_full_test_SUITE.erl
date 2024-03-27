@@ -76,6 +76,7 @@ full_test(_) ->
     ReportTo = self(),
     % TODO убрать константы
     IDs = lists:seq(1, 10),
+    StartTime = erlang:monotonic_time(),
     _ =
         lists:map(
             fun(ID) ->
@@ -86,7 +87,10 @@ full_test(_) ->
             end,
             IDs
         ),
-    ok = await_chain_complete(IDs, 20 * 1000),
+    {ok, FinishTimestamps} = await_chain_complete(IDs, 20 * 1000),
+    erlang:display(
+        [{ID, erlang:convert_time_unit(T - StartTime, native, millisecond)} || {ID, T} <- FinishTimestamps]
+    ),
     ok = stop_automaton(AutomatonPid).
 
 %% TODO wait, simple_repair, kill, continuation
@@ -113,25 +117,29 @@ check_chain(Options, ID, ReportPid) ->
     _ = rand:seed(exsplus, {ID, ID, ID}),
     check_chain(Options, ID, 0, all_actions(), not_exists, ReportPid).
 
--define(CHAIN_COMPLETE(ID), {chain_complete, ID}).
+-define(CHAIN_COMPLETE(ID, T), {chain_complete, ID, T}).
 
 -spec check_chain(mg_core_machine:options(), id(), seq(), [action()], state(), pid()) -> ok.
 % TODO убрать константы
 check_chain(_, ID, 100000, _, _, ReportPid) ->
-    ReportPid ! ?CHAIN_COMPLETE(ID),
+    ReportPid ! ?CHAIN_COMPLETE(ID, erlang:monotonic_time()),
     ok;
 check_chain(Options, ID, Seq, AllActions, State, ReportPid) ->
     Action = lists_random(AllActions),
     NewState = next_state(State, Action, do_action(Options, ID, Seq, Action)),
     check_chain(Options, ID, Seq + 1, AllActions, NewState, ReportPid).
 
--spec await_chain_complete([integer()], timeout()) -> ok | no_return().
-await_chain_complete([], _Timeout) ->
-    ok;
-await_chain_complete([ID | IDs] = IDsLeft, Timeout) ->
+-spec await_chain_complete([id()], timeout()) -> {ok, [{id(), integer()}]} | no_return().
+await_chain_complete(IDs, Timeout) ->
+    await_chain_complete(IDs, [], Timeout).
+
+-spec await_chain_complete([id()], Ts, timeout()) -> {ok, Ts} | no_return().
+await_chain_complete([], Ts, _Timeout) ->
+    {ok, Ts};
+await_chain_complete([ID | IDs] = IDsLeft, Ts, Timeout) ->
     receive
-        ?CHAIN_COMPLETE(ID) ->
-            await_chain_complete(IDs, Timeout)
+        ?CHAIN_COMPLETE(ID, T) ->
+            await_chain_complete(IDs, [{ID, T} | Ts], Timeout)
     after Timeout ->
         erlang:exit({chain_timeout, IDsLeft})
     end.
