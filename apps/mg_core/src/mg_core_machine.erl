@@ -487,6 +487,8 @@ call_(Options, ID, Call, ReqCtx, Deadline) ->
 
 -spec handle_load(mg_core:id(), options(), request_context()) -> {ok, state()}.
 handle_load(ID, Options, ReqCtx) ->
+    %% TODO Maybe add explicit pulse beat on machine load
+    ok = attach_otel_ctx(ReqCtx),
     Namespace = maps:get(namespace, Options),
     State1 = #{
         id => ID,

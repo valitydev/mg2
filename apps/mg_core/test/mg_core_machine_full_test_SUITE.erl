@@ -22,6 +22,7 @@
 %%%
 -module(mg_core_machine_full_test_SUITE).
 -include_lib("common_test/include/ct.hrl").
+-include_lib("opentelemetry_api/include/otel_tracer.hrl").
 
 %% tests descriptions
 -export([all/0]).
@@ -59,7 +60,22 @@ all() ->
 init_per_suite(C) ->
     % dbg:tracer(), dbg:p(all, c),
     % dbg:tpl({mg_core_machine, '_', '_'}, x),
-    Apps = mg_cth:start_applications([mg_core]),
+
+    %% NOTE Since opentelemetry exporter uses batch processor by
+    %% default, it may happen that not all spans shall be exported in
+    %% time before testsuite shuts down.
+    %%
+    %% Because of that you may want to change that behaviour or tweak
+    %% batch processor export scheduling or explicitly add
+    %% `timer:sleep' in the end of a testcase.
+    %%
+    %%_ = application:set_env(opentelemetry, span_processor, simple),
+
+    Apps = mg_cth:start_applications([
+        mg_core,
+        opentelemetry_exporter,
+        opentelemetry
+    ]),
     [{apps, Apps} | C].
 
 -spec end_per_suite(config()) -> ok.
@@ -77,20 +93,23 @@ full_test(_) ->
     % TODO убрать константы
     IDs = lists:seq(1, 10),
     StartTime = erlang:monotonic_time(),
-    _ =
-        lists:map(
-            fun(ID) ->
-                erlang:spawn_link(fun() ->
-                    check_chain(Options, ID, ReportTo),
-                    timer:sleep(100)
-                end)
-            end,
-            IDs
-        ),
-    {ok, FinishTimestamps} = await_chain_complete(IDs, 20 * 1000),
-    erlang:display(
-        [{ID, erlang:convert_time_unit(T - StartTime, native, millisecond)} || {ID, T} <- FinishTimestamps]
+    OtelCtx = otel_ctx:get_current(),
+    _ = lists:map(
+        fun(ID) ->
+            erlang:spawn_link(fun() ->
+                _ = otel_ctx:attach(OtelCtx),
+                ?with_span(<<"client FullTest">>, fun(_SpanCtx) ->
+                    check_chain(Options, ID, ReportTo)
+                end),
+                timer:sleep(100)
+            end)
+        end,
+        IDs
     ),
+    {ok, FinishTimestamps} = await_chain_complete(IDs, 20 * 1000),
+    ct:pal("~p", [
+        [{ID, erlang:convert_time_unit(T - StartTime, native, millisecond)} || {ID, T} <- FinishTimestamps]
+    ]),
     ok = stop_automaton(AutomatonPid).
 
 %% TODO wait, simple_repair, kill, continuation
@@ -184,7 +203,11 @@ do_action(Options, ID, Seq, Action) ->
 
 -spec req_ctx(id(), seq()) -> mg_core:request_context().
 req_ctx(ID, Seq) ->
-    [ID, Seq].
+    #{
+        <<"id">> => ID,
+        <<"seq">> => Seq,
+        <<"otel">> => mg_core_otel:pack_otel_stub(otel_ctx:get_current())
+    }.
 
 -spec id(id()) -> mg_core:id().
 id(ID) ->
@@ -303,8 +326,8 @@ lists_random(List) ->
     lists:nth(rand:uniform(length(List)), List).
 
 -spec handle_beat(_, mg_core_pulse:beat()) -> ok.
-% для отладки может понадобится
-% handle_beat(_, Beat) ->
-%     ct:pal("~p", [Beat]).
-handle_beat(_Options, _Beat) ->
+handle_beat(Options, Beat) ->
+    ok = mg_core_pulse_otel:handle_beat(Options, Beat),
+    %% NOTE для отладки может понадобится
+    %% ct:pal("~p", [Beat]).
     ok.
