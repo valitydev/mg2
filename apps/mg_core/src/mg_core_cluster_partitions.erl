@@ -33,28 +33,14 @@
 %% API
 -export([discovery/1]).
 -export([make_local_table/1]).
--export([make_balancing_table/2]).
+-export([make_balancing_table/3]).
 -export([add_partitions/2]).
 -export([del_partition/2]).
 -export([empty_partitions/0]).
 -export([get_node/2]).
 -export([is_local_partition/2]).
 
--ifdef(TEST).
--export([get_addrs/1]).
--export([addrs_to_nodes/2]).
--export([host_to_index/1]).
--define(TEST_NODES, [
-    'test_node@127.0.0.1',
-    'peer@127.0.0.1'
-]).
--endif.
-
 -spec discovery(discovery_options()) -> {ok, [node()]}.
--ifdef(TEST).
-discovery(_) ->
-    {ok, ?TEST_NODES}.
--else.
 discovery(#{<<"domain_name">> := DomainName, <<"sname">> := Sname}) ->
     case get_addrs(unicode:characters_to_list(DomainName)) of
         {ok, ListAddrs} ->
@@ -63,7 +49,6 @@ discovery(#{<<"domain_name">> := DomainName, <<"sname">> := Sname}) ->
         Error ->
             error({resolve_error, Error})
     end.
--endif.
 
 -spec make_local_table(mg_core_cluster:scaling_type()) -> local_partition_table().
 make_local_table(global_based) ->
@@ -73,10 +58,11 @@ make_local_table(partition_based) ->
     {ok, HostIndex} = host_to_index(Hostname),
     #{HostIndex => node()}.
 
--spec make_balancing_table(partitions_table(), partitions_options() | undefined) -> balancing_table().
-make_balancing_table(_PartitionsTable, undefined) ->
+-spec make_balancing_table(mg_core_cluster:scaling_type(), partitions_table(), partitions_options() | undefined) ->
+    balancing_table().
+make_balancing_table(global_based, _PartitionsTable, _) ->
     #{};
-make_balancing_table(PartitionsTable, #{capacity := Capacity, max_hash := MaxHash}) ->
+make_balancing_table(partition_based, PartitionsTable, #{capacity := Capacity, max_hash := MaxHash}) ->
     ListPartitions = maps:keys(PartitionsTable),
     mg_core_dirange:get_ranges(MaxHash, Capacity, ListPartitions).
 

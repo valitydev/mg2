@@ -744,6 +744,7 @@ event_sink_ns(YamlConfig) ->
     #{
         registry => procreg(YamlConfig),
         storage => storage(<<"_event_sinks">>, YamlConfig),
+        scaling => scaling(YamlConfig),
         worker => #{registry => procreg(YamlConfig)},
         duplicate_search_batch => 1000,
         default_processing_timeout => ?C:milliseconds(<<"30s">>)

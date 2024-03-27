@@ -295,8 +295,8 @@ filter_by_partition({NS, _, _}, Data) when is_list(Data) ->
         end,
         Data
     );
-filter_by_partition({_NS, _, _} = Name, {Data, _Continuation}) ->
-    filter_by_partition(Name, Data);
+filter_by_partition({_NS, _, _} = Name, {Data, Continuation}) ->
+    {filter_by_partition(Name, Data), Continuation};
 filter_by_partition(_Name, Data) ->
     Data.
 

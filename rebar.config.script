@@ -1,0 +1,23 @@
+case os:getenv("IP") of
+    false -> CONFIG;
+    IpString ->
+        Node = erlang:list_to_atom("mg@" ++ IpString),
+        {value, {profiles, Profiles0}, Config0} = lists:keytake(profiles, 1, CONFIG),
+        {value, {test, TestProfile0}, Profiles1} = lists:keytake(test, 1, Profiles0),
+        TestProfile = lists:keystore(
+            dist_node,
+            1,
+            TestProfile0,
+            {dist_node, [
+                {setcookie, 'HI-MARK!'},
+                {name, Node}
+            ]}
+        ),
+        Profiles = lists:keystore(
+            test,
+            1,
+            Profiles1,
+            {test, TestProfile}
+        ),
+        lists:keystore(profiles, 1, Config0, {profiles, Profiles})
+end.
