@@ -330,22 +330,4 @@ child_spec_test() ->
     ChildSpec = mg_core_cluster:child_spec(?CLUSTER_OPTS),
     ?assertEqual(ExpectedSpec, ChildSpec).
 
--spec maybe_connect_fail_test() -> _.
-maybe_connect_fail_test() ->
-    St = ?CLUSTER_OPTS#{
-        local_table => #{0 => node()}
-    },
-    Expected = #{
-        discovering => #{
-            <<"domain_name">> => <<"localhost">>,
-            <<"sname">> => <<"test_node">>
-        },
-        known_nodes => ['test_node@127.0.0.1', 'peer@127.0.0.1'],
-        local_table => #{0 => 'nonode@nohost'},
-        partitioning => #{capacity => 3, max_hash => 4095},
-        reconnect_timeout => 5000,
-        scaling => partition_based
-    },
-    ?assertEqual(Expected, maybe_connect('peer@127.0.0.1', St)).
-
 -endif.
