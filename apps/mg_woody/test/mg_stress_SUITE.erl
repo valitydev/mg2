@@ -20,11 +20,12 @@
 -export([all/0]).
 -export([init_per_suite/1]).
 -export([end_per_suite/1]).
+-export([init_per_testcase/2]).
+-export([end_per_testcase/2]).
 
 -export([stress_test/1]).
 
 -define(NS, <<"NS">>).
--define(ES_ID, <<"test_event_sink">>).
 
 -type test_name() :: atom().
 -type config() :: [{atom(), _}].
@@ -40,7 +41,9 @@ init_per_suite(C) ->
     Config = mg_woody_config(C),
     Apps = mg_cth:start_applications([
         {hackney, [{use_default_pool, false}]},
-        mg_woody
+        mg_woody,
+        opentelemetry_exporter,
+        opentelemetry
     ]),
     CallFunc = fun({Args, _Machine}) ->
         case Args of
@@ -79,7 +82,6 @@ init_per_suite(C) ->
             ns => ?NS,
             retry_strategy => genlib_retry:new_strategy({exponential, 5, 2, 1000})
         }},
-        {event_sink_options, "http://localhost:8022"},
         {processor_pid, ProcessorPid}
         | C
     ].
@@ -88,6 +90,14 @@ init_per_suite(C) ->
 end_per_suite(C) ->
     ok = proc_lib:stop(?config(processor_pid, C)),
     mg_cth:stop_applications(?config(apps, C)).
+
+-spec init_per_testcase(atom(), config()) -> config().
+init_per_testcase(Name, C) ->
+    mg_cth:trace_testcase(?MODULE, Name, C).
+
+-spec end_per_testcase(atom(), config()) -> _.
+end_per_testcase(_Name, C) ->
+    ok = mg_cth:maybe_end_testcase_trace(C).
 
 -spec mg_woody_config(config()) -> map().
 mg_woody_config(_C) ->
@@ -128,9 +138,11 @@ stress_test(C) ->
 
 -spec stress_test_start_processes(term(), mg_core:id()) -> _.
 stress_test_start_processes(C, ID) ->
+    OtelCtx = otel_ctx:get_current(),
     Pid =
         erlang:spawn_link(
             fun() ->
+                _ = otel_ctx:attach(OtelCtx),
                 start_machine(C, ID),
                 create(C, ID)
             end

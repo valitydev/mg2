@@ -202,11 +202,11 @@ add_meta(Meta, MetaAcc) ->
 -spec extract_meta(atom(), any()) -> [meta()] | meta().
 extract_meta(_Name, undefined) ->
     [];
-extract_meta(request_context, null) ->
-    [];
-extract_meta(request_context, ReqCtx) ->
-    #{rpc_id := RPCID} = mg_woody_utils:opaque_to_woody_context(ReqCtx),
+extract_meta(request_context, #{<<"woody">> := OpaqueWoodyCtx}) ->
+    #{rpc_id := RPCID} = mg_woody_utils:opaque_to_woody_context(OpaqueWoodyCtx),
     extract_meta(rpc_id, RPCID);
+extract_meta(request_context, _Other) ->
+    [];
 extract_meta(rpc_id, RPCID) ->
     maps:to_list(RPCID);
 extract_meta(deadline, Deadline) when is_integer(Deadline) ->

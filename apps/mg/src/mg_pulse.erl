@@ -44,7 +44,8 @@
 
 -spec handle_beat(options(), beat()) -> ok.
 handle_beat(Options, Beat) ->
-    ok = mg_pulse_otel:handle_beat(Options, Beat),
+    ok = mg_woody_pulse_otel:handle_beat(Options, Beat),
+    ok = mg_core_pulse_otel:handle_beat(Options, Beat),
     ok = mg_pulse_log:handle_beat(maps:get(woody_event_handler_options, Options, #{}), Beat),
     ok = mg_pulse_prometheus:handle_beat(#{}, Beat),
     ok = maybe_handle_lifecycle_kafka(Options, Beat).

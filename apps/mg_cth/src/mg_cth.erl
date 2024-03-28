@@ -42,13 +42,16 @@
 -export([poll_for_value/3]).
 -export([poll_for_exception/3]).
 
+-export([trace_testcase/3]).
+-export([maybe_end_testcase_trace/1]).
+
 %%
 
 -define(READINESS_RETRY_STRATEGY, genlib_retry:exponential(10, 2, 1000, 10000)).
 
 -type appname() :: atom().
 -type app() :: appname() | {appname(), [{atom(), _Value}]}.
-
+-type config() :: [{atom(), _}].
 -type option() :: kafka_client_name.
 
 -spec config(option()) -> _.
@@ -217,4 +220,22 @@ poll_for_exception(Fun, Wanted, MaxTime, TimeAcc) ->
     catch
         throw:Wanted ->
             {ok, TimeAcc}
+    end.
+
+-spec trace_testcase(module(), atom(), config()) -> config().
+trace_testcase(Mod, Name, C) ->
+    SpanName = iolist_to_binary([atom_to_binary(Mod), ":", atom_to_binary(Name), "/1"]),
+    SpanCtx = otel_tracer:start_span(opentelemetry:get_application_tracer(Mod), SpanName, #{kind => internal}),
+    %% NOTE This also puts otel context to process dictionary
+    _ = otel_tracer:set_current_span(SpanCtx),
+    [{span_ctx, SpanCtx} | C].
+
+-spec maybe_end_testcase_trace(config()) -> ok.
+maybe_end_testcase_trace(C) ->
+    case lists:keyfind(span_ctx, 1, C) of
+        {span_ctx, SpanCtx} ->
+            _ = otel_span:end_span(SpanCtx),
+            ok;
+        _ ->
+            ok
     end.

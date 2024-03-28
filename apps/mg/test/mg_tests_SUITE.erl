@@ -31,6 +31,8 @@
 -export([end_per_suite/1]).
 -export([init_per_group/2]).
 -export([end_per_group/2]).
+-export([init_per_testcase/2]).
+-export([end_per_testcase/2]).
 
 %% base group tests
 -export([namespace_not_found/1]).
@@ -131,6 +133,14 @@ init_per_group(C) ->
         {processor_pid, ProcessorPid}
         | C
     ].
+
+-spec init_per_testcase(atom(), config()) -> config().
+init_per_testcase(Name, C) ->
+    mg_cth:trace_testcase(?MODULE, Name, C).
+
+-spec end_per_testcase(atom(), config()) -> _.
+end_per_testcase(_Name, C) ->
+    ok = mg_cth:maybe_end_testcase_trace(C).
 
 -spec default_signal_handler(mg_core_events_machine:signal_args()) -> mg_core_events_machine:signal_result().
 default_signal_handler({Args, _Machine}) ->

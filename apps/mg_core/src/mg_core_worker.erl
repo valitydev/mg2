@@ -62,7 +62,7 @@
 
 %% Internal types
 
--type call_msg() :: {call, mg_core_deadline:deadline(), call_payload(), req_ctx(), otel_ctx:t()}.
+-type call_msg() :: {call, mg_core_deadline:deadline(), call_payload(), req_ctx()}.
 
 -type pulse() :: mg_core_pulse:handler().
 
@@ -104,11 +104,10 @@ call(Options, NS, ID, Call, ReqCtx, Deadline, Pulse) ->
         request_context = ReqCtx,
         deadline = Deadline
     }),
-    OtelCtx = otel_ctx:get_current(),
     mg_core_procreg:call(
         procreg_options(Options),
         ?WRAP_ID(NS, ID),
-        {call, Deadline, Call, ReqCtx, OtelCtx},
+        {call, Deadline, Call, ReqCtx},
         mg_core_deadline:to_timeout(Deadline)
     ).
 
@@ -135,7 +134,7 @@ get_call_queue(Options, NS, ID) ->
         mg_core_utils:gen_reg_name_to_pid(self_ref(Options, NS, ID)),
         noproc
     ),
-    [Call || {'$gen_call', _, {call, _Deadline, Call, _ReqCtx, _OtelCtx}} <- get_call_messages(Pid)].
+    [Call || {'$gen_call', _, {call, _Deadline, Call, _ReqCtx}} <- get_call_messages(Pid)].
 
 -spec get_call_messages(pid()) -> [{'$gen_call', _From, call_msg()}].
 get_call_messages(Pid) ->
@@ -190,11 +189,10 @@ init({ID, Options = #{worker := WorkerModOpts}, ReqCtx}) ->
 % загрузка делается отдельно и лениво, чтобы не блокировать этим супервизор,
 % т.к. у него легко может начать расти очередь
 handle_call(
-    Call = {call, _, _, _, OtelCtx},
+    Call = {call, _, _, _},
     From,
     State = #{id := ID, mod := Mod, status := {loading, Args, ReqCtx}}
 ) ->
-    _ = otel_ctx:attach(OtelCtx),
     case Mod:handle_load(ID, Args, ReqCtx) of
         {ok, ModState} ->
             handle_call(Call, From, State#{status := {working, ModState}});
@@ -202,11 +200,10 @@ handle_call(
             {stop, normal, Error, State}
     end;
 handle_call(
-    {call, Deadline, Call, ReqCtx, OtelCtx},
+    {call, Deadline, Call, ReqCtx},
     From,
     State = #{mod := Mod, status := {working, ModState}}
 ) ->
-    _ = otel_ctx:attach(OtelCtx),
     case mg_core_deadline:is_reached(Deadline) of
         false ->
             {ReplyAction, NewModState} = Mod:handle_call(Call, From, ReqCtx, Deadline, ModState),

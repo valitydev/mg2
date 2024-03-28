@@ -84,6 +84,7 @@ do_start_task(SchedulerID, Options, Task, SpanCtx) ->
 
 -spec execute(scheduler_id(), options(), task(), maybe_span()) -> ok.
 execute(SchedulerID, #{task_handler := Handler} = Options, Task, SpanCtx) ->
+    %% NOTE Maybe read machine status and restore its otel context?
     _ = otel_tracer:set_current_span(SpanCtx),
     ok = proc_lib:init_ack({ok, self()}),
     Start = erlang:monotonic_time(),
