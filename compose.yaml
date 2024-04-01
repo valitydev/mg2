@@ -30,6 +30,8 @@ services:
         condition: service_healthy
       kafka3:
         condition: service_healthy
+      scylla0:
+        condition: service_healthy
     ports:
       - "8022"
     command: /sbin/init
@@ -95,6 +97,9 @@ services:
       KAFKA_BROKER_ID: 3
       KAFKA_ZOOKEEPER_CONNECT: 'zookeeper:2181'
       KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka3:9092
+
+  scylla0:
+    image: docker.io/scylladb/scylla:5.4
 
 volumes:
   schemas:

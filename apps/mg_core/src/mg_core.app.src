@@ -25,6 +25,7 @@
         gproc,
         riakc,
         pooler,
+        cqerl,
         brod,
         msgpack,
         snowflake,

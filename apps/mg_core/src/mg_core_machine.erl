@@ -81,7 +81,6 @@
 -export_type([processor_reply_action/0]).
 -export_type([processor_flow_action/0]).
 -export_type([search_query/0]).
--export_type([machine_regular_status/0]).
 
 -export([child_spec/2]).
 -export([start_link/1]).
@@ -99,7 +98,6 @@
 -export([fail/5]).
 -export([get/2]).
 -export([is_exist/2]).
--export([search/2]).
 -export([search/3]).
 -export([search/4]).
 -export([reply/2]).
@@ -165,7 +163,7 @@
     namespace := mg_core:ns(),
     pulse := mg_core_pulse:handler(),
     storage => storage_options(),
-    notification => mg_core_notification:options(),
+    notification => notification_storage_options(),
     processor => mg_core_utils:mod_opts(),
     worker := mg_core_workers_manager:ns_options(),
     retries => retry_opt(),
@@ -175,8 +173,11 @@
     notification_processing_timeout => timeout()
 }.
 
-% like mg_core_storage:options() except `name`
+% like mg_core_machine_storage:options() except `name`
 -type storage_options() :: mg_core_utils:mod_opts(map()).
+
+% like mg_core_notification_storage:options() except `name`
+-type notification_storage_options() :: mg_core_utils:mod_opts(map()).
 
 -type thrown_error() ::
     {logic, logic_error()} | {transient, transient_error()} | {timeout, _Reason}.
@@ -186,21 +187,8 @@
     overload | {storage_unavailable, _Reason} | {processor_unavailable, _Reason} | unavailable.
 
 -type throws() :: no_return().
-
--type storage_machine() :: #{
-    status => machine_status(),
-    state => machine_state()
-}.
-
--type machine_state() :: mg_core_storage:opaque().
-
--type machine_regular_status() ::
-    sleeping
-    | {waiting, genlib_time:ts(), request_context(), HandlingTimeout :: pos_integer()}
-    | {retrying, Target :: genlib_time:ts(), Start :: genlib_time:ts(), Attempt :: non_neg_integer(), request_context()}
-    | {processing, request_context()}.
--type machine_status() ::
-    machine_regular_status() | {error, Reason :: term(), machine_regular_status()}.
+-type machine_state() :: mg_core_machine_storage:machine_state().
+-type machine_status() :: mg_core_machine_storage:machine_status().
 
 %%
 
@@ -216,7 +204,7 @@
     {init, term()}
     | {repair, term()}
     | {call, term()}
-    | {notification, mg_core_notification:id(), term()}
+    | {notification, mg_core:notification_id(), term()}
     | timeout
     | continuation.
 -type processor_reply_action() :: noreply | {reply, _}.
@@ -247,13 +235,15 @@
 -optional_callbacks([processor_child_spec/1]).
 
 -type search_query() ::
-    sleeping
-    | waiting
-    | {waiting, From :: genlib_time:ts(), To :: genlib_time:ts()}
-    | retrying
-    | {retrying, From :: genlib_time:ts(), To :: genlib_time:ts()}
-    | processing
-    | failed.
+    mg_core_machine_storage:search_status_query()
+    | mg_core_machine_storage:search_target_query().
+
+-type search_result() ::
+    mg_core_machine_storage:search_status_result()
+    | mg_core_machine_storage:search_target_result().
+
+-type search_limit() :: mg_core_machine_storage:search_limit().
+-type continuation() :: mg_core_machine_storage:continuation().
 
 %%
 
@@ -288,7 +278,7 @@ machine_sup_child_spec(Options, ChildID) ->
             {genlib_adhoc_supervisor, start_link, [
                 #{strategy => rest_for_one},
                 mg_core_utils:lists_compact([
-                    mg_core_storage:child_spec(storage_options(Options), storage),
+                    mg_core_machine_storage:child_spec(storage_options(Options), storage),
                     notification_child_spec(Options),
                     processor_child_spec(Options),
                     mg_core_workers_manager:child_spec(manager_options(Options), manager)
@@ -337,15 +327,16 @@ call(Options, ID, Call, ReqCtx, Deadline) ->
     call_(Options, ID, {call, Call}, ReqCtx, Deadline).
 
 -spec notify(options(), mg_core:id(), mg_core_storage:opaque(), request_context()) ->
-    mg_core_notification:id() | throws().
-notify(Options, ID, Args, ReqCtx) ->
+    mg_core:notification_id() | throws().
+notify(Options = #{namespace := NS}, ID, Args, ReqCtx) ->
     %% Ensure machine exists
     _ = get(Options, ID),
     NotificationID = generate_snowflake_id(),
     Timestamp = genlib_time:unow(),
     OpaqueArgs = notification_args_to_opaque({Args, ReqCtx}),
-    Context = mg_core_notification:put(
-        notification_options(Options),
+    Context = mg_core_notification_storage:put(
+        notification_storage_options(Options),
+        NS,
         NotificationID,
         #{
             machine_id => ID,
@@ -367,7 +358,8 @@ notify(Options, ID, Args, ReqCtx) ->
 send_timeout(Options, ID, Timestamp, Deadline) ->
     call_(Options, ID, {timeout, Timestamp}, undefined, Deadline).
 
--spec send_notification(options(), mg_core:id(), mg_core_notification:id(), term(), deadline()) -> _Resp | throws().
+-spec send_notification(options(), mg_core:id(), mg_core:notification_id(), term(), deadline()) ->
+    _Resp | throws().
 send_notification(Options, ID, NotificationID, OpaqueArgs, Deadline) ->
     {Args, ReqCtx} = opaque_to_notification_args(OpaqueArgs),
     call_(Options, ID, {notification, NotificationID, Args}, ReqCtx, Deadline).
@@ -397,25 +389,16 @@ get(Options, ID) ->
 is_exist(Options, ID) ->
     get_storage_machine(Options, ID) =/= undefined.
 
--spec search(
-    options(),
-    search_query(),
-    mg_core_storage:index_limit(),
-    mg_core_storage:continuation()
-) -> mg_core_storage:search_result() | throws().
-search(Options, Query, Limit, Continuation) ->
-    StorageQuery = storage_search_query(Query, Limit, Continuation),
-    mg_core_storage:search(storage_options(Options), StorageQuery).
-
--spec search(options(), search_query(), mg_core_storage:index_limit()) ->
-    mg_core_storage:search_result() | throws().
-search(Options, Query, Limit) ->
-    mg_core_storage:search(storage_options(Options), storage_search_query(Query, Limit)).
-
--spec search(options(), search_query()) -> mg_core_storage:search_result() | throws().
-search(Options, Query) ->
+-spec search(options(), search_query(), search_limit(), continuation()) ->
+    mg_core_machine_storage:search_page(search_result()) | throws().
+search(Options = #{namespace := NS}, Query, Limit, Continuation) ->
     % TODO deadline
-    mg_core_storage:search(storage_options(Options), storage_search_query(Query)).
+    mg_core_machine_storage:search(storage_options(Options), NS, Query, Limit, Continuation).
+
+-spec search(options(), search_query(), search_limit()) ->
+    mg_core_machine_storage:search_page(search_result()) | throws().
+search(Options = #{namespace := NS}, Query, Limit) ->
+    mg_core_machine_storage:search(storage_options(Options), NS, Query, Limit).
 
 -spec call_with_lazy_start(
     options(),
@@ -478,9 +461,11 @@ call_(Options, ID, Call, ReqCtx, Deadline) ->
     options => options(),
     schedulers => #{scheduler_type() => scheduler_ref()},
     storage_machine => storage_machine() | nonexistent | unknown,
-    storage_context => mg_core_storage:context() | undefined,
-    notifications_processed => mg_core_circular_buffer:t(mg_core_notification:id())
+    storage_context => mg_core_machine_storage:context() | undefined,
+    notifications_processed => mg_core_circular_buffer:t(mg_core:notification_id())
 }.
+
+-type storage_machine() :: mg_core_machine_storage:machine().
 
 -type scheduler_ref() ::
     {mg_core_scheduler:id(), _TargetCutoff :: seconds()}.
@@ -652,22 +637,13 @@ new_processing_context(CallContext) ->
 -spec new_storage_machine() -> storage_machine().
 new_storage_machine() ->
     #{
-        status => sleeping,
-        state => null
+        state => undefined
     }.
 
 -spec get_storage_machine(options(), mg_core:id()) ->
-    {mg_core_storage:context(), storage_machine()} | undefined.
-get_storage_machine(Options, ID) ->
-    try mg_core_storage:get(storage_options(Options), ID) of
-        undefined ->
-            undefined;
-        {Context, PackedMachine} ->
-            {Context, opaque_to_storage_machine(PackedMachine)}
-    catch
-        throw:{logic, {invalid_key, _StorageDetails} = Details} ->
-            throw({logic, {invalid_machine_id, Details}})
-    end.
+    {mg_core_machine_storage:context(), storage_machine()} | undefined.
+get_storage_machine(Options = #{namespace := NS}, ID) ->
+    mg_core_machine_storage:get(storage_options(Options), NS, ID).
 
 -spec load_storage_machine(request_context(), state()) -> {ok, state()} | {error, Reason :: any()}.
 load_storage_machine(ReqCtx, State) ->
@@ -678,7 +654,6 @@ load_storage_machine(ReqCtx, State) ->
                 undefined -> {undefined, nonexistent};
                 V -> V
             end,
-
         NewState = State#{
             storage_machine => StorageMachine,
             storage_context => StorageContext
@@ -696,119 +671,6 @@ load_storage_machine(ReqCtx, State) ->
             }),
             {error, Reason}
     end.
-
-%%
-%% packer to opaque
-%%
--spec storage_machine_to_opaque(storage_machine()) -> mg_core_storage:opaque().
-storage_machine_to_opaque(#{status := Status, state := State}) ->
-    [1, machine_status_to_opaque(Status), State].
-
--spec opaque_to_storage_machine(mg_core_storage:opaque()) -> storage_machine().
-opaque_to_storage_machine([1, Status, State]) ->
-    #{status => opaque_to_machine_status(Status), state => State}.
-
--spec machine_status_to_opaque(machine_status()) -> mg_core_storage:opaque().
-machine_status_to_opaque(Status) ->
-    Opaque =
-        case Status of
-            sleeping ->
-                1;
-            {waiting, TS, ReqCtx, HdlTo} ->
-                [2, TS, ReqCtx, HdlTo];
-            {processing, ReqCtx} ->
-                [3, ReqCtx];
-            % TODO подумать как упаковывать reason
-            {error, Reason, OldStatus} ->
-                [4, erlang:term_to_binary(Reason), machine_status_to_opaque(OldStatus)];
-            {retrying, TS, StartTS, Attempt, ReqCtx} ->
-                [5, TS, StartTS, Attempt, ReqCtx]
-        end,
-    Opaque.
-
--spec opaque_to_machine_status(mg_core_storage:opaque()) -> machine_status().
-opaque_to_machine_status(Opaque) ->
-    case Opaque of
-        1 ->
-            sleeping;
-        % совместимость со старой версией
-        [2, TS] ->
-            {waiting, TS, null, 30000};
-        [2, TS, ReqCtx, HdlTo] ->
-            {waiting, TS, ReqCtx, HdlTo};
-        % совместимость со старой версией
-        3 ->
-            {processing, null};
-        [3, ReqCtx] ->
-            {processing, ReqCtx};
-        [4, Reason, OldStatus] ->
-            {error, erlang:binary_to_term(Reason), opaque_to_machine_status(OldStatus)};
-        % устаревшее
-        [4, Reason] ->
-            {error, erlang:binary_to_term(Reason), sleeping};
-        [5, TS, StartTS, Attempt, ReqCtx] ->
-            {retrying, TS, StartTS, Attempt, ReqCtx}
-    end.
-
-%%
-%% indexes
-%%
--define(STATUS_IDX, {integer, <<"status">>}).
--define(WAITING_IDX, {integer, <<"waiting_date">>}).
--define(RETRYING_IDX, {integer, <<"retrying_date">>}).
-
--spec storage_search_query(
-    search_query(),
-    mg_core_storage:index_limit(),
-    mg_core_storage:continuation()
-) -> mg_core_storage:index_query().
-storage_search_query(Query, Limit, Continuation) ->
-    erlang:append_element(storage_search_query(Query, Limit), Continuation).
-
--spec storage_search_query(search_query(), mg_core_storage:index_limit()) ->
-    mg_core_storage:index_query().
-storage_search_query(Query, Limit) ->
-    erlang:append_element(storage_search_query(Query), Limit).
-
--spec storage_search_query(search_query()) -> mg_core_storage:index_query().
-storage_search_query(sleeping) ->
-    {?STATUS_IDX, 1};
-storage_search_query(waiting) ->
-    {?STATUS_IDX, 2};
-storage_search_query({waiting, FromTs, ToTs}) ->
-    {?WAITING_IDX, {FromTs, ToTs}};
-storage_search_query(processing) ->
-    {?STATUS_IDX, 3};
-storage_search_query(failed) ->
-    {?STATUS_IDX, 4};
-storage_search_query(retrying) ->
-    {?STATUS_IDX, 5};
-storage_search_query({retrying, FromTs, ToTs}) ->
-    {?RETRYING_IDX, {FromTs, ToTs}}.
-
--spec storage_machine_to_indexes(storage_machine()) -> [mg_core_storage:index_update()].
-storage_machine_to_indexes(#{status := Status}) ->
-    status_index(Status) ++ status_range_index(Status).
-
--spec status_index(machine_status()) -> [mg_core_storage:index_update()].
-status_index(Status) ->
-    StatusInt =
-        case Status of
-            sleeping -> 1;
-            {waiting, _, _, _} -> 2;
-            {processing, _} -> 3;
-            {error, _, _} -> 4;
-            {retrying, _, _, _, _} -> 5
-        end,
-    [{?STATUS_IDX, StatusInt}].
-
--spec status_range_index(machine_status()) -> [mg_core_storage:index_update()].
-status_range_index({waiting, Timestamp, _, _}) ->
-    [{?WAITING_IDX, Timestamp}];
-status_range_index({retrying, Timestamp, _, _, _}) ->
-    [{?RETRYING_IDX, Timestamp}];
-status_range_index(_) ->
-    [].
 
 %%
 %% processing
@@ -849,7 +711,7 @@ process(Impact, ProcessingCtx, ReqCtx, Deadline, State) ->
 
 %% 😠
 -spec process_notification(NotificationID, Args, ProcessingCtx, ReqCtx, Deadline, State) -> State when
-    NotificationID :: mg_core_notification:id(),
+    NotificationID :: mg_core:notification_id(),
     Args :: term(),
     ProcessingCtx :: processing_context(),
     ReqCtx :: request_context(),
@@ -866,7 +728,7 @@ process_notification(NotificationID, Args, PCtx, ReqCtx, Deadline, State) ->
             State
     end.
 
--spec is_notification_processed(mg_core_notification:id(), state()) ->
+-spec is_notification_processed(mg_core:notification_id(), state()) ->
     boolean().
 is_notification_processed(NotificationID, #{notifications_processed := Buffer}) ->
     mg_core_circular_buffer:member(NotificationID, Buffer).
@@ -883,10 +745,10 @@ opaque_to_notification_args([1, Args, RequestContext]) ->
 
 -spec send_notification_task(Options, NotificationID, Args, MachineID, Context, TargetTime) -> ok when
     Options :: options(),
-    NotificationID :: mg_core_notification:id(),
+    NotificationID :: mg_core:notification_id(),
     Args :: mg_core_storage:opaque(),
     MachineID :: mg_core:id(),
-    Context :: mg_core_notification:context(),
+    Context :: mg_core_notification_storage:context(),
     TargetTime :: genlib_time:ts().
 send_notification_task(Options, NotificationID, Args, MachineID, Context, TargetTime) ->
     Task = mg_core_queue_notifications:build_task(NotificationID, MachineID, TargetTime, Context, Args),
@@ -1010,14 +872,14 @@ process_unsafe(
     NewState0 =
         case Action of
             {continue, _} ->
-                NewStorageMachine = NewStorageMachine0#{status := {processing, ReqCtx}},
+                NewStorageMachine = NewStorageMachine0#{status => {processing, ReqCtx}},
                 transit_state(ReqCtx, Deadline, NewStorageMachine, State);
             sleep ->
-                NewStorageMachine = NewStorageMachine0#{status := sleeping},
+                NewStorageMachine = NewStorageMachine0#{status => sleeping},
                 transit_state(ReqCtx, Deadline, NewStorageMachine, State);
             {wait, Timestamp, HdlReqCtx, HdlTo} ->
                 Status = {waiting, Timestamp, HdlReqCtx, HdlTo},
-                NewStorageMachine = NewStorageMachine0#{status := Status},
+                NewStorageMachine = NewStorageMachine0#{status => Status},
                 transit_state(ReqCtx, Deadline, NewStorageMachine, State);
             keep ->
                 State;
@@ -1053,7 +915,7 @@ generate_snowflake_id() ->
     <<ID:64>> = snowflake:new(),
     genlib_format:format_int_base(ID, 61).
 
--spec handle_notification_processed(mg_core_notification:id(), state()) ->
+-spec handle_notification_processed(mg_core:notification_id(), state()) ->
     state().
 handle_notification_processed(NotificationID, State = #{notifications_processed := Buffer}) ->
     State#{notifications_processed => mg_core_circular_buffer:push(NotificationID, Buffer)}.
@@ -1074,8 +936,8 @@ call_processor(Impact, ProcessingCtx, ReqCtx, Deadline, State) ->
     ).
 
 -spec notification_child_spec(options()) -> supervisor:child_spec() | undefined.
-notification_child_spec(#{notification := NotificationOptions}) ->
-    mg_core_notification:child_spec(NotificationOptions, notification);
+notification_child_spec(Options = #{notification := _}) ->
+    mg_core_notification_storage:child_spec(notification_storage_options(Options), notification);
 notification_child_spec(#{}) ->
     undefined.
 
@@ -1170,40 +1032,49 @@ wrap_reply_action(Wrapper, {reply, R}) ->
 transit_state(
     _ReqCtx,
     _Deadline,
-    NewStorageMachine,
-    State = #{storage_machine := OldStorageMachine}
-) when NewStorageMachine =:= OldStorageMachine ->
+    StorageMachine,
+    State = #{storage_machine := StorageMachinePrev}
+) when StorageMachine =:= StorageMachinePrev ->
     State;
-transit_state(ReqCtx, Deadline, NewStorageMachine = #{status := Status}, State) ->
+transit_state(ReqCtx, Deadline, StorageMachine = #{status := Status}, State) ->
     #{
+        namespace := NS,
         id := ID,
         options := Options,
-        storage_machine := #{status := StatusWas},
-        storage_context := StorageContext
+        storage_machine := StorageMachinePrev,
+        storage_context := StorageContextPrev
     } = State,
     _ =
-        case Status of
-            StatusWas -> ok;
-            _Different -> handle_status_transition(StatusWas, Status, ReqCtx, Deadline, State)
+        case StorageMachinePrev of
+            #{status := Status} ->
+                ok;
+            #{} ->
+                StatusPrev = maps:get(status, StorageMachinePrev, undefined),
+                handle_status_transition(StatusPrev, Status, ReqCtx, Deadline, State)
         end,
     F = fun() ->
-        mg_core_storage:put(
+        mg_core_machine_storage:update(
             storage_options(Options),
+            NS,
             ID,
-            StorageContext,
-            storage_machine_to_opaque(NewStorageMachine),
-            storage_machine_to_indexes(NewStorageMachine)
+            StorageMachine,
+            StorageMachinePrev,
+            StorageContextPrev
         )
     end,
     RS = retry_strategy(storage, Options, Deadline),
-    NewStorageContext = do_with_retry(Options, ID, F, RS, ReqCtx, transit),
+    StorageContext = do_with_retry(Options, ID, F, RS, ReqCtx, transit),
     State#{
-        storage_machine := NewStorageMachine,
-        storage_context := NewStorageContext
+        storage_machine := StorageMachine,
+        storage_context := StorageContext
     }.
 
 -spec handle_status_transition(
-    From :: machine_status(), To :: machine_status(), request_context(), deadline(), state()
+    From :: machine_status() | undefined,
+    To :: machine_status(),
+    request_context(),
+    deadline(),
+    state()
 ) -> _.
 handle_status_transition({error, _Reason, _}, _Any, ReqCtx, Deadline, State) ->
     emit_repaired_beat(ReqCtx, Deadline, State);
@@ -1262,8 +1133,9 @@ try_send_timer_task(SchedulerType, TargetTime, #{id := ID, schedulers := Schedul
 remove_from_storage(ReqCtx, Deadline, State) ->
     #{namespace := NS, id := ID, options := Options, storage_context := StorageContext} = State,
     F = fun() ->
-        mg_core_storage:delete(
+        mg_core_machine_storage:remove(
             storage_options(Options),
+            NS,
             ID,
             StorageContext
         )
@@ -1415,14 +1287,25 @@ manager_options(Options = #{namespace := NS, worker := ManagerOptions, pulse := 
         )
     }.
 
--spec storage_options(options()) -> mg_core_storage:options().
-storage_options(#{namespace := NS, storage := StorageOptions, pulse := Handler}) ->
+-spec storage_options(options()) -> mg_core_machine_storage:options().
+storage_options(#{
+    namespace := NS,
+    storage := StorageOptions,
+    processor := ProcessorOptions,
+    pulse := Handler
+}) ->
     {Mod, Options} = mg_core_utils:separate_mod_opts(StorageOptions, #{}),
-    {Mod, Options#{name => {NS, ?MODULE, machines}, pulse => Handler}}.
+    {Processor, _} = mg_core_utils:separate_mod_opts(ProcessorOptions, #{}),
+    {Mod, Options#{name => {NS, ?MODULE, machines}, processor => Processor, pulse => Handler}}.
 
--spec notification_options(options()) -> mg_core_notification:options().
-notification_options(#{notification := NotificationOptions}) ->
-    NotificationOptions.
+-spec notification_storage_options(options()) -> mg_core_notification_storage:options().
+notification_storage_options(#{
+    namespace := NS,
+    notification := StorageOptions,
+    pulse := Handler
+}) ->
+    {Mod, Options} = mg_core_utils:separate_mod_opts(StorageOptions, #{}),
+    {Mod, Options#{name => {NS, ?MODULE, notification}, pulse => Handler}}.
 
 -spec scheduler_child_spec(scheduler_type(), options()) -> supervisor:child_spec() | undefined.
 scheduler_child_spec(SchedulerType, Options) ->
@@ -1466,7 +1349,7 @@ scheduler_options(overseer, Options, Config) ->
 scheduler_options(notification = SchedulerType, Options, Config) ->
     HandlerOptions = #{
         scheduler_id => scheduler_id(SchedulerType, Options),
-        notification => notification_options(Options),
+        notification => notification_storage_options(Options),
         processing_timeout => maps:get(notification_processing_timeout, Options, undefined),
         min_scan_delay => maps:get(min_scan_delay, Config, undefined),
         rescan_delay => maps:get(rescan_delay, Config, undefined),

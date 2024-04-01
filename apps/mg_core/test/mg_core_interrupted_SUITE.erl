@@ -33,6 +33,11 @@
 %% Pulse
 -export([handle_beat/2]).
 
+%% KVS
+-behaviour(mg_core_machine_storage_kvs).
+-export([state_to_opaque/1]).
+-export([opaque_to_state/1]).
+
 %%
 %% tests descriptions
 %%
@@ -66,11 +71,7 @@ end_per_suite(C) ->
 -spec interrupted_machines_resumed(config()) -> _.
 interrupted_machines_resumed(_C) ->
     NS = genlib:to_binary(?FUNCTION_NAME),
-    {ok, StoragePid} = mg_core_storage_memory:start_link(#{
-        name => ?MODULE,
-        pulse => undefined
-    }),
-    true = erlang:unlink(StoragePid),
+    {ok, StoragePid} = mg_core_storage_memory:start(#{name => ?MODULE, pulse => ?MODULE}),
     Options = automaton_options(NS, ?MODULE),
 
     N = 8,
@@ -132,7 +133,7 @@ interrupted_machines_resumed(_C) ->
     _,
     mg_core_machine:machine_state()
 ) -> mg_core_machine:processor_result() | no_return().
-process_machine(_, _, {init, ?INIT_ARGS}, _, ?REQ_CTX, _, null) ->
+process_machine(_, _, {init, ?INIT_ARGS}, _, ?REQ_CTX, _, undefined) ->
     {{reply, ok}, sleep, #{}};
 process_machine(_, _, {call, {run, Runtime, Answer}}, _, ?REQ_CTX, _, State) ->
     {{reply, ok}, {continue, #{}}, State#{<<"run">> => [Runtime, Answer]}};
@@ -162,20 +163,14 @@ automaton_options(NS, StorageName) ->
     #{
         namespace => NS,
         processor => ?MODULE,
-        storage => mg_cth:build_storage(
-            NS,
-            {mg_core_storage_memory, #{
-                existing_storage_name => StorageName
-            }}
-        ),
+        storage =>
+            {mg_core_machine_storage_kvs, #{
+                kvs => {mg_core_storage_memory, #{existing_storage_name => StorageName}}
+            }},
         worker => #{
             registry => mg_core_procreg_global
         },
-        notification => #{
-            namespace => NS,
-            pulse => ?MODULE,
-            storage => mg_core_storage_memory
-        },
+        notification => {mg_core_notification_storage_kvs, #{kvs => mg_core_storage_memory}},
         pulse => ?MODULE,
         schedulers => #{
             overseer => Scheduler
@@ -187,3 +182,13 @@ handle_beat(_, {squad, _}) ->
     ok;
 handle_beat(_, Beat) ->
     ct:pal("~p", [Beat]).
+
+%%
+
+-spec state_to_opaque(term()) -> mg_core_storage:opaque().
+state_to_opaque(State) ->
+    State.
+
+-spec opaque_to_state(mg_core_storage:opaque()) -> term().
+opaque_to_state(Term) ->
+    Term.

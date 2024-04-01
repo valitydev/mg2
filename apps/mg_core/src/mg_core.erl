@@ -18,8 +18,16 @@
 %% API
 -export_type([ns/0]).
 -export_type([id/0]).
+-export_type([notification_id/0]).
 -export_type([request_context/0]).
+-export_type([unix_timestamp_s/0]).
+-export_type([unix_timestamp_ns/0]).
+-export_type([timeout_ms/0]).
 
 -type ns() :: binary().
 -type id() :: binary().
+-type notification_id() :: id().
 -type request_context() :: mg_core_storage:opaque().
+-type unix_timestamp_s() :: non_neg_integer().
+-type unix_timestamp_ns() :: non_neg_integer().
+-type timeout_ms() :: pos_integer().
