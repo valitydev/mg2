@@ -12,7 +12,8 @@
     modernizer => modernizer(),
     % all but `worker_options.worker` option
     worker => mg_core_workers_manager:ns_options(),
-    storage := mg_core_machine:storage_options(),
+    storage := mg_core_machine_storage:options(),
+    events_storage := mg_core_events_storage:options(),
     event_sinks => [mg_core_events_sink:handler()],
     retries := mg_core_machine:retry_opt(),
     schedulers := mg_core_machine:schedulers_opt(),
@@ -103,11 +104,12 @@ machine_options(NS, Config) ->
         worker => worker_manager_options(Config),
         schedulers => maps:get(schedulers, Config, #{}),
         pulse => pulse(),
-        notification => #{
-            namespace => NS,
-            pulse => pulse(),
-            storage => NotificationsStorage
-        },
+        notification =>
+            {mg_core_notification_storage_kvs, #{
+                name => {NS, mg_core_machine, notification},
+                pulse => pulse(),
+                kvs => NotificationsStorage
+            }},
         % TODO сделать аналогично в event_sink'е и тэгах
         suicide_probability => maps:get(suicide_probability, Config, undefined)
     }.

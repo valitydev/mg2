@@ -193,14 +193,14 @@ events_machine_options(ProcessorOptions, NS) ->
         processor => Processor,
         machines => #{
             namespace => NS,
-            storage => mg_core_ct_helper:bootstrap_machine_storage(memory, NS, mg_core_events_machine),
+            storage => mg_cth:bootstrap_machine_storage(memory, NS, mg_core_events_machine),
             worker => #{
                 registry => mg_core_procreg_global
             },
-            notification => mg_core_ct_helper:notification_storage_options(NS, ?MODULE),
+            notification => mg_cth:notification_storage_options(NS, ?MODULE),
             pulse => Pulse
         },
-        events_storage => mg_core_ct_helper:bootstrap_events_storage(memory, NS)
+        events_storage => mg_cth:bootstrap_events_storage(memory, NS)
     }.
 
 -spec start(mg_core_events_machine:options(), mg_core:id(), term()) -> ok.

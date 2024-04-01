@@ -67,7 +67,7 @@ groups() ->
 init_per_suite(C) ->
     % dbg:tracer(), dbg:p(all, c),
     % dbg:tpl({mg_core_events_storage_cql, '_', '_'}, x),
-    Apps = mg_core_ct_helper:start_applications([mg_core]),
+    Apps = mg_cth:start_applications([mg_core]),
     [{apps, Apps} | C].
 
 -spec end_per_suite(config()) -> ok.
@@ -87,8 +87,8 @@ init_per_group(storage_memory, C) ->
         | C
     ];
 init_per_group(storage_cql, C) ->
-    MachineStorage = mg_core_ct_helper:bootstrap_machine_storage(cql, ?NS, mg_core_events_machine),
-    EventsStorage = mg_core_ct_helper:bootstrap_events_storage(cql, ?NS),
+    MachineStorage = mg_cth:bootstrap_machine_storage(cql, ?NS, mg_core_events_machine),
+    EventsStorage = mg_cth:bootstrap_events_storage(cql, ?NS),
     [
         {machine_storage, MachineStorage},
         {events_storage, EventsStorage}
@@ -205,7 +205,7 @@ events_machine_options(Options, C) ->
             worker => #{
                 registry => mg_core_procreg_global
             },
-            notification => mg_core_ct_helper:notification_storage_options(?NS, ?MODULE),
+            notification => mg_cth:notification_storage_options(?NS, ?MODULE),
             pulse => ?MODULE,
             schedulers => #{
                 timers => Scheduler,

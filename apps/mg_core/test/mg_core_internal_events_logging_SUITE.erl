@@ -129,7 +129,7 @@ automaton_options(NS) ->
         worker => #{
             registry => mg_core_procreg_global
         },
-        notification => mg_core_ct_helper:notification_storage_options(NS, ?MODULE),
+        notification => mg_cth:notification_storage_options(NS, ?MODULE),
         pulse => ?MODULE,
         retries => #{
             timers => {intervals, [1000, 1000, 1000, 1000, 1000]},

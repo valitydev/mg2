@@ -109,10 +109,10 @@ end_per_suite(C) ->
 
 -spec init_per_group(group_name(), config()) -> config().
 init_per_group(with_memory, C) ->
-    Storage = mg_core_ct_helper:bootstrap_machine_storage(memory, ?NAMESPACE, ?MODULE),
+    Storage = mg_cth:bootstrap_machine_storage(memory, ?NAMESPACE, ?MODULE),
     [{storage, Storage} | C];
 init_per_group(with_cql, C) ->
-    Storage = mg_core_ct_helper:bootstrap_machine_storage(cql, ?NAMESPACE, ?MODULE),
+    Storage = mg_cth:bootstrap_machine_storage(cql, ?NAMESPACE, ?MODULE),
     [{storage, Storage} | C].
 
 -spec end_per_group(group_name(), config()) -> _.

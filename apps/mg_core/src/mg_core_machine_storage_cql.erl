@@ -202,8 +202,8 @@ mk_remove_query(Options, NS, ID) ->
 search(Options, NS, Search, Limit, undefined) ->
     Query = mk_search_query(Options, NS, Search, Limit),
     mg_core_storage_cql:execute_query(Options, Query, fun mk_search_page/1);
-search(_Options, _NS, _Search, _Limit, Continuation) ->
-    mg_core_storage_cql:execute_continuation(Continuation, fun mk_search_page/1).
+search(Options, _NS, _Search, _Limit, Continuation) ->
+    mg_core_storage_cql:execute_continuation(Options, Continuation, fun mk_search_page/1).
 
 -spec mk_search_query(options(), ns(), Status :: atom(), search_limit()) -> mg_core_storage_cql:cql_query().
 mk_search_query(Options, NS, Status, Limit) when is_atom(Status) ->
@@ -260,8 +260,9 @@ accumulate_page(Result, Acc) ->
 -spec get_schema(options()) -> mg_core_utils:mod_opts().
 get_schema(#{schema := Schema}) ->
     Schema;
-get_schema(#{processor := mg_core_events_machine}) ->
-    mg_core_events_machine_cql_schema.
+get_schema(#{processor := mg_core_events_machine} = Options) ->
+    Ks = [name, pulse, node, ssl, keyspace, consistency],
+    {mg_core_events_machine_cql_schema, maps:with(Ks, Options)}.
 
 %%
 
@@ -439,10 +440,9 @@ write_term(Term) ->
 bootstrap(Options, NS) ->
     % TODO
     % Need to think what to do if this fails midway.
-    Client = mg_core_storage_cql:get_client(Options),
     TableName = mk_table_name(NS),
     ok = mg_core_storage_cql:execute_query(
-        Client,
+        Options,
         mk_statement([
             mg_core_string_utils:join(["CREATE TABLE", TableName, "("]),
             % NOTE
@@ -461,7 +461,7 @@ bootstrap(Options, NS) ->
         ])
     ),
     ok = mg_core_storage_cql:execute_query(
-        Client,
+        Options,
         % TODO
         % Low cardinality index. This will break storage eventually when total
         % number of machines grows past some watermark.
@@ -474,7 +474,7 @@ bootstrap(Options, NS) ->
         ])
     ),
     ok = mg_core_storage_cql:execute_query(
-        Client,
+        Options,
         % TODO
         % High churn index. This strongly advised against. We can probably
         % alleviate this churn by using coarse timestamp instead of target, for
@@ -492,20 +492,19 @@ bootstrap(Options, NS) ->
             "PRIMARY KEY (target, id)"
         ])
     ),
-    mg_core_utils:apply_mod_opts_if_defined(get_schema(Options), bootstrap, ok, [NS, Client]).
+    mg_core_utils:apply_mod_opts_if_defined(get_schema(Options), bootstrap, ok, [NS]).
 
 -spec teardown(options(), ns()) -> ok.
 teardown(Options, NS) ->
-    Client = mg_core_storage_cql:get_client(Options),
-    ok = mg_core_utils:apply_mod_opts_if_defined(get_schema(Options), teardown, ok, [NS, Client]),
+    ok = mg_core_utils:apply_mod_opts_if_defined(get_schema(Options), teardown, ok, [NS]),
     ok = mg_core_storage_cql:execute_query(
-        Client,
+        Options,
         mk_statement([
             "DROP MATERIALIZED VIEW IF EXISTS", mk_matview_name(NS, target)
         ])
     ),
     ok = mg_core_storage_cql:execute_query(
-        Client,
+        Options,
         mk_statement([
             "DROP TABLE IF EXISTS", mk_table_name(NS)
         ])

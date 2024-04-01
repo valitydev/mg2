@@ -1,13 +1,14 @@
 -module(mg_core_storage_cql).
 
 -include_lib("cqerl/include/cqerl.hrl").
+-include_lib("mg_core/include/pulse.hrl").
 
 -export([get_client/1]).
 -export([mk_query/4]).
 -export([execute_query/2]).
 -export([execute_query/3]).
 -export([execute_batch/3]).
--export([execute_continuation/2]).
+-export([execute_continuation/3]).
 
 -export([read_opaque/1]).
 -export([write_opaque/1]).
@@ -89,14 +90,21 @@ mk_query(Options, Verb, Statement, Values) ->
         reusable = true
     }.
 
--spec execute_query(options() | client(), cql_query(), fun((cql_result()) -> R)) -> R.
+-spec execute_query(options(), cql_query()) -> ok.
+execute_query(Options, Query) ->
+    execute_query(Options, Query, fun(_) -> ok end).
+
+-spec execute_query(options(), cql_query(), fun((cql_result()) -> R)) -> R.
 execute_query(Options = #{}, Query, Then) ->
-    execute_query(get_client(Options), Query, Then);
-execute_query(Client, Query, Then) ->
-    ct:pal(" > QUERY: ~p", [Query]),
+    StartTimestamp = erlang:monotonic_time(),
+    ok = emit_beat(Options, #mg_core_cql_query_start{name = maybe_name(Options)}),
+    %% ct:pal(" > QUERY: ~p", [Query]),
+    Client = get_client(Options),
     try cqerl_client:run_query(Client, Query) of
         {ok, Result} ->
-            ct:pal(" < RESULT: ~p", [Result]),
+            Duration = erlang:monotonic_time() - StartTimestamp,
+            ok = emit_beat(Options, #mg_core_cql_query_finish{name = maybe_name(Options), duration = Duration}),
+            %% ct:pal(" < RESULT: ~p", [Result]),
             Then(Result);
         {error, Error} ->
             handle_error(Error)
@@ -106,21 +114,21 @@ execute_query(Client, Query, Then) ->
             handle_error(timeout)
     end.
 
--spec execute_query(options() | client(), cql_query()) -> ok.
-execute_query(OptionsOrClient, Query) ->
-    execute_query(OptionsOrClient, Query, fun(_) -> ok end).
-
 -spec execute_batch(options(), cql_query(), [values()]) -> ok.
 execute_batch(Options = #{}, Query, Batch) ->
+    StartTimestamp = erlang:monotonic_time(),
+    ok = emit_beat(Options, #mg_core_cql_batch_start{name = maybe_name(Options)}),
     Client = get_client(Options),
     QueryBatch = #cql_query_batch{
         consistency = get_query_consistency(update, Options),
         queries = [Query#cql_query{values = Values} || Values <- Batch]
     },
-    ct:pal(" > BATCH: ~p + ~p", [Query, Batch]),
+    %% ct:pal(" > BATCH: ~p + ~p", [Query, Batch]),
     try cqerl_client:run_query(Client, QueryBatch) of
-        {ok, Result} ->
-            ct:pal(" < RESULT: ~p", [Result]),
+        {ok, _Result} ->
+            Duration = erlang:monotonic_time() - StartTimestamp,
+            ok = emit_beat(Options, #mg_core_cql_batch_finish{name = maybe_name(Options), duration = Duration}),
+            %% ct:pal(" < RESULT: ~p", [Result]),
             ok;
         {error, Error} ->
             handle_error(Error)
@@ -130,12 +138,16 @@ execute_batch(Options = #{}, Query, Batch) ->
             handle_error(timeout)
     end.
 
--spec execute_continuation(cql_result(), fun((cql_result()) -> R)) -> R.
-execute_continuation(Continuation, Then) ->
-    ct:pal(" > CONTINUATION: ~p", [Continuation]),
+-spec execute_continuation(options(), cql_result(), fun((cql_result()) -> R)) -> R.
+execute_continuation(Options, Continuation, Then) ->
+    StartTimestamp = erlang:monotonic_time(),
+    ok = emit_beat(Options, #mg_core_cql_continuation_start{name = maybe_name(Options)}),
+    %% ct:pal(" > CONTINUATION: ~p", [Continuation]),
     try cqerl_client:fetch_more(Continuation) of
         {ok, Result} ->
-            ct:pal(" < RESULT: ~p", [Result]),
+            Duration = erlang:monotonic_time() - StartTimestamp,
+            ok = emit_beat(Options, #mg_core_cql_continuation_finish{name = maybe_name(Options), duration = Duration}),
+            %% ct:pal(" < RESULT: ~p", [Result]),
             Then(Result);
         {error, Error} ->
             handle_error(Error)
@@ -213,3 +225,15 @@ write_timestamp_ns(TS) ->
     % https://github.com/apache/cassandra/blob/2e2db4dc/doc/native_protocol_v4.spec#L941
     Time = TS rem ?NS_PER_DAY,
     [Date, Time].
+
+%%
+
+-spec maybe_name(options()) -> atom().
+maybe_name(#{name := Name}) ->
+    Name;
+maybe_name(_Options) ->
+    undefined.
+
+-spec emit_beat(options(), _Beat) -> ok.
+emit_beat(#{pulse := Handler}, Beat) ->
+    ok = mg_core_pulse:handle_beat(Handler, Beat).

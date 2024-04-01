@@ -99,10 +99,10 @@ end_per_suite(C) ->
 init_per_group(matrix, C) ->
     C;
 init_per_group(with_memory, C) ->
-    Storage = mg_core_ct_helper:bootstrap_machine_storage(memory, ?NAMESPACE, ?MODULE),
+    Storage = mg_cth:bootstrap_machine_storage(memory, ?NAMESPACE, ?MODULE),
     [{storage, Storage} | C];
 init_per_group(with_cql, C) ->
-    Storage = mg_core_ct_helper:bootstrap_machine_storage(cql, ?NAMESPACE, ?MODULE),
+    Storage = mg_cth:bootstrap_machine_storage(cql, ?NAMESPACE, ?MODULE),
     [{storage, Storage} | C];
 init_per_group(with_gproc, C) ->
     [{registry, mg_core_procreg_gproc} | C];

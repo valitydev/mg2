@@ -258,7 +258,7 @@ get_corrupted_machine_fails(_C) ->
             lossfun => fun(I) -> (I rem LoseEvery) == 0 end,
             storage => {mg_core_storage_memory, #{}}
         }},
-    EventsStorage = mg_core_ct_helper:bootstrap_events_storage(memory, LossyStorage),
+    EventsStorage = mg_cth:bootstrap_events_storage(memory, LossyStorage),
     {Pid, Options} = start_automaton(BaseOptions#{events_storage => EventsStorage}),
     ok = start(Options, MachineID, <<>>),
     _ = ?assertEqual([], get_history(Options, MachineID)),
@@ -286,7 +286,7 @@ post_events_with_notification_test(_C) ->
         NS
     ),
     LossyStorage = mg_core_storage_memory,
-    EventsStorage = mg_core_ct_helper:bootstrap_events_storage(memory, LossyStorage),
+    EventsStorage = mg_cth:bootstrap_events_storage(memory, LossyStorage),
     {Pid, Options} = start_automaton(BaseOptions#{events_storage => EventsStorage}),
     ok = start(Options, MachineID, <<>>),
     _ = ?assertEqual([], get_history(Options, MachineID)),
@@ -437,7 +437,7 @@ events_machine_options(Base, StorageOptions, ProcessorOptions, NS) ->
         processor => {?MODULE, ProcessorOptions},
         machines => #{
             namespace => NS,
-            storage => mg_core_ct_helper:bootstrap_machine_storage(cql, NS, mg_core_events_machine),
+            storage => mg_cth:bootstrap_machine_storage(cql, NS, mg_core_events_machine),
             worker => #{
                 registry => mg_core_procreg_global
             },
@@ -452,7 +452,7 @@ events_machine_options(Base, StorageOptions, ProcessorOptions, NS) ->
                 }
             }
         },
-        events_storage => mg_core_ct_helper:bootstrap_events_storage(memory, Storage)
+        events_storage => mg_cth:bootstrap_events_storage(memory, Storage)
     }.
 
 -spec start(mg_core_events_machine:options(), mg_core:id(), term()) -> ok.

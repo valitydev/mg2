@@ -176,13 +176,15 @@ end_per_suite(_C) ->
 
 -spec init_per_group(group_name(), config()) -> config().
 init_per_group(history, C) ->
-    init_per_group([{storage, mg_core_storage_memory} | C]);
+    Storage = {mg_core_machine_storage_kvs, #{kvs => mg_core_storage_memory}},
+    init_per_group([{storage, Storage} | C]);
 init_per_group(_, C) ->
     % NOTE
     % Даже такой небольшой шанс может сработать в ситуациях, когда мы в процессоре выгребаем
     % большой кусок истории машины, из-за чего реальная вероятность зафейлить операцию равна
     % (1 - (1 - p) ^ n).
-    init_per_group([{storage, {mg_core_storage_memory, #{random_transient_fail => 0.01}}} | C]).
+    Storage = {mg_core_machine_storage_kvs, #{kvs => {mg_core_storage_memory, #{random_transient_fail => 0.01}}}},
+    init_per_group([{storage, Storage} | C]).
 
 -spec init_per_group(config()) -> config().
 init_per_group(C) ->
@@ -601,7 +603,8 @@ config_with_multiple_event_sinks(_C) ->
         woody_server => #{ip => {0, 0, 0, 0, 0, 0, 0, 0}, port => 8022, limits => #{}},
         namespaces => #{
             <<"1">> => #{
-                storage => mg_core_storage_memory,
+                storage => {mg_core_machine_storage_kvs, #{kvs => mg_core_storage_memory}},
+                events_storage => {mg_core_events_storage_kvs, #{kvs => mg_core_storage_memory}},
                 processor => #{
                     url => <<"http://localhost:8023/processor">>,
                     transport_opts => #{pool => pool1, max_connections => 100}
@@ -621,7 +624,8 @@ config_with_multiple_event_sinks(_C) ->
                 ]
             },
             <<"2">> => #{
-                storage => mg_core_storage_memory,
+                storage => {mg_core_machine_storage_kvs, #{kvs => mg_core_storage_memory}},
+                events_storage => {mg_core_events_storage_kvs, #{kvs => mg_core_storage_memory}},
                 processor => #{
                     url => <<"http://localhost:8023/processor">>,
                     transport_opts => #{pool => pool2, max_connections => 100}

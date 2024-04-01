@@ -325,6 +325,35 @@
     reason :: connect_timeout
 }).
 
+%% CQL query
+
+-record(mg_core_cql_query_start, {
+    name :: mg_core_storage:name()
+}).
+
+-record(mg_core_cql_query_finish, {
+    name :: mg_core_storage:name(),
+    duration :: non_neg_integer()
+}).
+
+-record(mg_core_cql_batch_start, {
+    name :: mg_core_storage:name()
+}).
+
+-record(mg_core_cql_batch_finish, {
+    name :: mg_core_storage:name(),
+    duration :: non_neg_integer()
+}).
+
+-record(mg_core_cql_continuation_start, {
+    name :: mg_core_storage:name()
+}).
+
+-record(mg_core_cql_continuation_finish, {
+    name :: mg_core_storage:name(),
+    duration :: non_neg_integer()
+}).
+
 %% Workers management
 
 -record(mg_core_worker_call_attempt, {
