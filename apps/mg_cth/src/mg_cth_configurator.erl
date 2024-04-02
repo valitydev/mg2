@@ -19,21 +19,25 @@
     default_processing_timeout := timeout(),
     suicide_probability => mg_core_machine:suicide_probability(),
     event_stash_size := non_neg_integer(),
-    scaling => mg_core_cluster:scaling_type()
+    scaling => mg_core_cluster:scaling_type(),
+    _ => _
 }.
 
 -type event_sink_ns() :: #{
     default_processing_timeout := timeout(),
     storage => mg_core_storage:options(),
     worker => mg_core_worker:options(),
-    scaling => mg_core_cluster:scaling_type()
+    scaling => mg_core_cluster:scaling_type(),
+    _ => _
 }.
 
 -type config() :: #{
     woody_server := mg_woody:woody_server(),
     event_sink_ns := event_sink_ns(),
     namespaces := #{mg_core:ns() => events_machines()},
-    quotas => [mg_core_quota_worker:options()]
+    quotas => [mg_core_quota_worker:options()],
+    cluster => mg_core_cluster:cluster_options(),
+    _ => _
 }.
 
 -type processor() :: mg_woody_processor:options().
@@ -64,11 +68,13 @@ construct_child_specs(
             pulse => mg_cth_pulse
         }
     ),
+    ClusterSpec = mg_core_cluster:child_spec(ClusterOpts),
 
     lists:flatten([
         EventSinkChSpec,
         WoodyServerChSpec,
         QuotasChSpec,
+        ClusterSpec,
         EventMachinesChSpec
     ]).
 

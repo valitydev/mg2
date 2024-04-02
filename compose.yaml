@@ -35,9 +35,44 @@ services:
         condition: service_started
       consul2:
         condition: service_started
+
+      distrunner1:
+        condition: service_started
+      distrunner2:
+        condition: service_started
+      distrunner3:
+        condition: service_started
+      distrunner4:
+        condition: service_started
+
     ports:
       - "8022"
     command: /sbin/init
+
+  distrunner1: &mg-cluster
+    image: distrunner-test
+    # scale: 2
+    hostname: ${SERVICE_NAME}-1
+    build:
+      dockerfile: Dockerfile.test
+      context: .
+      args:
+        OTP_VERSION: $OTP_VERSION
+        THRIFT_VERSION: $THRIFT_VERSION
+    cap_add:
+      - NET_ADMIN
+
+  distrunner2:
+    <<: *mg-cluster
+    hostname: ${SERVICE_NAME}-2
+
+  distrunner3:
+    <<: *mg-cluster
+    hostname: ${SERVICE_NAME}-3
+
+  distrunner4:
+    <<: *mg-cluster
+    hostname: ${SERVICE_NAME}-4
 
   riakdb: &member-node
     image: docker.io/basho/riak-kv:${RIAK_VERSION}

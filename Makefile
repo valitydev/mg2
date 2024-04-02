@@ -14,15 +14,19 @@ DOTENV := $(shell grep -v '^\#' .env)
 DEV_IMAGE_TAG = $(TEST_CONTAINER_NAME)-dev
 DEV_IMAGE_ID = $(file < .image.dev)
 
+TEST_IMAGE_TAG = $(DIST_CONTAINER_NAME)-test
+TEST_IMAGE_ID = $(file < .image.test)
+
 DOCKER ?= docker
 DOCKERCOMPOSE ?= docker-compose
 DOCKERCOMPOSE_W_ENV = DEV_IMAGE_TAG=$(DEV_IMAGE_TAG) $(DOCKERCOMPOSE) -f compose.yaml -f compose.tracing.yaml
 REBAR ?= rebar3
 TEST_CONTAINER_NAME ?= testrunner
+DIST_CONTAINER_NAME ?= distrunner
 
 all: compile xref lint check-format dialyze eunit
 
-.PHONY: dev-image clean-dev-image wc-shell test
+.PHONY: dev-image test-image clean-dev-image clean-test-image wc-shell test
 
 dev-image: .image.dev
 
@@ -34,6 +38,18 @@ clean-dev-image:
 ifneq ($(DEV_IMAGE_ID),)
 	$(DOCKER) image rm -f $(DEV_IMAGE_TAG)
 	rm .image.dev
+endif
+
+test-image: .image.test
+
+.image.test: Dockerfile.test .env
+	env $(DOTENV) $(DOCKERCOMPOSE_W_ENV) build $(DIST_CONTAINER_NAME)
+	$(DOCKER) image ls -q -f "reference=$(TEST_IMAGE_ID)" | head -n1 > $@
+
+clean-test-image:
+ifneq ($(TEST_IMAGE_ID),)
+	$(DOCKER) image rm -f $(TEST_IMAGE_TAG)
+	rm .image.test
 endif
 
 DOCKER_WC_OPTIONS := -v $(PWD):$(PWD) --workdir $(PWD)
@@ -87,7 +103,7 @@ eunit:
 	$(REBAR) eunit --cover
 
 common-test:
-	$(REBAR) ct --cover --name test_node@127.0.0.1
+	$(REBAR) ct --cover
 
 cover:
 	$(REBAR) covertool generate

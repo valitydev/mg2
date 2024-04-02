@@ -168,7 +168,7 @@ mg_woody_config(Name, C) ->
                             existing_storage_name => ?config(storage_name, C)
                         }},
                     processor => #{
-                        url => <<"http://localhost:8023/processor">>,
+                        url => <<"http://mg-0:8023/processor">>,
                         transport_opts => #{pool => ns, max_connections => 100}
                     },
                     default_processing_timeout => 5000,
@@ -186,7 +186,7 @@ mg_woody_config(Name, C) ->
                         #{
                             modernizer => #{
                                 current_format_version => ?MODERN_FMT_VSN,
-                                handler => #{url => <<"http://localhost:8023/modernizer">>}
+                                handler => #{url => <<"http://mg-0:8023/modernizer">>}
                             }
                         }
                 end

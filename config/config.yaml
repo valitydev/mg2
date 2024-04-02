@@ -1,201 +1,18 @@
-#
-# Copyright 2020 RBKmoney
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#     http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-#
+service_name: mg
 
-### This is one and only file to configure machinegun service.
-###
-### Configuration is specific for a single instance of machinegun, it's up to
-### you to ensure that each instance is configured properly. This usually boils
-### down to sharing namespaces configuration between instances and assigning
-### proper nodenames so that instances could see and communicate with each
-### other over Erlang distribution.
-###
-### If you find some configuration knobs are missing here do not hesitate to
-### send a PR.
-###
-### Notes:
-###
-### * Configuration string support environment variable interpolation.
-###
-###     The syntax is `${VARNAME}` where `VARNAME` is the name of referenced
-###     environment variable. If referenced the variable MUST be defined,
-###     otherwise it's a configuration error. There is no special handling of
-###     variable values: empty variable for example will be interpolated as
-###     empty string.
-###
-###     For example, given `HOST_IP=10.0.42.42` one could define:
-###       dist_node_name: machinegun@${HOST_IP}
-###
-### * Graceful shutdowns.
-###
-###     There are multiple `shutdown_timeout` parameters defined in this example config:
-###      * one for the woody server
-###      * one for each machinegun namespace
-###      * and two for consuela presence and registry
-###     To calculate the actual maximum time this service takes to shut down gracefully
-###     you need to take the woody server `shutdown_timeout` parameter, add the maximum
-###     value between all of the `shutdown_timeout` parameters defined for each namespace,
-###     and then add the both of the consuela `shutdown_timeout`s:
-###
-###     max_shutdown_time =
-###         woody_server.shutdown_timeout +
-###         max(namespaces[].shutdown_timeout) +
-###         consuela.presence.shutdown_timeout +
-###         consuela.registry.shutdown_timeout
-###
-###
+#dist_node_name: mg@${POD_IP}
+#dist_port:
+#    mode: static
+#    port: 31337
 
-# Name of the service.
-#
-# Defaults to: 'machinegun'.
-service_name: machinegun
-
-# Name of the node for Erlang distribution.
-#
-# Defaults to: '{service_name}@{hostname}'.
-# Examples:
-# * with short node name:
-#     dist_node_name: machinegun
-# * with fixed ip for host part:
-#     dist_node_name: machinegun@10.0.0.42
-# * for `machinegun@{primary_netif_ip}`, with latter determined at start time:
-#     dist_node_name:
-#       hostpart: ip
-# * for `blarg@{fqdn}`, if latter available at start time:
-#     dist_node_name:
-#       namepart: blarg
-#       hostpart: fqdn
-dist_node_name:
-    hostpart: hostname
-
-# Mode and allocation of ports for Erlang distribution.
-#
-# No defaults here, default behaviour is dictated by ERTS.
-# Examples:
-# * disable EMPD altogether and set a fixed port both for listening and
-#   communicating with remote nodes:
-#     dist_port:
-#         mode: static
-#         port: 31337
-dist_port:
-    mode: epmd
-    # Which ports to pick from when setting up a distribution listener?
-    range: [31337, 31340]
-
-# Erlang VM options.
 erlang:
-    # Path to a file which holds Erlang distribution cookie.
-    # The cookie is _sensitive_ piece of information so handle it with caution.
-    #
-    # Must be set, there's no default.
-    secret_cookie_file: "config/cookie"
-    ipv6: true
-    disable_dns_cache: false
+    ipv6: false
+    secret_cookie_file: /opt/mg/etc/cookie
 
-# Opentelemetry settings
-# By default opentelemetry is disabled which is equivalent to
-# "opentelemetry: disabled"
-opentelemetry:
-    # TODO Describe sampling
-    # Name of the service to use in recording machinegun's spans
-    service_name: machinegun
-    # For now spans processed always in batches.
-    # We support only "otlp" traces exporter
-    exporter:
-        # Supports only "http/protobuf" or "grpc"
-        protocol: http/protobuf
-        endpoint: http://jaeger:4318
-
-# API server options.
-woody_server:
-    ip: "::"
-    port: 8022
-    http_keep_alive_timeout: 60s
-    shutdown_timeout: 0s # woody server shutdown timeout (see notes above)
-
-# Distributed machine registry settings.
-#
-# Do not set if you plan to run machinegun in a non-distributed fashion,
-# for example in a development or testing scenarios.
-consuela:
-    presence:
-        check_interval: 5s
-        shutdown_timeout: 5s
-        tags:
-            - production
-    registry:
-        nodename: mhost1
-        session_ttl: 30s
-        session_renewal_interval: 10s
-        shutdown_timeout: 5s
-    discovery: {}
-
-# Consul client settings.
-#
-# Required when distributed machine registry is enabled.
-consul:
-    url: http://localhost:8500
-    acl_token_file: config/consul.token
-    connect_timeout: 200ms
-    recv_timeout: 1s
-
-# New cluster assembler (instead consuela)
-# will be used if consuela undefined
-# if cluster undefined then standalone mode
-cluster:
-    discovery:
-        type: dns
-        options:
-            # hostname that will be resolved
-            domain_name: machinegun-headless
-            # name that will be used for construct full nodename (for example name@127.0.0.1)
-            sname: machinegun
-    # optional, supported values: global_based | partition_based, default global_based
-    scaling: partition_based
-    # required when scaling = partition_based
-    partitioning:
-        capacity: 31
-        max_hash: 4095
-    # optional, default value 5000 ms
-    reconnect_timeout: 5000
-
-# if undefined will de used {mg_core_procreg_consuela, #{pulse => pulse(YamlConfig)}}
-# if consuela undefined will be used mg_core_procreg_gproc
-process_registry:
-    module: mg_core_procreg_global
-
-limits:
-    process_heap: 2M # heap limit
-    disk: # uses only for health check
-        path: "/"
-        value: 99%
-    memory: # return 503 if breaks
-        type: cgroups  # cgroups | total
-        value: 90%
-    scheduler_tasks: 5000
 logging:
-    root: /var/log/mg
-    burst_limit_enable: false
-    sync_mode_qlen: 100
-    drop_mode_qlen: 1000
-    flush_qlen: 2000
-    json_log: log.json
-    level: info
+    out_type: stdout
+    level: warning
     formatter:
-        max_length: 1000
-        max_printable_string_length: 80
         level_map:
             'emergency': 'ERROR'
             'alert': 'ERROR'
@@ -206,87 +23,91 @@ logging:
             'info': 'INFO'
             'debug': 'DEBUG'
 
-namespaces:
-    mg_test_ns:
-        # only for testing, default 0
-        # suicide_probability: 0.1
-        event_sinks:
-            machine:
-                type: machine
-                machine_id: main_event_sink
-            kafka:
-                type: kafka
-                client: default_kafka_client
-                topic: mg_test_ns
-        default_processing_timeout: 30s
-        timer_processing_timeout: 60s
-        reschedule_timeout: 60s
-        hibernate_timeout: 5s
-        shutdown_timeout: 1s # worker shutdown timeout (see notes above)
-        unload_timeout: 60s
-        processor:
-            url: http://localhost:8022/processor
-            pool_size: 50
-            http_keep_alive_timeout: 10s
-        timers:
-            scan_interval: 1m
-            scan_limit: 1000
-            capacity: 500
-            min_scan_delay: 10s
-        overseer: disabled
-        notification:
-            capacity: 1000
-            # search for new notification tasks in storage every x
-            scan_interval: 1m
-            # if the search had a continuation, read the continuation after x amount of time
-            min_scan_delay: 1s
-            # only search for notification tasks that are older than x
-            scan_handicap: 10s
-            # only search for notification tasks that are younger than x
-            scan_cutoff: 4W
-            # reschedule notification deliveries that failed with temporary errors x amount of time into the future
-            reschedule_time: 5s
-        # maximum number of events that will be stored inside of machine state
-        # must be non negative integer, default is 0
-        event_stash_size: 5
-        modernizer:
-            current_format_version: 1
-            handler:
-                url: http://localhost:8022/modernizer
-                pool_size: 50
-                http_keep_alive_timeout: 10s
-snowflake_machine_id: 1
-# memory storage backend
-# storage:
-#     type: memory
-# riak storage backend
+woody_server:
+    ip: "::"
+    port: 8022
+    max_concurrent_connections: 8000
+    http_keep_alive_timeout: 3000ms
+    shutdown_timeout: 5s
+
 storage:
     type: riak
-    host: riak-mg
-    port: 8078
+    host: riakdb
+    port: 8087
     pool:
         size: 100
-        queue_max: 1000
-    connect_timeout: 5s
+        queue_max: 500
+    batch_concurrency_limit: 10
+    connect_timeout: 500ms
     request_timeout: 10s
-    index_query_timeout: 10s
-    batch_concurrency_limit: 50
-# Docs on what these options do
-# https://www.tiot.jp/riak-docs/riak/kv/3.2.0/developing/usage/replication
-# https://www.tiot.jp/riak-docs/riak/kv/3.2.0/learn/concepts/eventual-consistency/
-    r_options:
-        r: quorum
-        pr: quorum
-        sloppy_quorum: false
-    w_options:
-        w: 4
-        pw: 4
-        dw: 4
-        sloppy_quorum: false
-    d_options:
-        sloppy_quorum: false
+    index_query_timeout: 60s
 
-## kafka settings example
+worker:
+    message_queue_len_limit: 1000
+
+process_registry:
+    module: mg_core_procreg_gproc
+
+cluster:
+    discovery:
+        type: dns
+        options:
+            domain_name: machinegun-ha-headless
+            sname: mg
+    scaling: partition_based
+    partitioning:
+        capacity: 5
+        max_hash: 4095
+    reconnect_timeout: 5000
+
+namespaces:
+    NS:
+        timers:
+            scan_interval: 60s
+            scan_limit: 2000
+            capacity: 3500
+            min_scan_delay: 5s
+        overseer:
+            scan_interval: 60m
+            min_scan_delay: 5s
+        retries:
+            storage:
+                type: exponential
+                max_retries: infinity
+                factor: 2
+                timeout: 10ms
+                max_timeout: 60s
+            timers:
+                type: exponential
+                max_retries: 100
+                factor: 2
+                timeout: 2s
+                max_timeout: 30m
+            processor:
+                type: exponential
+                max_retries:
+                    max_total_timeout: 1d
+                factor: 2
+                timeout: 10ms
+                max_timeout: 60s
+            continuation:
+                type: exponential
+                max_retries: infinity
+                factor: 2
+                timeout: 10ms
+                max_timeout: 60s
+        event_sinks:
+            kafka:
+                type: kafka
+                topic: test_transaction
+                client: default_kafka_client
+        processor:
+            url: http://mg-0:8023/processor
+            pool_size: 2000
+            http_keep_alive_timeout: 3000ms
+        unload_timeout: 180s
+        shutdown_timeout: 5s
+
 kafka:
     default_kafka_client:
         endpoints:
@@ -296,103 +117,14 @@ kafka:
               port: 9092
             - host: "kafka3"
               port: 9092
-        ssl:
-            certfile: "client.crt"
-            keyfile: "client.key"
-            cacertfile: "ca.crt"
-        sasl:
-            mechanism: scram_sha_512 # Available: scram_sha_512, scram_sha_265, plain
-            # *Either* specify the `file` field or `username` and `password` fields.
-            # `file` is the path to a text file which contains two lines,
-            # first line for username and second line for password.
-            # Presence of the `file` field will override the presence of
-            # `username` and `password` fields (there is no fallback).
-            file: secret.txt
-            # ** OR **
-            username: root
-            password: qwerty
         producer:
-            compression: no_compression  # 'gzip' or 'snappy' to enable compression
-            # How many message sets (per-partition) can be sent to kafka broker
-            # asynchronously before receiving ACKs from broker.
+            compression: no_compression
             partition_onwire_limit: 1
-            # Maximum time the broker can await the receipt of the
-            # number of acknowledgements in RequiredAcks. The timeout is not an exact
-            # limit on the request time for a few reasons: (1) it does not include
-            # network latency, (2) the timer begins at the beginning of the processing
-            # of this request so if many requests are queued due to broker overload
-            # that wait time will not be included, (3) kafka leader will not terminate
-            # a local write so if the local write time exceeds this timeout it will
-            # not be respected.
             ack_timeout: 10s
-            # How many acknowledgements the kafka broker should receive from the
-            # clustered replicas before acking producer.
-            #   none: the broker will not send any response
-            #      (this is the only case where the broker will not reply to a request)
-            #   leader_only: The leader will wait the data is written to the local log before
-            #      sending a response.
-            #   all_isr: If it is 'all_isr' the broker will block until the message is committed by
-            #      all in sync replicas before acking.
             required_acks: all_isr
-            # How many requests (per-partition) can be buffered without blocking the
-            # caller. The callers are released (by receiving the
-            # 'brod_produce_req_buffered' reply) once the request is taken into buffer
-            # and after the request has been put on wire, then the caller may expect
-            # a reply 'brod_produce_req_acked' when the request is accepted by kafka.
             partition_buffer_limit: 256
-            # Messages are allowed to 'linger' in buffer for this amount of
-            # time before being sent.
-            # Definition of 'linger': A message is in 'linger' state when it is allowed
-            # to be sent on-wire, but chosen not to (for better batching).
             max_linger: 0ms
-            # At most this amount (count not size) of messages are allowed to 'linger'
-            # in buffer. Messages will be sent regardless of 'linger' age when this
-            # threshold is hit.
-            # NOTE: It does not make sense to have this value set larger than
-            #       `partition_buffer_limit'
             max_linger_count: 0
-            # In case callers are producing faster than brokers can handle (or
-            # congestion on wire), try to accumulate small requests into batches
-            # as much as possible but not exceeding max_batch_size.
-            # OBS: If compression is enabled, care should be taken when picking
-            #      the max batch size, because a compressed batch will be produced
-            #      as one message and this message might be larger than
-            #      'max.message.bytes' in kafka config (or topic config)
             max_batch_size: 1M
-            # If {max_retries, N} is given, the producer retry produce request for
-            # N times before crashing in case of failures like connection being
-            # shutdown by remote or exceptions received in produce response from kafka.
-            # The special value N = -1 means 'retry indefinitely'
             max_retries: 3
-            # Time in milli-seconds to sleep before retry the failed produce request.
             retry_backoff: 500ms
-
-##
-## a short example for HG
-##
-# service_name: machinegun
-# namespaces:
-#     invoice:
-#         event_sink: payproc
-#         processor:
-#             url: http://hellgate:8022/v1/stateproc/invoice
-#     party:
-#         event_sink: payproc
-#         processor:
-#             url: http://hellgate:8022/v1/stateproc/party
-#     domain-config:
-#         processor:
-#             url: http://dominant:8022/v1/stateproc/party
-# storage:
-#     type: memory
-
-##
-## a minimal config
-##
-# service_name: machinegun
-# namespaces:
-#     mg_test_ns:
-#         processor:
-#             url: http://localhost:8022/processor
-# storage:
-#     type: memory
