@@ -128,17 +128,25 @@ _НС_ — это любое отклонение от основного биз
 
 !!! attention "Todo"
 
-
-## EventSink
-
-Основная его задача — сохранение сплошного потока эвенотов, для возможности синхронизации баз. Эвенты должны быть total ordered, и должна быть цепочка хэшей для контроля целостности.
-Находится отдельно от машин, и может быть подписан на произвольные namespace'ы. Тоже является машиной в отдельном нэймспейсе (чтобы это работало нормально нужно сделать [оптимизации протокола](https://github.com/rbkmoney/damsel/pull/38) и возможно отдельный бэкенд для бд).
-Через настройки описываются подписки event_sink'ов на namespace'ы (точнее на машины).
-У машины появляется промежуточный стейт для слива в синк.
-
 ## OpenTelemetry
 
-В МГ используется SDK https://github.com/open-telemetry/opentelemetry-erlang/tree/main/apps/opentelemetry для трассировки. Соответственно есть возможность настройки параметров работы SDK посредством переменных окружения.
+В МГ добавлена поддержка трассировки сигналов автомата и передача соответствующего контекста в http заголовках при работе woody rpc.
+Сбор трейса осуществляется [посредством SDK](https://github.com/open-telemetry/opentelemetry-erlang/tree/v1.3.0/apps/opentelemetry#configuration), а конфигурировать следует через [переменные окружения описанные спецификацие и поддерживаемые этим SDK](https://github.com/open-telemetry/opentelemetry-specification/blob/v1.8.0/specification/sdk-environment-variables.md#general-sdk-configuration).
+
+Отдельные параметры спанов в трейсе в будущем могут меняться или дополняться в ходе дальнейшей эксплуатации и/или интеграции других компонент согласно спецификациям OpenTelemetry (например логи и метрики).
+
+Рекомендуемые параметры для включения трассировки МГ:
+
+```yaml
+environment:
+  OTEL_TRACES_SAMPLER: parentbased_always_off
+  OTEL_TRACES_EXPORTER: otlp
+  OTEL_EXPORTER_OTLP_PROTOCOL: http_protobuf
+  OTEL_EXPORTER_OTLP_ENDPOINT: http://jaeger:4318
+  OTEL_SPAN_SWEEPER_STRATEGY: failed_attribute_and_end_span
+  OTEL_SPAN_SWEEPER_INTERVAL: 600000
+  OTEL_SPAN_SWEEPER_SPAN_TTL: 1800000
+```
 
 ### Замечания по производительности
 
