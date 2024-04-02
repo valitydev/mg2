@@ -2,6 +2,7 @@
 -define(__mg_cth__, 42).
 
 -define(NS, <<"NS">>).
+-define(EVENT_SINK_NS, <<"_event_sinks">>).
 -define(ID, <<"ID">>).
 -define(EMPTY_ID, <<"">>).
 -define(ES_ID, <<"test_event_sink_2">>).

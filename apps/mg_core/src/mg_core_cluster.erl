@@ -56,6 +56,7 @@
 
 -export_type([scaling_type/0]).
 -export_type([partitions_info/0]).
+-export_type([cluster_options/0]).
 
 -spec child_spec(cluster_options()) -> [supervisor:child_spec()].
 child_spec(#{discovering := _} = ClusterOpts) ->

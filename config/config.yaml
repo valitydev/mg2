@@ -46,7 +46,7 @@ worker:
     message_queue_len_limit: 1000
 
 process_registry:
-    module: mg_core_procreg_global
+    module: mg_core_procreg_gproc
 
 cluster:
     discovery:
@@ -61,7 +61,7 @@ cluster:
     reconnect_timeout: 5000
 
 namespaces:
-    test_transaction:
+    NS:
         timers:
             scan_interval: 60s
             scan_limit: 2000
@@ -102,7 +102,7 @@ namespaces:
                 topic: test_transaction
                 client: default_kafka_client
         processor:
-            url: http://test-transaction2:8088/v1/processor
+            url: http://mg-0:8023/processor
             pool_size: 2000
             http_keep_alive_timeout: 3000ms
         unload_timeout: 180s

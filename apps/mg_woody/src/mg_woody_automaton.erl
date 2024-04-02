@@ -111,7 +111,7 @@ handle_function('Repair', {MachineDesc, Args}, WoodyContext, Options) ->
         {ok, Reply} ->
             {ok, pack(repair_response, Reply)};
         {error, {failed, Reason}} ->
-            %% TODO catch this in router!!!
+            %% TODO catch this in balancer!!!
             woody_error:raise(business, pack(repair_error, Reason))
     end;
 handle_function('SimpleRepair', {NS, RefIn}, WoodyContext, Options) ->
