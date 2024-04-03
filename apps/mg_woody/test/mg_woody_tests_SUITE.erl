@@ -158,7 +158,7 @@ groups() ->
             {group, history},
             {group, repair},
             {group, timers}
-%            {group, deadline}
+            %% {group, deadline}
         ]},
 
         % TODO проверить отмену таймера

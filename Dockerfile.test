@@ -43,9 +43,9 @@ RUN chown root:root /root/.ssh/authorized_keys
 RUN chmod 600 /root/.ssh/*
 
 # SSH install
-RUN apt-get update && apt-get install -y openssh-server iproute2 iputils-ping dnsutils mc
+RUN apt-get update && apt-get install -y openssh-server=1:8.4p1-5+deb11u3 iproute2=5.10.0-4 iputils-ping=3:20210202-1
 RUN mkdir /var/run/sshd
-RUN echo 'root:security' | chpasswd
+RUN /bin/bash -o pipefail -c 'echo "root:security" | chpasswd'
 RUN sed -i 's/#PermitRootLogin prohibit-password/PermitRootLogin yes/' /etc/ssh/sshd_config
 
 RUN echo '#!/bin/sh' >> /entrypoint.sh && \
