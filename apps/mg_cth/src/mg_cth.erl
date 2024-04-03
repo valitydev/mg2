@@ -42,9 +42,8 @@
 -export([poll_for_value/3]).
 -export([poll_for_exception/3]).
 
-%%
-
--export([handle_beat/2]).
+-export([trace_testcase/3]).
+-export([maybe_end_testcase_trace/1]).
 
 %%
 
@@ -52,7 +51,7 @@
 
 -type appname() :: atom().
 -type app() :: appname() | {appname(), [{atom(), _Value}]}.
-
+-type config() :: [{atom(), _}].
 -type option() :: kafka_client_name.
 
 -spec config(option()) -> _.
@@ -71,13 +70,6 @@ kafka_client_config(Brokers) ->
     ].
 
 -spec start_application(app()) -> _Deps :: [appname()].
-start_application(consuela) ->
-    genlib_app:start_application_with(consuela, [
-        {registry, #{
-            nodename => "consul0",
-            namespace => <<"mg">>
-        }}
-    ]);
 start_application(brod) ->
     genlib_app:start_application_with(brod, kafka_client_config(?BROKERS));
 start_application({AppName, Env}) ->
@@ -230,16 +222,20 @@ poll_for_exception(Fun, Wanted, MaxTime, TimeAcc) ->
             {ok, TimeAcc}
     end.
 
-%%
+-spec trace_testcase(module(), atom(), config()) -> config().
+trace_testcase(Mod, Name, C) ->
+    SpanName = iolist_to_binary([atom_to_binary(Mod), ":", atom_to_binary(Name), "/1"]),
+    SpanCtx = otel_tracer:start_span(opentelemetry:get_application_tracer(Mod), SpanName, #{kind => internal}),
+    %% NOTE This also puts otel context to process dictionary
+    _ = otel_tracer:set_current_span(SpanCtx),
+    [{span_ctx, SpanCtx} | C].
 
--type category() :: atom().
-
--spec handle_beat
-    (consuela_client:beat(), {client, category()}) -> ok;
-    (consuela_session_keeper:beat(), {keeper, category()}) -> ok;
-    (consuela_zombie_reaper:beat(), {reaper, category()}) -> ok;
-    (consuela_registry_server:beat(), {registry, category()}) -> ok.
-handle_beat(Beat, {Producer, Category}) ->
-    ct:pal(Category, "[~p] ~p", [Producer, Beat]);
-handle_beat(_Beat, _) ->
-    ok.
+-spec maybe_end_testcase_trace(config()) -> ok.
+maybe_end_testcase_trace(C) ->
+    case lists:keyfind(span_ctx, 1, C) of
+        {span_ctx, SpanCtx} ->
+            _ = otel_span:end_span(SpanCtx),
+            ok;
+        _ ->
+            ok
+    end.

@@ -100,19 +100,21 @@
 
 -spec child_spec(scheduler_id(), options(), _ChildID) -> supervisor:child_spec().
 child_spec(SchedulerID, Options, ChildID) ->
-    mg_core_utils_supervisor_wrapper:child_spec(
-        #{strategy => rest_for_one},
-        mg_core_utils:lists_compact([
-            handler_child_spec(Options, {ChildID, handler}),
-            #{
-                id => {ChildID, scanner},
-                start => {?MODULE, start_link, [SchedulerID, Options]},
-                restart => permanent,
-                type => worker
-            }
-        ]),
-        ChildID
-    ).
+    Flags = #{strategy => rest_for_one},
+    ChildSpecs = mg_core_utils:lists_compact([
+        handler_child_spec(Options, {ChildID, handler}),
+        #{
+            id => {ChildID, scanner},
+            start => {?MODULE, start_link, [SchedulerID, Options]},
+            restart => permanent,
+            type => worker
+        }
+    ]),
+    #{
+        id => ChildID,
+        start => {genlib_adhoc_supervisor, start_link, [Flags, ChildSpecs]},
+        type => supervisor
+    }.
 
 -spec handler_child_spec(options(), _ChildID) -> supervisor:child_spec() | undefined.
 handler_child_spec(#{queue_handler := Handler}, ChildID) ->

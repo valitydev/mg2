@@ -1,16 +1,8 @@
 -module(mg_health_check).
 
--export([consuela/0]).
 -export([global/0]).
 -export([startup/0]).
 -export([skip/0]).
-
--spec consuela() -> {erl_health:status(), erl_health:details()}.
-consuela() ->
-    case consuela:test() of
-        ok -> {passing, []};
-        {error, Reason} -> {critical, genlib:format(Reason)}
-    end.
 
 -spec global() -> {erl_health:status(), erl_health:details()}.
 global() ->

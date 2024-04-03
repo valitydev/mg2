@@ -505,7 +505,7 @@ riak_options(Namespace, PoolOptions) ->
 -spec start_storage(mg_core_storage:options()) -> pid().
 start_storage(Options) ->
     mg_core_utils:throw_if_error(
-        mg_core_utils_supervisor_wrapper:start_link(
+        genlib_adhoc_supervisor:start_link(
             #{strategy => one_for_all},
             [mg_core_storage:child_spec(Options, storage)]
         )

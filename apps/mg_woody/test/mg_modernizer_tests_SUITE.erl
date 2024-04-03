@@ -191,11 +191,6 @@ mg_woody_config(Name, C) ->
                         }
                 end
             )
-        },
-        event_sink_ns => #{
-            storage => mg_core_storage_memory,
-            scaling => global_based,
-            default_processing_timeout => 5000
         }
     }.
 

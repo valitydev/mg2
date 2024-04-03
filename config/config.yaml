@@ -9,6 +9,17 @@ erlang:
     ipv6: false
     secret_cookie_file: /opt/mg/etc/cookie
 
+opentelemetry:
+    # TODO Describe sampling
+    # Name of the service to use in recording machinegun's spans
+    service_name: machinegun
+    # For now spans processed always in batches.
+    # We support only "otlp" traces exporter
+    exporter:
+        # Supports only "http/protobuf" or "grpc"
+        protocol: http/protobuf
+        endpoint: http://jaeger:4318
+
 logging:
     out_type: stdout
     level: warning

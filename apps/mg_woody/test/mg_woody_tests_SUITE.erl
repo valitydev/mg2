@@ -31,6 +31,8 @@
 -export([end_per_suite/1]).
 -export([init_per_group/2]).
 -export([end_per_group/2]).
+-export([init_per_testcase/2]).
+-export([end_per_testcase/2]).
 
 %% base group tests
 -export([namespace_not_found/1]).
@@ -67,14 +69,6 @@
 %% deadline group tests
 -export([success_call_with_deadline/1]).
 -export([timeout_call_with_deadline/1]).
-
-%% event_sink group tests
--export([event_sink_get_empty_history/1]).
--export([event_sink_get_not_empty_history/1]).
--export([event_sink_get_last_event/1]).
--export([event_sink_incorrect_event_id/1]).
--export([event_sink_incorrect_sink_id/1]).
--export([event_sink_lots_events_ordering/1]).
 
 %%
 
@@ -147,7 +141,6 @@ groups() ->
             {group, base},
             {group, repair},
             {group, timers},
-            {group, event_sink},
             {group, deadline}
         ]},
         {standalone_memory_history, [], [
@@ -158,7 +151,6 @@ groups() ->
             {group, history},
             {group, repair},
             {group, timers},
-            {group, event_sink},
             {group, deadline}
         ]},
         {distributed_riak, [], [
@@ -166,12 +158,10 @@ groups() ->
             {group, history},
             {group, repair},
             {group, timers}
-            %            {group, event_sink},
-            %            {group, deadline}
+%            {group, deadline}
         ]},
 
         % TODO проверить отмену таймера
-        % TODO проверить отдельно get_history
         {base, [sequence], [
             namespace_not_found,
             machine_id_not_found,
@@ -226,16 +216,6 @@ groups() ->
             machine_start,
             success_call_with_deadline,
             timeout_call_with_deadline
-        ]},
-
-        {event_sink, [sequence], [
-            event_sink_get_empty_history,
-            event_sink_get_not_empty_history,
-            event_sink_get_last_event,
-            % TODO event_not_found
-            % event_sink_incorrect_event_id,
-            event_sink_incorrect_sink_id,
-            event_sink_lots_events_ordering
         ]}
     ].
 
@@ -244,12 +224,20 @@ groups() ->
 %%
 -spec init_per_suite(config()) -> config().
 init_per_suite(C) ->
+    _ = mg_cth:start_applications([
+        opentelemetry_exporter,
+        opentelemetry
+    ]),
     % dbg:tracer(), dbg:p(all, c),
     % dbg:tpl({mg_core_machine, retry_strategy, '_'}, x),
     C.
 
 -spec end_per_suite(config()) -> ok.
 end_per_suite(_C) ->
+    _ = mg_cth:stop_applications([
+        opentelemetry_exporter,
+        opentelemetry
+    ]),
     ok.
 
 -spec init_per_group(group_name(), config()) -> config().
@@ -339,10 +327,17 @@ init_per_group(C) ->
             ns => ?NS,
             retry_strategy => genlib_retry:linear(3, 1)
         }},
-        {event_sink_options, "http://mg-0:8022"},
         {processor_pid, ProcessorPid}
         | C
     ].
+
+-spec init_per_testcase(atom(), config()) -> config().
+init_per_testcase(Name, C) ->
+    mg_cth:trace_testcase(?MODULE, Name, C).
+
+-spec end_per_testcase(atom(), config()) -> _.
+end_per_testcase(_Name, C) ->
+    ok = mg_cth:maybe_end_testcase_trace(C).
 
 -spec default_signal_handler(mg_core_events_machine:signal_args()) ->
     mg_core_events_machine:signal_result().
@@ -453,10 +448,6 @@ mg_woody_config(C) ->
                 % сейчас же можно иногда включать и смотреть
                 % suicide_probability => 0.1,
                 event_sinks => [
-                    {mg_core_events_sink_machine, #{
-                        name => machine,
-                        machine_id => ?ES_ID
-                    }},
                     {mg_core_events_sink_kafka, #{
                         name => kafka,
                         topic => ?ES_ID,
@@ -464,14 +455,6 @@ mg_woody_config(C) ->
                     }}
                 ]
             }
-        },
-        %% NS = <<"_event_sinks">>
-        event_sink_ns => #{
-            storage => ?config(storage_evs, C),
-            scaling => ?config(scaling, C),
-            registry => ?config(registry, C),
-            worker => ?config(worker, C),
-            default_processing_timeout => 5000
         }
     }.
 
@@ -770,95 +753,6 @@ success_call_with_deadline(C) ->
     <<"sleep">> = mg_cth_automaton_client:call(Options, ?ID, <<"sleep">>, Deadline).
 
 %%
-%% event_sink group test
-%%
--spec event_sink_get_empty_history(config()) -> _.
-event_sink_get_empty_history(C) ->
-    [] = mg_event_sink_client:get_history(es_opts(C), ?ES_ID, #mg_stateproc_HistoryRange{
-        direction = forward
-    }).
-
--spec event_sink_get_not_empty_history(config()) -> _.
-event_sink_get_not_empty_history(C) ->
-    ok = start_machine(C, ?ID),
-
-    _ = create_events(3, C, ?ID),
-
-    AllEvents = mg_event_sink_client:get_history(es_opts(C), ?ES_ID, #mg_stateproc_HistoryRange{
-        direction = forward
-    }),
-    GeneratedEvents = [
-        E
-     || E = #mg_stateproc_SinkEvent{
-            source_id = ?ID,
-            source_ns = ?NS,
-            event = #mg_stateproc_Event{}
-        } <- AllEvents
-    ],
-    ?assert(erlang:length(GeneratedEvents) >= 3).
-
--spec event_sink_get_last_event(config()) -> _.
-event_sink_get_last_event(C) ->
-    [
-        #mg_stateproc_SinkEvent{
-            id = 3,
-            source_id = _ID,
-            source_ns = _NS,
-            event = #mg_stateproc_Event{}
-        }
-    ] =
-        mg_event_sink_client:get_history(es_opts(C), ?ES_ID, #mg_stateproc_HistoryRange{
-            direction = backward,
-            limit = 1
-        }).
-
--spec event_sink_incorrect_event_id(config()) -> _.
-event_sink_incorrect_event_id(C) ->
-    #mg_stateproc_EventNotFound{} =
-        (catch mg_event_sink_client:get_history(es_opts(C), ?ES_ID, #mg_stateproc_HistoryRange{
-            'after' = 42
-        })).
-
--spec event_sink_incorrect_sink_id(config()) -> _.
-event_sink_incorrect_sink_id(C) ->
-    HRange = #mg_stateproc_HistoryRange{},
-    #mg_stateproc_EventSinkNotFound{} =
-        (catch mg_event_sink_client:get_history(es_opts(C), <<"incorrect_event_sink_id">>, HRange)).
-
--spec event_sink_lots_events_ordering(config()) -> _.
-event_sink_lots_events_ordering(C) ->
-    MachineID = genlib:unique(),
-    ok = start_machine(C, MachineID),
-    N = 20,
-    _ = create_events(N, C, MachineID),
-
-    HRange = #mg_stateproc_HistoryRange{direction = forward},
-    Events = mg_event_sink_client:get_history(es_opts(C), ?ES_ID, HRange),
-    % event_sink не гарантирует отсутствия дублей событий, но гарантирует
-    % сохранения порядка событий отдельной машины.
-    lists:foldl(
-        fun(Ev, LastEvIDMap) ->
-            #mg_stateproc_SinkEvent{
-                source_id = Machine,
-                source_ns = NS,
-                event = Body
-            } = Ev,
-            Key = {NS, Machine},
-            LastID = maps:get(Key, LastEvIDMap, 0),
-            case Body#mg_stateproc_Event.id of
-                ID when ID =:= LastID + 1 ->
-                    LastEvIDMap#{Key => ID};
-                ID when ID =< LastID ->
-                    % Дубликат одного из уже известных событий
-                    LastEvIDMap;
-                ID ->
-                    % Нарушен порядок событий, получился пропуск
-                    erlang:error({invalid_order, ID, LastID}, [Ev, LastEvIDMap])
-            end
-        end,
-        #{},
-        Events
-    ).
 
 -spec config_with_multiple_event_sinks(config()) -> _.
 config_with_multiple_event_sinks(_C) ->
@@ -881,7 +775,11 @@ config_with_multiple_event_sinks(_C) ->
                 registry => mg_core_procreg_global,
                 worker => #{registry => mg_core_procreg_global},
                 event_sinks => [
-                    {mg_core_events_sink_machine, #{name => default, machine_id => <<"SingleES">>}}
+                    {mg_core_events_sink_kafka, #{
+                        name => kafka,
+                        topic => <<"mg_core_event_sink">>,
+                        client => mg_cth:config(kafka_client_name)
+                    }}
                 ]
             },
             <<"2">> => #{
@@ -900,9 +798,10 @@ config_with_multiple_event_sinks(_C) ->
                 registry => mg_core_procreg_global,
                 worker => #{registry => mg_core_procreg_global},
                 event_sinks => [
-                    {mg_core_events_sink_machine, #{
-                        name => machine,
-                        machine_id => <<"SingleES">>
+                    {mg_core_events_sink_kafka, #{
+                        name => kafka_other,
+                        topic => <<"mg_core_event_sink_2">>,
+                        client => mg_cth:config(kafka_client_name)
                     }},
                     {mg_core_events_sink_kafka, #{
                         name => kafka,
@@ -911,20 +810,13 @@ config_with_multiple_event_sinks(_C) ->
                     }}
                 ]
             }
-        },
-        event_sink_ns => #{
-            storage => mg_core_storage_memory,
-            registry => mg_core_procreg_global,
-            worker => #{registry => mg_core_procreg_global},
-            scaling => global_based,
-            default_processing_timeout => 5000
         }
     },
     Apps = mg_cth:start_applications([
         brod,
         woody
     ]),
-    {ok, _Pid} = mg_core_utils_supervisor_wrapper:start_link(
+    {ok, _Pid} = genlib_adhoc_supervisor:start_link(
         {local, mg_core_sup_does_nothing},
         #{strategy => rest_for_one},
         mg_cth_configurator:construct_child_specs(Config)
@@ -947,24 +839,8 @@ start_machine(C, ID, Args) ->
             ok
     end.
 
--spec create_event(mg_core_storage:opaque(), config(), mg_core:id()) -> _.
-create_event(Event, C, ID) ->
-    mg_cth_automaton_client:call(automaton_options(C), ID, Event).
-
--spec create_events(integer(), config(), mg_core:id()) -> _.
-create_events(N, C, ID) ->
-    lists:foreach(
-        fun(I) ->
-            I = create_event([<<"event">>, I], C, ID)
-        end,
-        lists:seq(1, N)
-    ).
-
 -spec automaton_options(config()) -> _.
 automaton_options(C) -> ?config(automaton_options, C).
-
--spec es_opts(config()) -> _.
-es_opts(C) -> ?config(event_sink_options, C).
 
 -spec no_timeout_automaton_options(config()) -> _.
 no_timeout_automaton_options(C) ->

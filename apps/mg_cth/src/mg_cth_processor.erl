@@ -105,7 +105,7 @@ start_link(ID, {Host, Port}, Options, MgConfig) ->
         )
         | mg_cth_configurator:construct_child_specs(MgConfig)
     ],
-    case mg_core_utils_supervisor_wrapper:start_link(Flags, ChildsSpecs) of
+    case genlib_adhoc_supervisor:start_link(Flags, ChildsSpecs) of
         {ok, SupPid} ->
             Endpoint = woody_server:get_addr(ID, Options),
             {ok, SupPid, #{endpoint => Endpoint}};

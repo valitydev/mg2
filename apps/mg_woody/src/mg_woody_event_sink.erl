@@ -17,6 +17,7 @@
 -module(mg_woody_event_sink).
 
 -include_lib("mg_proto/include/mg_proto_event_sink_thrift.hrl").
+-include_lib("mg_proto/include/mg_proto_state_processing_thrift.hrl").
 
 %% API
 -export([handler/1]).
@@ -30,7 +31,7 @@
 %%
 %% API
 %%
--type options() :: {[mg_core:id()], mg_core_events_sink_machine:ns_options()}.
+-type options() :: {[mg_core:id()], _NSOptions}.
 
 -spec handler(options()) -> mg_woody_utils:woody_handler().
 handler(Options) ->
@@ -39,33 +40,10 @@ handler(Options) ->
 %%
 %% woody handler
 %%
--spec handle_function(woody:func(), woody:args(), woody_context:ctx(), options()) ->
-    {ok, _Result} | no_return().
+-spec handle_function(woody:func(), woody:args(), woody_context:ctx(), options()) -> no_return().
 
-handle_function('GetHistory', {EventSinkID, Range}, WoodyContext, {AvaliableEventSinks, Options}) ->
-    ReqCtx = mg_woody_utils:woody_context_to_opaque(WoodyContext),
-    DefaultTimeout = maps:get(default_processing_timeout, Options),
-    DefaultDeadline = mg_core_deadline:from_timeout(DefaultTimeout),
-    Deadline = mg_woody_utils:get_deadline(WoodyContext, DefaultDeadline),
-    SinkHistory =
-        mg_woody_utils:handle_error(
-            #{
-                namespace => undefined,
-                machine_id => EventSinkID,
-                request_context => ReqCtx,
-                deadline => Deadline
-            },
-            fun() ->
-                _ = check_event_sink(AvaliableEventSinks, EventSinkID),
-                mg_core_events_sink_machine:get_history(
-                    Options,
-                    EventSinkID,
-                    mg_woody_packer:unpack(history_range, Range)
-                )
-            end,
-            pulse(Options)
-        ),
-    {ok, mg_woody_packer:pack(sink_history, SinkHistory)}.
+handle_function('GetHistory', {_EventSinkID, _Range}, _WoodyContext, {_AvaliableEventSinks, _Options}) ->
+    erlang:throw(#mg_stateproc_EventSinkNotFound{}).
 
 %%
 %% events_sink events encoder
@@ -96,20 +74,3 @@ serialize(SourceNS, SourceID, Event) ->
         {error, Reason} ->
             erlang:error({?MODULE, Reason})
     end.
-
-%%
-%% Internals
-%%
-
--spec check_event_sink([mg_core:id()], mg_core:id()) -> ok | no_return().
-check_event_sink(AvaliableEventSinks, EventSinkID) ->
-    case lists:member(EventSinkID, AvaliableEventSinks) of
-        true ->
-            ok;
-        false ->
-            throw({logic, event_sink_not_found})
-    end.
-
--spec pulse(mg_core_events_sink_machine:ns_options()) -> mg_core_pulse:handler().
-pulse(#{pulse := Pulse}) ->
-    Pulse.

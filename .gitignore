@@ -18,3 +18,5 @@ _checkouts/
 # make stuff
 /.image.*
 Makefile.env
+
+.idea

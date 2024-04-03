@@ -56,7 +56,7 @@ child_spec(SchedulerID, Options, ChildID) ->
 
 -spec start_link(scheduler_id(), options()) -> mg_core_utils:gen_start_ret().
 start_link(SchedulerID, Options) ->
-    mg_core_utils_supervisor_wrapper:start_link(
+    genlib_adhoc_supervisor:start_link(
         self_reg_name(SchedulerID),
         #{strategy => simple_one_for_one},
         [
@@ -84,6 +84,7 @@ do_start_task(SchedulerID, Options, Task, SpanCtx) ->
 
 -spec execute(scheduler_id(), options(), task(), maybe_span()) -> ok.
 execute(SchedulerID, #{task_handler := Handler} = Options, Task, SpanCtx) ->
+    %% NOTE Maybe read machine status and restore its otel context?
     _ = otel_tracer:set_current_span(SpanCtx),
     ok = proc_lib:init_ack({ok, self()}),
     Start = erlang:monotonic_time(),

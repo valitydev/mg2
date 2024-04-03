@@ -66,8 +66,8 @@
 -spec all() -> [test_name() | {group, group_name()}].
 all() ->
     [
-        {group, with_gproc},
-        {group, with_consuela}
+        {group, with_global},
+        {group, with_gproc}
     ].
 
 -spec groups() -> [{group_name(), list(_), [test_name() | {group, group_name()}]}].
@@ -75,7 +75,6 @@ groups() ->
     [
         {with_global, [], [{group, base}]},
         {with_gproc, [], [{group, base}]},
-        {with_consuela, [], [{group, base}]},
         {base, [], [
             base_test,
             load_fail_test,
@@ -101,7 +100,7 @@ init_per_suite(C) ->
     % dbg:tracer(), dbg:p(all, c),
     % dbg:tpl({mg_core_workers_manager, '_', '_'}, x),
     % dbg:tpl({mg_core_workers, '_', '_'}, x),
-    Apps = mg_cth:start_applications([consuela, mg_core]),
+    Apps = mg_cth:start_applications([mg_core]),
     [{apps, Apps} | C].
 
 -spec end_per_suite(config()) -> ok.
@@ -125,17 +124,6 @@ init_per_group(with_gproc, C) ->
         {load_pressure, 100},
         {runner_retry_strategy, #{
             noproc => genlib_retry:linear(3, 100),
-            default => finish
-        }}
-        | C
-    ];
-init_per_group(with_consuela, C) ->
-    [
-        {registry, {mg_core_procreg_consuela, #{}}},
-        {load_pressure, 40},
-        {runner_retry_strategy, #{
-            noproc => genlib_retry:linear(3, 100),
-            noregistry => genlib_retry:linear(3, 500),
             default => finish
         }}
         | C

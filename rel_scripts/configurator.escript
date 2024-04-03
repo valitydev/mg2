@@ -67,7 +67,6 @@ sys_config(YamlConfig) ->
             {logger_level, logger_level(YamlConfig)},
             {logger, logger(YamlConfig)}
         ]},
-        {consuela, consuela(YamlConfig)},
         {prometheus, prometheus(YamlConfig)},
         {snowflake, snowflake(YamlConfig)},
         {brod, brod(YamlConfig)},
@@ -115,113 +114,6 @@ logger(YamlConfig) ->
                 }}
         }}
     ].
-
-consuela(YamlConfig) ->
-    lists:append([
-        conf_with([consuela, presence], YamlConfig, [], fun(PresenceConfig) ->
-            [
-                {presence, #{
-                    name => service_presence_name(YamlConfig),
-                    consul => consul_client(mg_consuela_presence, YamlConfig),
-                    shutdown => ?C:milliseconds(?C:conf([shutdown_timeout], PresenceConfig, <<"5s">>)),
-                    service_tags => tags([tags], PresenceConfig, []),
-                    session_opts => #{
-                        interval => ?C:seconds(?C:conf([check_interval], PresenceConfig, <<"5s">>)),
-                        pulse => mg_core_consuela_pulse_adapter:pulse(presence_session, pulse(YamlConfig))
-                    }
-                }}
-            ]
-        end),
-        conf_with([consuela, registry], YamlConfig, [], fun(RegConfig) ->
-            [
-                {registry, #{
-                    nodename => ?C:string(?C:conf([nodename], RegConfig, ?C:hostname())),
-                    namespace => ?C:conf([namespace], RegConfig, <<"mg">>),
-                    session => maps:merge(
-                        #{
-                            ttl => ?C:seconds(?C:conf([session_ttl], RegConfig, <<"30s">>)),
-                            lock_delay => ?C:seconds(?C:conf([session_lock_delay], RegConfig, <<"10s">>))
-                        },
-                        conf_with([consuela, presence], YamlConfig, #{}, fun(_) ->
-                            #{
-                                presence => service_presence_name(YamlConfig)
-                            }
-                        end)
-                    ),
-                    consul => consul_client(mg_consuela_registry, YamlConfig),
-                    shutdown => ?C:milliseconds(?C:conf([shutdown_timeout], RegConfig, <<"5s">>)),
-                    keeper => maps:merge(
-                        #{
-                            pulse => mg_core_consuela_pulse_adapter:pulse(session_keeper, pulse(YamlConfig))
-                        },
-                        conf_with([session_renewal_interval], RegConfig, #{}, fun(V) ->
-                            #{
-                                interval => ?C:seconds(V)
-                            }
-                        end)
-                    ),
-                    reaper => #{
-                        pulse => mg_core_consuela_pulse_adapter:pulse(zombie_reaper, pulse(YamlConfig))
-                    },
-                    registry => #{
-                        pulse => mg_core_consuela_pulse_adapter:pulse(registry_server, pulse(YamlConfig))
-                    }
-                }}
-            ]
-        end),
-        conf_with([consuela, discovery], YamlConfig, [], fun(DiscoveryConfig) ->
-            [
-                {discovery, #{
-                    name => service_presence_name(YamlConfig),
-                    tags => tags([tags], DiscoveryConfig, tags([consuela, presence, tags], YamlConfig, [])),
-                    consul => consul_client(mg_consuela_discovery, YamlConfig),
-                    opts => #{
-                        interval => #{
-                            init => ?C:milliseconds(?C:conf([interval, init], DiscoveryConfig, <<"5s">>)),
-                            idle => ?C:milliseconds(?C:conf([interval, idle], DiscoveryConfig, <<"10m">>))
-                        },
-                        pulse => mg_core_consuela_pulse_adapter:pulse(discovery_server, pulse(YamlConfig))
-                    }
-                }}
-            ]
-        end)
-    ]).
-
-tags(Path, Config, Defaults) ->
-    [T || T <- ?C:conf(Path, Config, Defaults)].
-
-service_presence_name(YamlConfig) ->
-    iolist_to_binary([service_name(YamlConfig), "-consuela"]).
-
-consul_client(Name, YamlConfig) ->
-    ACLToken = conf_with(
-        [consul, acl_token_file],
-        YamlConfig,
-        undefined,
-        fun(V) -> {file, ?C:file(V, 8#600)} end
-    ),
-    #{
-        url => ?C:conf([consul, url], YamlConfig),
-        opts => genlib_map:compact(#{
-            datacenter => ?C:conf([consul, datacenter], YamlConfig, undefined),
-            acl => ACLToken,
-            transport_opts => genlib_map:compact(#{
-                pool =>
-                    ?C:conf([consul, pool], YamlConfig, Name),
-                max_connections =>
-                    ?C:conf([consul, max_connections], YamlConfig, undefined),
-                max_response_size =>
-                    ?C:conf([consul, max_response_size], YamlConfig, undefined),
-                connect_timeout =>
-                    ?C:maybe(fun ?C:milliseconds/1, ?C:conf([consul, connect_timeout], YamlConfig, undefined)),
-                recv_timeout =>
-                    ?C:maybe(fun ?C:milliseconds/1, ?C:conf([consul, recv_timeout], YamlConfig, undefined)),
-                ssl_options =>
-                    ?C:maybe(fun ?C:proplist/1, ?C:conf([consul, ssl_options], YamlConfig, undefined))
-            }),
-            pulse => mg_core_consuela_pulse_adapter:pulse(client, pulse(YamlConfig))
-        })
-    }.
 
 prometheus(_YamlConfig) ->
     [
@@ -324,7 +216,6 @@ machinegun(YamlConfig) ->
         {health_check, health_check(YamlConfig)},
         {quotas, quotas(YamlConfig)},
         {namespaces, namespaces(YamlConfig)},
-        {event_sink_ns, event_sink_ns(YamlConfig)},
         {pulse, pulse(YamlConfig)},
         {cluster, cluster(YamlConfig)}
     ].
@@ -368,12 +259,6 @@ health_check(YamlConfig) ->
             end),
             #{service => {erl_health, service, [service_name(YamlConfig)]}},
             conf_with(
-                [consuela],
-                YamlConfig,
-                #{},
-                #{consuela => {mg_health_check, consuela, []}}
-            ),
-            conf_with(
                 [process_registry],
                 YamlConfig,
                 #{},
@@ -382,6 +267,8 @@ health_check(YamlConfig) ->
         ]
     ).
 
+%% TODO Retire this option, rely upon OTEL env variables
+%%      https://empayre.youtrack.cloud/issue/TD-838
 opentelemetry(YamlConfig) ->
     case opentelemetry_conf(YamlConfig) of
         undefined ->
@@ -420,6 +307,8 @@ opentelemetry(YamlConfig) ->
             ]
     end.
 
+%% TODO Retire this option, rely upon OTEL env variables
+%%      https://empayre.youtrack.cloud/issue/TD-838
 opentelemetry_exporter(YamlConfig) ->
     case opentelemetry_conf(YamlConfig) of
         undefined ->
@@ -447,36 +336,27 @@ opentelemetry_exporter(YamlConfig) ->
 opentelemetry_conf(YamlConfig) ->
     ?C:conf([opentelemetry], YamlConfig, undefined).
 
-health_check_fun(YamlConfig) ->
-    case cluster(YamlConfig) of
-        #{discovering := _} ->
-            global;
-        _ ->
-            case ?C:conf([consuela], YamlConfig, undefined) of
-                undefined -> skip;
-                _ -> consuela
-            end
-    end.
+health_check_fun(_YamlConfig) ->
+    %% TODO Review necessity of that configuration handle
+    %% case ?C:conf([process_registry, module], YamlConfig, <<"mg_core_procreg_global">>) of
+    %%     <<"mg_core_procreg_global">> -> global
+    %% end.
+    global.
 
 cluster(YamlConfig) ->
-    case ?C:conf([consuela], YamlConfig, undefined) of
+    case ?C:conf([cluster, discovery, type], YamlConfig, undefined) of
         undefined ->
-            case ?C:conf([cluster, discovery, type], YamlConfig, undefined) of
-                undefined ->
-                    #{};
-                <<"dns">> ->
-                    DiscoveryOptsList = ?C:conf([cluster, discovery, options], YamlConfig),
-                    ReconnectTimeout = ?C:conf([cluster, reconnect_timeout], YamlConfig, 5000),
-                    PartitionsOpts = partitions_options(YamlConfig),
-                    genlib_map:compact(#{
-                        discovering => maps:from_list(DiscoveryOptsList),
-                        scaling => scaling(YamlConfig),
-                        partitioning => PartitionsOpts,
-                        reconnect_timeout => ReconnectTimeout
-                    });
-                _ ->
-                    #{}
-            end;
+            #{};
+        <<"dns">> ->
+            DiscoveryOptsList = ?C:conf([cluster, discovery, options], YamlConfig),
+            ReconnectTimeout = ?C:conf([cluster, reconnect_timeout], YamlConfig, 5000),
+            PartitionsOpts = partitions_options(YamlConfig),
+            genlib_map:compact(#{
+                discovering => maps:from_list(DiscoveryOptsList),
+                scaling => scaling(YamlConfig),
+                partitioning => PartitionsOpts,
+                reconnect_timeout => ReconnectTimeout
+            });
         _ ->
             #{}
     end.
@@ -740,24 +620,9 @@ notification_scheduler(Share, Config) ->
 timeout(Name, Config, Default, Unit) ->
     ?C:time_interval(?C:conf([Name], Config, Default), Unit).
 
-event_sink_ns(YamlConfig) ->
-    #{
-        registry => procreg(YamlConfig),
-        storage => storage(<<"_event_sinks">>, YamlConfig),
-        scaling => scaling(YamlConfig),
-        worker => #{registry => procreg(YamlConfig)},
-        duplicate_search_batch => 1000,
-        default_processing_timeout => ?C:milliseconds(<<"30s">>)
-    }.
-
 event_sink({Name, ESYamlConfig}) ->
     event_sink(?C:atom(?C:conf([type], ESYamlConfig)), Name, ESYamlConfig).
 
-event_sink(machine, Name, ESYamlConfig) ->
-    {mg_core_events_sink_machine, #{
-        name => ?C:atom(Name),
-        machine_id => ?C:conf([machine_id], ESYamlConfig)
-    }};
 event_sink(kafka, Name, ESYamlConfig) ->
     {mg_core_events_sink_kafka, #{
         name => ?C:atom(Name),
@@ -767,17 +632,11 @@ event_sink(kafka, Name, ESYamlConfig) ->
 
 %% TODO
 procreg(YamlConfig) ->
-    % Use process_registry if it's set up or consuela if it's set up, gproc otherwise
-    Default = conf_with(
-        [consuela],
-        YamlConfig,
-        mg_core_procreg_gproc,
-        {mg_core_procreg_consuela, #{pulse => pulse(YamlConfig)}}
-    ),
+    % Use process_registry if it's set up or gproc otherwise
     conf_with(
         [process_registry],
         YamlConfig,
-        Default,
+        mg_core_procreg_gproc,
         fun(ProcRegYamlConfig) -> ?C:atom(?C:conf([module], ProcRegYamlConfig)) end
     ).
 

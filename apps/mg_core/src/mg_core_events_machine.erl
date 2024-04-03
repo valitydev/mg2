@@ -141,7 +141,7 @@ child_spec(Options, ChildID) ->
 
 -spec start_link(options()) -> mg_core_utils:gen_start_ret().
 start_link(Options) ->
-    mg_core_utils_supervisor_wrapper:start_link(
+    genlib_adhoc_supervisor:start_link(
         #{strategy => one_for_all},
         mg_core_utils:lists_compact([
             mg_core_events_storage:child_spec(Options),

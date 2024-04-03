@@ -31,6 +31,8 @@
 -export([end_per_suite/1]).
 -export([init_per_group/2]).
 -export([end_per_group/2]).
+-export([init_per_testcase/2]).
+-export([end_per_testcase/2]).
 
 %% base group tests
 -export([namespace_not_found/1]).
@@ -43,7 +45,6 @@
 -export([machine_empty_id_not_found/1]).
 -export([machine_remove/1]).
 -export([machine_remove_by_action/1]).
--export([consuela_health_check_passing/1]).
 
 %%
 %% tests descriptions
@@ -55,8 +56,7 @@
 -spec all() -> [test_name() | {group, group_name()}].
 all() ->
     [
-        {group, base},
-        {group, auxiliary}
+        {group, base}
     ].
 
 -spec groups() -> [{group_name(), list(_), [test_name()]}].
@@ -77,9 +77,6 @@ groups() ->
             machine_start,
             machine_remove_by_action,
             machine_id_not_found
-        ]},
-        {auxiliary, [], [
-            consuela_health_check_passing
         ]}
     ].
 
@@ -98,9 +95,6 @@ end_per_suite(C) ->
     mg_cth:stop_applications(?config(suite_apps, C)).
 
 -spec init_per_group(group_name(), config()) -> config().
-init_per_group(auxiliary, C) ->
-    Apps = mg_cth:start_applications([consuela]),
-    [{apps, Apps} | C];
 init_per_group(_, C) ->
     % NOTE
     % Даже такой небольшой шанс может сработать в ситуациях, когда мы в процессоре выгребаем большой кусок
@@ -127,7 +121,6 @@ init_per_group(C) ->
     Config = mg_config(HandlerInfo, C),
     Apps = mg_cth:start_applications([
         {brod, mg_cth:kafka_client_config(?BROKERS_ADVERTISED)},
-        consuela,
         {mg, Config}
     ]),
     [
@@ -140,6 +133,14 @@ init_per_group(C) ->
         {processor_pid, ProcessorPid}
         | C
     ].
+
+-spec init_per_testcase(atom(), config()) -> config().
+init_per_testcase(Name, C) ->
+    mg_cth:trace_testcase(?MODULE, Name, C).
+
+-spec end_per_testcase(atom(), config()) -> _.
+end_per_testcase(_Name, C) ->
+    ok = mg_cth:maybe_end_testcase_trace(C).
 
 -spec default_signal_handler(mg_core_events_machine:signal_args()) -> mg_core_events_machine:signal_result().
 default_signal_handler({Args, _Machine}) ->
@@ -247,10 +248,6 @@ mg_config(#{endpoint := {IP, Port}}, C) ->
                 % сейчас же можно иногда включать и смотреть
                 % suicide_probability => 0.1,
                 event_sinks => [
-                    {mg_core_events_sink_machine, #{
-                        name => machine,
-                        machine_id => ?ES_ID
-                    }},
                     {mg_core_events_sink_kafka, #{
                         name => kafka,
                         topic => ?ES_ID,
@@ -258,11 +255,6 @@ mg_config(#{endpoint := {IP, Port}}, C) ->
                     }}
                 ]
             }
-        }},
-        {event_sink_ns, #{
-            storage => mg_core_storage_memory,
-            scaling => global_based,
-            default_processing_timeout => 5000
         }},
         {pulse, {mg_pulse, #{}}}
     ].
@@ -340,13 +332,6 @@ machine_remove_by_action(C) ->
                 % The request had been retried
                 <<"remove">>
         end.
-
-%%
-%% Auxiliary functionality
-%%
--spec consuela_health_check_passing(config()) -> _.
-consuela_health_check_passing(_C) ->
-    ?assertMatch({passing, _}, mg_health_check:consuela()).
 
 %%
 %% utils

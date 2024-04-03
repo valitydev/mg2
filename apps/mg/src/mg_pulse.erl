@@ -26,7 +26,6 @@
 %% pulse types
 -type beat() ::
     mg_core_pulse:beat()
-    | mg_core_consuela_pulse_adapter:beat()
     | mg_core_queue_scanner:beat()
     | #woody_event{}
     | #woody_request_handle_error{}.
@@ -45,7 +44,8 @@
 
 -spec handle_beat(options(), beat()) -> ok.
 handle_beat(Options, Beat) ->
-    ok = mg_pulse_otel:handle_beat(Options, Beat),
+    ok = mg_woody_pulse_otel:handle_beat(Options, Beat),
+    ok = mg_core_pulse_otel:handle_beat(Options, Beat),
     ok = mg_pulse_log:handle_beat(maps:get(woody_event_handler_options, Options, #{}), Beat),
     ok = mg_pulse_prometheus:handle_beat(#{}, Beat),
     ok = maybe_handle_lifecycle_kafka(Options, Beat).
