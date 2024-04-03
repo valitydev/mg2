@@ -18,10 +18,10 @@ ENV NETUNREACH_NETWORK="10.254.254.0/24"
 ENV NETUNREACH_ADDRESS="10.254.254.10"
 
 COPY ./test_resources/ssh/ /root/.ssh/
-RUN chown -R root:root /root/.ssh
-RUN chmod 600 /root/.ssh/*
+RUN chown -R root:root /root/.ssh && \
+    chmod 600 /root/.ssh/*
 
-RUN echo '#!/bin/sh' >> /entrypoint.sh && \
+RUN echo "#!/bin/sh" >> /entrypoint.sh && \
     echo 'ADDR=`ip route get 8.8.8.8 | grep -oP "src \K[^ ]+"`' >> /entrypoint.sh && \
     echo 'export IP=${ADDR}' >> /entrypoint.sh && \
     echo "ip route add throw ${NETUNREACH_NETWORK}" >> /entrypoint.sh && \

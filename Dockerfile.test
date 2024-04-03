@@ -39,19 +39,25 @@ WORKDIR /opt/${SERVICE_NAME}
 
 COPY --from=builder /build/_build/prod/rel/${SERVICE_NAME} /opt/${SERVICE_NAME}
 COPY ./test_resources/authorized_keys /root/.ssh/authorized_keys
-RUN chown root:root /root/.ssh/authorized_keys
-RUN chmod 600 /root/.ssh/*
+RUN chown root:root /root/.ssh/authorized_keys && \
+    chmod 600 /root/.ssh/*
 
-# SSH install
-RUN apt-get update && apt-get install -y openssh-server=1:8.4p1-5+deb11u3 iproute2=5.10.0-4 iputils-ping=3:20210202-1
-RUN mkdir /var/run/sshd
-RUN /bin/bash -o pipefail -c 'echo "root:security" | chpasswd'
-RUN sed -i 's/#PermitRootLogin prohibit-password/PermitRootLogin yes/' /etc/ssh/sshd_config
+# install packages
+RUN apt-get update && \
+    apt-get --yes --no-install-recommends install openssh-server=1:8.4p1-5+deb11u3 iproute2=5.10.0-4 iputils-ping=3:20210202-1 && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
 
-RUN echo '#!/bin/sh' >> /entrypoint.sh && \
+# configure ssh
+RUN mkdir /var/run/sshd && \
+    /bin/bash -o pipefail -c "echo \"root:security\" | chpasswd" && \
+    sed -i "s/#PermitRootLogin prohibit-password/PermitRootLogin yes/" /etc/ssh/sshd_config
+
+# create entrypoint
+RUN echo "#!/bin/sh" >> /entrypoint.sh && \
     echo 'ADDR=`ip route get 8.8.8.8 | grep -oP "src \K[^ ]+"`' >> /entrypoint.sh && \
     echo 'echo "dist_node_name: mg@${ADDR}" >> /opt/${SERVICE_NAME}/etc/config.yaml' >> /entrypoint.sh && \
-    echo '/usr/sbin/sshd -D' >> /entrypoint.sh && \
+    echo "/usr/sbin/sshd -D" >> /entrypoint.sh && \
     chmod +x /entrypoint.sh
 
 ENTRYPOINT ["/entrypoint.sh"]
