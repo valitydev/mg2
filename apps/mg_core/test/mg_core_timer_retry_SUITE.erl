@@ -113,7 +113,7 @@ transient_fail(C) ->
     BinTestName = genlib:to_binary(?FUNCTION_NAME),
     NS = BinTestName,
     ID = BinTestName,
-    Storage = mg_cth:bootstrap_machine_storage(?config(storage, C), NS, ?MODULE),
+    Storage = mg_cth:bootstrap_machine_storage(?config(storage, C), NS, ?MODULE, ?MODULE),
     Options = automaton_options(
         NS,
         Storage,
@@ -150,7 +150,7 @@ permanent_fail(C) ->
     BinTestName = genlib:to_binary(?FUNCTION_NAME),
     NS = BinTestName,
     ID = BinTestName,
-    Storage = mg_cth:bootstrap_machine_storage(?config(storage, C), NS, ?MODULE),
+    Storage = mg_cth:bootstrap_machine_storage(?config(storage, C), NS, ?MODULE, ?MODULE),
     Options = automaton_options(NS, Storage, {intervals, [1000]}),
     Pid = start_automaton(Options),
 
@@ -288,7 +288,7 @@ automaton_options(NS, Storage, RetryPolicy) ->
         worker => #{
             registry => mg_core_procreg_global
         },
-        notification => mg_cth:notification_storage_options(NS, ?MODULE),
+        notification => mg_cth:bootstrap_notification_storage(memory, NS, ?MODULE),
         pulse => ?MODULE,
         retries => #{
             timers => RetryPolicy

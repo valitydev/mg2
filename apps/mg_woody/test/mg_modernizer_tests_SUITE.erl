@@ -155,6 +155,10 @@ start_mg_woody(Name, C) ->
 
 -spec mg_woody_config(atom(), config()) -> map().
 mg_woody_config(Name, C) ->
+    InMemoryKVS =
+        {mg_core_storage_memory, #{
+            existing_storage_name => ?config(storage_name, C)
+        }},
     #{
         woody_server => #{
             ip => {0, 0, 0, 0, 0, 0, 0, 0},
@@ -163,10 +167,9 @@ mg_woody_config(Name, C) ->
         namespaces => #{
             ?NS => maps:merge(
                 #{
-                    storage =>
-                        {mg_core_storage_memory, #{
-                            existing_storage_name => ?config(storage_name, C)
-                        }},
+                    machines_storage => {mg_core_machine_storage_kvs, #{kvs => InMemoryKVS}},
+                    events_storage => {mg_core_events_storage_kvs, #{kvs => InMemoryKVS}},
+                    notifications_storage => {mg_core_notification_storage_kvs, #{kvs => InMemoryKVS}},
                     processor => #{
                         url => <<"http://localhost:8023/processor">>,
                         transport_opts => #{pool => ns, max_connections => 100}

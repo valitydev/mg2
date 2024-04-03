@@ -225,7 +225,9 @@ mg_config(#{endpoint := {IP, Port}}, C) ->
         ]},
         {namespaces, #{
             ?NS => #{
-                storage => ?config(storage, C),
+                machines_storage => {mg_core_machine_storage_kvs, #{kvs => ?config(storage, C)}},
+                events_storage => {mg_core_events_storage_kvs, #{kvs => ?config(storage, C)}},
+                notifications_storage => {mg_core_notification_storage_kvs, #{kvs => ?config(storage, C)}},
                 processor => #{
                     url => genlib:format("http://~s:~p/processor", [inet:ntoa(IP), Port]),
                     transport_opts => #{pool => ns, max_connections => 100}

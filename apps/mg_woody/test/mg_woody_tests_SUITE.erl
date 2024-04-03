@@ -314,7 +314,9 @@ mg_woody_config(C) ->
         ],
         namespaces => #{
             ?NS => #{
-                storage => ?config(storage, C),
+                machines_storage => ?config(storage, C),
+                events_storage => {mg_core_events_storage_kvs, #{kvs => mg_core_storage_memory}},
+                notifications_storage => {mg_core_notification_storage_kvs, #{kvs => mg_core_storage_memory}},
                 processor => #{
                     url => <<"http://localhost:8023/processor">>,
                     transport_opts => #{pool => ns, max_connections => 100}
@@ -603,8 +605,9 @@ config_with_multiple_event_sinks(_C) ->
         woody_server => #{ip => {0, 0, 0, 0, 0, 0, 0, 0}, port => 8022, limits => #{}},
         namespaces => #{
             <<"1">> => #{
-                storage => {mg_core_machine_storage_kvs, #{kvs => mg_core_storage_memory}},
+                machines_storage => {mg_core_machine_storage_kvs, #{kvs => mg_core_storage_memory}},
                 events_storage => {mg_core_events_storage_kvs, #{kvs => mg_core_storage_memory}},
+                notifications_storage => {mg_core_notification_storage_kvs, #{kvs => mg_core_storage_memory}},
                 processor => #{
                     url => <<"http://localhost:8023/processor">>,
                     transport_opts => #{pool => pool1, max_connections => 100}
@@ -624,8 +627,9 @@ config_with_multiple_event_sinks(_C) ->
                 ]
             },
             <<"2">> => #{
-                storage => {mg_core_machine_storage_kvs, #{kvs => mg_core_storage_memory}},
+                machines_storage => {mg_core_machine_storage_kvs, #{kvs => mg_core_storage_memory}},
                 events_storage => {mg_core_events_storage_kvs, #{kvs => mg_core_storage_memory}},
+                notifications_storage => {mg_core_notification_storage_kvs, #{kvs => mg_core_storage_memory}},
                 processor => #{
                     url => <<"http://localhost:8023/processor">>,
                     transport_opts => #{pool => pool2, max_connections => 100}

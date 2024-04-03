@@ -262,7 +262,7 @@ opaque_to_state(State) ->
 
 -spec search_notifications_for_machine(binary()) -> list().
 search_notifications_for_machine(MachineID) ->
-    Options = notification_storage_options(),
+    Options = mg_cth:bootstrap_notification_storage(memory, ?NS, ?MODULE),
     {Found, _Continuation} = mg_core_notification_storage:search(Options, ?NS, {1, genlib_time:unow()}, 999),
     lists:filter(
         fun({_, NID}) ->
@@ -303,7 +303,7 @@ automaton_options(_C) ->
         worker => #{
             registry => mg_core_procreg_global
         },
-        notification => notification_storage_options(),
+        notification => mg_cth:bootstrap_notification_storage(memory, ?NS, ?MODULE),
         notification_processing_timeout => 500,
         pulse => ?MODULE,
         schedulers => #{
@@ -316,14 +316,6 @@ automaton_options(_C) ->
             }
         }
     }.
-
--spec notification_storage_options() -> mg_core_notification_storage:options().
-notification_storage_options() ->
-    {mg_core_notification_storage_kvs, #{
-        name => {?NS, mg_core_machine, notification},
-        pulse => ?MODULE,
-        kvs => mg_core_storage_memory
-    }}.
 
 -spec handle_beat(_, mg_core_pulse:beat()) -> ok.
 handle_beat(_, Beat) ->

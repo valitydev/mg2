@@ -33,10 +33,9 @@
 -export([assert_wait_ok/2]).
 -export([assert_wait_expected/3]).
 
--export([build_storage/2]).
--export([notification_storage_options/2]).
--export([bootstrap_machine_storage/3]).
--export([bootstrap_events_storage/2]).
+-export([bootstrap_notification_storage/3]).
+-export([bootstrap_machine_storage/4]).
+-export([bootstrap_events_storage/4]).
 
 -export([stop_wait_all/3]).
 -export([flush/0]).
@@ -135,36 +134,43 @@ assert_wait_expected(Expected, Fun, Strategy) when is_function(Fun, 0) ->
             end
     end.
 
--spec build_storage(mg_core:ns(), mg_core_utils:mod_opts()) -> mg_core_utils:mod_opts().
-build_storage(NS, Module) when is_atom(Module) ->
-    build_storage(NS, {Module, #{}});
-build_storage(NS, {Module, Options}) ->
-    {Module, Options#{name => erlang:binary_to_atom(NS, utf8)}}.
-
--spec notification_storage_options(binary(), mg_core_pulse:handler()) -> mg_core_notification_storage:options().
-notification_storage_options(NS, Pulse) ->
-    %% FIXME Always in-memory KVS?
+-spec bootstrap_notification_storage(cql | memory, mg_core:ns(), mg_core_pulse:handler()) ->
+    mg_core_notification_storage:options().
+bootstrap_notification_storage(cql, NS, Pulse) ->
+    Options = #{
+        name => {NS, mg_core_machine, notification},
+        pulse => Pulse,
+        node => {"scylla0", 9042},
+        keyspace => mg
+    },
+    ok = mg_core_notification_storage_cql:teardown(Options, NS),
+    ok = mg_core_notification_storage_cql:bootstrap(Options, NS),
+    {mg_core_notification_storage_cql, Options};
+bootstrap_notification_storage(memory, NS, Pulse) ->
     {mg_core_notification_storage_kvs, #{
         name => {NS, mg_core_machine, notification},
         pulse => Pulse,
         kvs => mg_core_storage_memory
     }}.
 
--spec bootstrap_machine_storage(cql | memory, mg_core:ns(), module()) ->
+-spec bootstrap_machine_storage(cql | memory, mg_core:ns(), mg_core_pulse:handler(), module()) ->
     mg_core_machine_storage:options().
-bootstrap_machine_storage(cql, NS, Processor) ->
+bootstrap_machine_storage(cql, NS, Pulse, Processor) ->
     Options = build_machine_storage_cql_options(Processor, #{
-        %% TODO Fix missing option params
-        name => undefined,
-        pulse => undefined,
+        name => {NS, mg_core_machine, machines},
+        pulse => Pulse,
         node => {"scylla0", 9042},
         keyspace => mg
     }),
     ok = mg_core_machine_storage_cql:teardown(Options, NS),
     ok = mg_core_machine_storage_cql:bootstrap(Options, NS),
     {mg_core_machine_storage_cql, Options};
-bootstrap_machine_storage(memory, _NS, _Processor) ->
-    {mg_core_machine_storage_kvs, #{kvs => mg_core_storage_memory}}.
+bootstrap_machine_storage(memory, NS, Pulse, _Processor) ->
+    {mg_core_machine_storage_kvs, #{
+        name => {NS, mg_core_machine, machines},
+        pulse => Pulse,
+        kvs => mg_core_storage_memory
+    }}.
 
 -spec build_machine_storage_cql_options(module(), Options) -> Options.
 build_machine_storage_cql_options(Processor, Options) when
@@ -176,23 +182,32 @@ build_machine_storage_cql_options(Processor, Options) ->
     % Assuming bootstrapping performed in the same module which is usual for test code.
     Options#{schema => Processor}.
 
--spec bootstrap_events_storage(cql | memory, mg_core:ns() | mg_core_utils:mod_opts()) ->
+%% FIXME This is bullshit; requires refactor into sane helpers
+-spec bootstrap_events_storage(
+    cql | kvs | memory,
+    mg_core:ns(),
+    mg_core_pulse:handler(),
+    mg_core_utils:mod_opts() | undefined
+) ->
     mg_core_events_storage:options().
-bootstrap_events_storage(cql, NS) ->
+bootstrap_events_storage(cql, NS, Pulse, _) ->
     Options = #{
-        %% TODO Fix missing option params
-        name => undefined,
-        pulse => undefined,
+        name => {NS, mg_core_events_machine, events},
+        pulse => Pulse,
         node => {"scylla0", 9042},
         keyspace => mg
     },
     ok = mg_core_events_storage_cql:teardown(Options, NS),
     ok = mg_core_events_storage_cql:bootstrap(Options, NS),
     {mg_core_events_storage_cql, Options};
-bootstrap_events_storage(memory, {_Mod, _Opts} = KVSOptions) ->
-    {mg_core_events_storage_kvs, #{kvs => KVSOptions}};
-bootstrap_events_storage(memory, _NS) ->
-    {mg_core_events_storage_kvs, #{kvs => mg_core_storage_memory}}.
+bootstrap_events_storage(kvs, NS, Pulse, {_Mod, _Opts} = KVSOptions) ->
+    {mg_core_events_storage_kvs, #{
+        name => {NS, mg_core_events_machine, events},
+        pulse => Pulse,
+        kvs => KVSOptions
+    }};
+bootstrap_events_storage(memory, NS, Pulse, undefined) ->
+    bootstrap_events_storage(memory, NS, Pulse, mg_core_storage_memory).
 
 -spec stop_wait_all([pid()], _Reason, timeout()) -> ok.
 stop_wait_all(Pids, Reason, Timeout) ->

@@ -87,8 +87,8 @@ init_per_group(storage_memory, C) ->
         | C
     ];
 init_per_group(storage_cql, C) ->
-    MachineStorage = mg_cth:bootstrap_machine_storage(cql, ?NS, mg_core_events_machine),
-    EventsStorage = mg_cth:bootstrap_events_storage(cql, ?NS),
+    MachineStorage = mg_cth:bootstrap_machine_storage(cql, ?NS, ?MODULE, mg_core_events_machine),
+    EventsStorage = mg_cth:bootstrap_events_storage(cql, ?NS, ?MODULE, undefined),
     [
         {machine_storage, MachineStorage},
         {events_storage, EventsStorage}
@@ -205,7 +205,7 @@ events_machine_options(Options, C) ->
             worker => #{
                 registry => mg_core_procreg_global
             },
-            notification => mg_cth:notification_storage_options(?NS, ?MODULE),
+            notification => mg_cth:bootstrap_notification_storage(memory, ?NS, ?MODULE),
             pulse => ?MODULE,
             schedulers => #{
                 timers => Scheduler,

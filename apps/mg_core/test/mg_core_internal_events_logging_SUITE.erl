@@ -125,11 +125,11 @@ automaton_options(NS) ->
     #{
         namespace => NS,
         processor => ?MODULE,
-        storage => mg_cth:build_storage(NS, mg_core_storage_memory),
+        storage => mg_cth:bootstrap_machine_storage(memory, NS, ?MODULE, ?MODULE),
         worker => #{
             registry => mg_core_procreg_global
         },
-        notification => mg_cth:notification_storage_options(NS, ?MODULE),
+        notification => mg_cth:bootstrap_notification_storage(memory, NS, ?MODULE),
         pulse => ?MODULE,
         retries => #{
             timers => {intervals, [1000, 1000, 1000, 1000, 1000]},
