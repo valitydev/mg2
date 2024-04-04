@@ -72,6 +72,8 @@
     ssl => [ssl:tls_client_option()],
     % Data
     keyspace := atom(),
+    %% TODO Describe schema options, which is mostly same but without
+    %%      'processor' and 'schema' fields
     schema => mg_core_utils:mod_opts(),
     consistency => #{
         read => consistency_level(),
@@ -101,6 +103,23 @@
 -type query_get() :: [column()].
 -type query_update() :: record().
 -type client() :: {pid(), reference()}.
+
+%%
+
+-callback prepare_get_query(options(), query_get()) -> query_get().
+
+-callback prepare_update_query(options(), machine_state(), machine_state() | undefined, query_update()) ->
+    query_update().
+
+-callback read_machine_state(options(), record()) -> machine_state().
+
+-callback bootstrap(options(), mg_core:ns()) -> ok.
+
+-callback teardown(options(), mg_core:ns()) -> ok.
+
+-optional_callbacks([bootstrap/2, teardown/2]).
+
+%%
 
 -define(COLUMNS, [
     id,
@@ -260,9 +279,9 @@ accumulate_page(Result, Acc) ->
 -spec get_schema(options()) -> mg_core_utils:mod_opts().
 get_schema(#{schema := Schema}) ->
     Schema;
-get_schema(#{processor := mg_core_events_machine} = Options) ->
-    Ks = [name, pulse, node, ssl, keyspace, consistency],
-    {mg_core_events_machine_cql_schema, maps:with(Ks, Options)}.
+get_schema(#{processor := mg_core_events_machine} = Options0) ->
+    Options1 = maps:without([processor, schema], Options0),
+    {mg_core_events_machine_cql_schema, Options1}.
 
 %%
 

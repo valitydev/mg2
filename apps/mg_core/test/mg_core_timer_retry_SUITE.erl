@@ -31,7 +31,7 @@
 
 %% mg_core_machine
 -behaviour(mg_core_machine).
--export([pool_child_spec/2, process_machine/7]).
+-export([process_machine/7]).
 
 %% mg_core_machine_storage_kvs
 -behaviour(mg_core_machine_storage_kvs).
@@ -39,14 +39,11 @@
 -export([opaque_to_state/1]).
 
 %% mg_core_machine_storage_cql schema
-% TODO
-% -behaviour(mg_core_machine_storage_cql).
+-behaviour(mg_core_machine_storage_cql).
 -export([prepare_get_query/2]).
 -export([prepare_update_query/4]).
 -export([read_machine_state/2]).
--export([bootstrap/3]).
-
--export([start/0]).
+-export([bootstrap/2]).
 
 %% Pulse
 -export([handle_beat/2]).
@@ -175,13 +172,6 @@ permanent_fail(C) ->
 -type mode() :: normal | counting | failing.
 -type state() :: {mode(), _Counter :: non_neg_integer()}.
 
--spec pool_child_spec(_Options, atom()) -> supervisor:child_spec().
-pool_child_spec(_Options, Name) ->
-    #{
-        id => Name,
-        start => {?MODULE, start, []}
-    }.
-
 -spec process_machine(
     _Options,
     mg_core:id(),
@@ -246,25 +236,23 @@ prepare_update_query(_, {Mode, Counter}, _Prev, Query) ->
 read_machine_state(_, #{test_mode := Mode, test_counter := Counter}) ->
     {binary_to_mode(Mode), Counter}.
 
--spec bootstrap(_, mg_core:ns(), mg_core_machine_storage_cql:client()) -> ok.
-bootstrap(_, NS, Client) ->
-    {ok, _} = cqerl_client:run_query(
-        Client,
-        mg_core_string_utils:join([
-            "ALTER TABLE",
-            mg_core_machine_storage_cql:mk_table_name(NS),
-            "ADD (test_mode TEXT, test_counter INT)"
-        ])
+-spec bootstrap(_, mg_core:ns()) -> ok.
+bootstrap(Options, NS) ->
+    mg_core_storage_cql:execute_query(
+        Options,
+        erlang:iolist_to_binary(
+            mg_core_string_utils:join([
+                "ALTER TABLE",
+                mg_core_machine_storage_cql:mk_table_name(NS),
+                "ADD (test_mode TEXT, test_counter INT)"
+            ])
+        )
     ),
     ok.
 
 %%
 %% utils
 %%
--spec start() -> ignore.
-start() ->
-    ignore.
-
 -spec start_automaton(mg_core_machine:options()) -> pid().
 start_automaton(Options) ->
     mg_core_utils:throw_if_error(mg_core_machine:start_link(Options)).

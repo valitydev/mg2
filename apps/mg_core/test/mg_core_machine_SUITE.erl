@@ -40,10 +40,11 @@
 -export([opaque_to_state/1]).
 
 %% mg_core_machine_storage_cql
+-behaviour(mg_core_machine_storage_cql).
 -export([prepare_get_query/2]).
 -export([prepare_update_query/4]).
 -export([read_machine_state/2]).
--export([bootstrap/3]).
+-export([bootstrap/2]).
 
 %% Pulse
 -export([handle_beat/2]).
@@ -265,15 +266,17 @@ prepare_update_query(_, {TestKey, TestValue}, _Prev, Query) ->
 read_machine_state(_, #{test_key := Key, test_counter := Value}) ->
     {Key, Value}.
 
--spec bootstrap(_, mg_core:ns(), mg_core_machine_storage_cql:client()) -> ok.
-bootstrap(_, NS, Client) ->
-    {ok, _} = cqerl_client:run_query(
-        Client,
-        mg_core_string_utils:join([
-            "ALTER TABLE",
-            mg_core_machine_storage_cql:mk_table_name(NS),
-            "ADD (test_key TEXT, test_counter INT)"
-        ])
+-spec bootstrap(_, mg_core:ns()) -> ok.
+bootstrap(Options, NS) ->
+    mg_core_storage_cql:execute_query(
+        Options,
+        erlang:iolist_to_binary(
+            mg_core_string_utils:join([
+                "ALTER TABLE",
+                mg_core_machine_storage_cql:mk_table_name(NS),
+                "ADD (test_key TEXT, test_counter INT)"
+            ])
+        )
     ),
     ok.
 

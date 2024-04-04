@@ -173,14 +173,12 @@ bootstrap_machine_storage(memory, NS, Pulse, _Processor) ->
     }}.
 
 -spec build_machine_storage_cql_options(module(), Options) -> Options.
-build_machine_storage_cql_options(Processor, Options) when
-    Processor == mg_core_events_machine
-->
+build_machine_storage_cql_options(Processor = mg_core_events_machine, Options) ->
     Options#{processor => Processor};
 build_machine_storage_cql_options(Processor, Options) ->
     % NOTE
     % Assuming bootstrapping performed in the same module which is usual for test code.
-    Options#{schema => Processor}.
+    Options#{schema => {Processor, maps:without([processor, schema], Options)}}.
 
 %% FIXME This is bullshit; requires refactor into sane helpers
 -spec bootstrap_events_storage(
@@ -200,14 +198,18 @@ bootstrap_events_storage(cql, NS, Pulse, _) ->
     ok = mg_core_events_storage_cql:teardown(Options, NS),
     ok = mg_core_events_storage_cql:bootstrap(Options, NS),
     {mg_core_events_storage_cql, Options};
-bootstrap_events_storage(kvs, NS, Pulse, {_Mod, _Opts} = KVSOptions) ->
+bootstrap_events_storage(kvs, NS, Pulse, KVSOptions) ->
     {mg_core_events_storage_kvs, #{
         name => {NS, mg_core_events_machine, events},
         pulse => Pulse,
         kvs => KVSOptions
     }};
 bootstrap_events_storage(memory, NS, Pulse, undefined) ->
-    bootstrap_events_storage(memory, NS, Pulse, mg_core_storage_memory).
+    {mg_core_events_storage_kvs, #{
+        name => {NS, mg_core_events_machine, events},
+        pulse => Pulse,
+        kvs => mg_core_storage_memory
+    }}.
 
 -spec stop_wait_all([pid()], _Reason, timeout()) -> ok.
 stop_wait_all(Pids, Reason, Timeout) ->

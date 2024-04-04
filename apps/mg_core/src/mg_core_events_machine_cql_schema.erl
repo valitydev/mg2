@@ -1,8 +1,7 @@
 -module(mg_core_events_machine_cql_schema).
 
--include_lib("cqerl/include/cqerl.hrl").
-
 %% Schema
+-behaviour(mg_core_machine_storage_cql).
 -export([prepare_get_query/2]).
 -export([prepare_update_query/4]).
 -export([read_machine_state/2]).
@@ -11,21 +10,7 @@
 -export([bootstrap/2]).
 -export([teardown/2]).
 
--type options() :: #{
-    name := mg_core_machine_storage:name(),
-    % Base
-    pulse := mg_core_pulse:handler(),
-    % Network
-    node := {inet:ip_address() | string(), Port :: integer()},
-    ssl => [ssl:tls_client_option()],
-    % Data
-    keyspace := atom(),
-    consistency => #{
-        read => consistency_level(),
-        write => consistency_level()
-    }
-}.
-
+-type options() :: mg_core_machine_storage_cql:options().
 -type machine_state() :: mg_core_events_machine:state().
 
 -type query_get() :: mg_core_machine_storage_cql:query_get().

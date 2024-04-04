@@ -110,7 +110,9 @@ mg_woody_config(_C) ->
         },
         namespaces => #{
             ?NS => #{
-                storage => mg_core_storage_memory,
+                machines_storage => {mg_core_machine_storage_kvs, #{kvs => mg_core_storage_memory}},
+                events_storage => {mg_core_events_storage_kvs, #{kvs => mg_core_storage_memory}},
+                notifications_storage => {mg_core_notification_storage_kvs, #{kvs => mg_core_storage_memory}},
                 processor => #{
                     url => <<"http://localhost:8023/processor">>,
                     transport_opts => #{pool => ns, max_connections => 100}
