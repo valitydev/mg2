@@ -1,0 +1,4 @@
+#!/bin/sh
+ADDR=`ip route get 8.8.8.8 | grep -oP "src \K[^ ]+"`
+echo "dist_node_name: mg@${ADDR}" >> /opt/mg/etc/config.yaml
+/usr/sbin/sshd -D

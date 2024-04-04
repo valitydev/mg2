@@ -54,11 +54,8 @@ RUN mkdir /var/run/sshd && \
     sed -i "s/#PermitRootLogin prohibit-password/PermitRootLogin yes/" /etc/ssh/sshd_config
 
 # create entrypoint
-RUN echo "#!/bin/sh" >> /entrypoint.sh && \
-    echo 'ADDR=`ip route get 8.8.8.8 | grep -oP "src \K[^ ]+"`' >> /entrypoint.sh && \
-    echo 'echo "dist_node_name: mg@${ADDR}" >> /opt/${SERVICE_NAME}/etc/config.yaml' >> /entrypoint.sh && \
-    echo "/usr/sbin/sshd -D" >> /entrypoint.sh && \
-    chmod +x /entrypoint.sh
+COPY ./test_resources/entrypoint.sh.test /entrypoint.sh
+RUN chmod +x /entrypoint.sh
 
 ENTRYPOINT ["/entrypoint.sh"]
 

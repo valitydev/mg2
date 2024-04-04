@@ -1,0 +1,5 @@
+#!/bin/sh
+ADDR=`ip route get 8.8.8.8 | grep -oP "src \K[^ ]+"`
+export IP=${ADDR}
+ip route add throw 10.254.254.0/24
+exec "$@"

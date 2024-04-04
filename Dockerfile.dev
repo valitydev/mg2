@@ -21,12 +21,8 @@ COPY ./test_resources/ssh/ /root/.ssh/
 RUN chown -R root:root /root/.ssh && \
     chmod 600 /root/.ssh/*
 
-RUN echo "#!/bin/sh" >> /entrypoint.sh && \
-    echo 'ADDR=`ip route get 8.8.8.8 | grep -oP "src \K[^ ]+"`' >> /entrypoint.sh && \
-    echo 'export IP=${ADDR}' >> /entrypoint.sh && \
-    echo "ip route add throw ${NETUNREACH_NETWORK}" >> /entrypoint.sh && \
-    echo 'exec "$@"' >> /entrypoint.sh && \
-    chmod +x /entrypoint.sh
+COPY ./test_resources/entrypoint.sh.dev /entrypoint.sh
+RUN chmod +x /entrypoint.sh
 
 ENTRYPOINT ["/entrypoint.sh"]
 
