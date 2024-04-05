@@ -21,4 +21,5 @@ ROOT="$(realpath $(dirname $0)/..)"
 RELEASE_DIR="${ROOT}/releases/{{release_version}}"
 YAML_CONFIG=${1:-${ROOT}/etc/config.yaml}
 ERL_LIBS="${ROOT}/lib" escript ${ROOT}/bin/configurator.escript ${YAML_CONFIG} ${RELEASE_DIR}
+# TODO Maybe add escript with storage bootstrap
 exec ${ROOT}/bin/mg foreground

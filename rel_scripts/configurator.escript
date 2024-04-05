@@ -215,7 +215,8 @@ machinegun(YamlConfig) ->
         {quotas, quotas(YamlConfig)},
         {namespaces, namespaces(YamlConfig)},
         {pulse, pulse(YamlConfig)},
-        {cluster, cluster(YamlConfig)}
+        {cluster, cluster(YamlConfig)},
+        {cqerl, cassandra_client(YamlConfig)}
     ].
 
 woody_server(YamlConfig) ->
@@ -314,37 +315,76 @@ relative_memory_limit(YamlConfig, Default, Fun) ->
         Fun(?C:conf([type], MemoryConfig, <<"total">>), percent(?C:conf([value], MemoryConfig)))
     end).
 
-storage(NS, YamlConfig) ->
+storages(NS, YamlConfig) ->
     case ?C:conf([storage, type], YamlConfig) of
+        <<"cassandra">> ->
+            Opts = #{
+                %% TODO Params form yaml
+                %%      See `mg_core_storage_cql:options/1'
+                node => {?C:conf([storage, host], YamlConfig), ?C:conf([storage, port], YamlConfig)},
+                %% ssl => ...
+                keyspace => ?C:atom(?C:conf([storage, keyspace], YamlConfig)),
+                consistency => #{
+                    read => cassandra_consistency_option(read, YamlConfig),
+                    write => cassandra_consistency_option(write, YamlConfig)
+                }
+            },
+            %% NOTE Bootstrap script must know 'name', 'pulse' and
+            %% 'processor' defined fields as well. Without them it
+            %% won't be able to setup storage schema.
+            {
+                {mg_core_machine_storage_cql, Opts},
+                {mg_core_events_storage_cql, Opts},
+                {mg_core_notification_storage_cql, Opts}
+            };
         <<"memory">> ->
-            mg_core_storage_memory;
+            kv_storages(mg_core_storage_memory);
         <<"riak">> ->
             PoolSize = ?C:conf([storage, pool, size], YamlConfig, 100),
-            {mg_core_storage_riak, #{
-                host => ?C:conf([storage, host], YamlConfig),
-                port => ?C:conf([storage, port], YamlConfig),
-                bucket => NS,
-                connect_timeout => ?C:milliseconds(?C:conf([storage, connect_timeout], YamlConfig, <<"5s">>)),
-                request_timeout => ?C:milliseconds(?C:conf([storage, request_timeout], YamlConfig, <<"10s">>)),
-                index_query_timeout => ?C:milliseconds(?C:conf([storage, index_query_timeout], YamlConfig, <<"10s">>)),
-                %% r_options => decode_rwd_options(?C:conf([storage, r_options], YamlConfig, undefined)),
-                %% w_options => decode_rwd_options(?C:conf([storage, w_options], YamlConfig, undefined)),
-                %% d_options => decode_rwd_options(?C:conf([storage, d_options], YamlConfig, undefined)),
-                pool_options => #{
-                    % If `init_count` is greater than zero, then the service will not start
-                    % if the riak is unavailable. The `pooler` synchronously creates `init_count`
-                    % connections at the start.
-                    init_count => 0,
-                    max_count => PoolSize,
-                    idle_timeout => timer:seconds(60),
-                    cull_interval => timer:seconds(10),
-                    queue_max => ?C:conf([storage, pool, queue_max], YamlConfig, 1000)
-                },
-                batching => #{
-                    concurrency_limit => ?C:conf([storage, batch_concurrency_limit], YamlConfig, PoolSize)
-                },
-                sidecar => {mg_riak_prometheus, #{}}
-            }}
+            kv_storages(
+                {mg_core_storage_riak, #{
+                    host => ?C:conf([storage, host], YamlConfig),
+                    port => ?C:conf([storage, port], YamlConfig),
+                    bucket => NS,
+                    connect_timeout => ?C:milliseconds(?C:conf([storage, connect_timeout], YamlConfig, <<"5s">>)),
+                    request_timeout => ?C:milliseconds(?C:conf([storage, request_timeout], YamlConfig, <<"10s">>)),
+                    index_query_timeout => ?C:milliseconds(
+                        ?C:conf([storage, index_query_timeout], YamlConfig, <<"10s">>)
+                    ),
+                    %% r_options => decode_rwd_options(?C:conf([storage, r_options], YamlConfig, undefined)),
+                    %% w_options => decode_rwd_options(?C:conf([storage, w_options], YamlConfig, undefined)),
+                    %% d_options => decode_rwd_options(?C:conf([storage, d_options], YamlConfig, undefined)),
+                    pool_options => #{
+                        % If `init_count` is greater than zero, then the service will not start
+                        % if the riak is unavailable. The `pooler` synchronously creates `init_count`
+                        % connections at the start.
+                        init_count => 0,
+                        max_count => PoolSize,
+                        idle_timeout => timer:seconds(60),
+                        cull_interval => timer:seconds(10),
+                        queue_max => ?C:conf([storage, pool, queue_max], YamlConfig, 1000)
+                    },
+                    batching => #{
+                        concurrency_limit => ?C:conf([storage, batch_concurrency_limit], YamlConfig, PoolSize)
+                    },
+                    sidecar => {mg_riak_prometheus, #{}}
+                }}
+            )
+    end.
+
+kv_storages(KVS) ->
+    {
+        {mg_core_machine_storage_kvs, #{kvs => KVS}},
+        {mg_core_events_storage_kvs, #{kvs => KVS}},
+        {mg_core_notification_storage_kvs, #{kvs => KVS}}
+    }.
+
+cassandra_client(YamlConfig) ->
+    case ?C:conf([storage, type], YamlConfig) of
+        <<"cassandra">> ->
+            [{num_clients, ?C:conf([storage, pool, size], YamlConfig, 20)}];
+        _ ->
+            []
     end.
 
 %% FIXME Function is unused. Something is broken?
@@ -381,10 +421,13 @@ namespaces(YamlConfig) ->
 ).
 
 namespace({Name, NSYamlConfig}, YamlConfig) ->
+    {MachinesStorage, EventsStorage, NotificationsStorage} = storages(Name, YamlConfig),
     {Name,
         maps:merge(
             #{
-                storage => storage(Name, YamlConfig),
+                machines_storage => MachinesStorage,
+                events_storage => EventsStorage,
+                notifications_storage => NotificationsStorage,
                 processor => #{
                     url => ?C:conf([processor, url], NSYamlConfig),
                     transport_opts => #{
@@ -669,6 +712,29 @@ port_range(Config) ->
             erlang:throw({'bad port range', Config})
     end.
 
+cassandra_consistency_option(Operation, YamlConfig) when Operation =:= read orelse Operation =:= write ->
+    DefaultConsistency = quorum,
+    Consistency = ?C:atom(?C:conf([storage, consistency, Operation], YamlConfig, DefaultConsistency)),
+    validate_cassandra_consistency_option(Operation, Consistency).
+
+validate_cassandra_consistency_option(_Op, V) when
+    V =:= any orelse
+        V =:= one orelse
+        V =:= two orelse
+        V =:= three orelse
+        V =:= quorum orelse
+        V =:= all orelse
+        V =:= local_quorum orelse
+        V =:= each_quorum orelse
+        V =:= local_one
+->
+    V;
+validate_cassandra_consistency_option(Op, V) ->
+    throw(
+        "Not supported cassandra consistency type '" ++ atom_to_list(V) ++ "' for '" ++ atom_to_list(Op) ++
+            "' operation"
+    ).
+
 %%
 %% erl_inetrc
 %%
@@ -688,6 +754,10 @@ conf_with(YamlConfigPath, YamlConfig, Default, FunOrVal) ->
         Value when is_function(FunOrVal) -> FunOrVal(Value);
         _Value -> FunOrVal
     end.
+
+%%
+%% logging
+%%
 
 log_level_tuple_to_atom({<<"emergency">>, NewLevel}) when is_binary(NewLevel) ->
     {emergency, binary_to_atom(NewLevel)};
