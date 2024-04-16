@@ -206,7 +206,9 @@ brod_client_sasl(SaslConfig) ->
     end.
 
 hackney(_YamlConfig) ->
-    [].
+    [
+        {mod_metrics, woody_hackney_prometheus}
+    ].
 
 machinegun(YamlConfig) ->
     [
