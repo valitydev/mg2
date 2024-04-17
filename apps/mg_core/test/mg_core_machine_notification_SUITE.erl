@@ -309,7 +309,8 @@ automaton_options(_C) ->
                 scan_handicap => 1,
                 reschedule_time => 2
             }
-        }
+        },
+        scaling => global_based
     }.
 
 -spec notification_options() -> mg_core_notification:options().
@@ -317,7 +318,8 @@ notification_options() ->
     #{
         namespace => ?NS,
         pulse => ?MODULE,
-        storage => mg_core_storage_memory
+        storage => mg_core_storage_memory,
+        scaling => global_based
     }.
 
 -spec handle_beat(_, mg_core_pulse:beat()) -> ok.

@@ -29,7 +29,10 @@
 -import(mg_woody_packer, [pack/2, unpack/2]).
 
 %% API types
--type options() :: #{mg_core:ns() => ns_options()}.
+-type options() :: #{
+    mg_core:ns() => ns_options(),
+    scaling => mg_core_cluster:scaling_type()
+}.
 -type ns_options() :: #{
     machine := mg_core_events_machine:options(),
     modernizer => mg_core_events_modernizer:options()
@@ -51,6 +54,8 @@
 %%
 
 -spec handler(options()) -> mg_woody_utils:woody_handler().
+handler(#{scaling := partition_based} = Options) ->
+    {"/v1/automaton", {{mg_proto_state_processing_thrift, 'Automaton'}, {mg_woody_automaton_balancer, Options}}};
 handler(Options) ->
     {"/v1/automaton", {{mg_proto_state_processing_thrift, 'Automaton'}, {?MODULE, Options}}}.
 
@@ -106,6 +111,7 @@ handle_function('Repair', {MachineDesc, Args}, WoodyContext, Options) ->
         {ok, Reply} ->
             {ok, pack(repair_response, Reply)};
         {error, {failed, Reason}} ->
+            %% TODO catch this in balancer!!!
             woody_error:raise(business, pack(repair_error, Reason))
     end;
 handle_function('SimpleRepair', {NS, RefIn}, WoodyContext, Options) ->

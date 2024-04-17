@@ -7,7 +7,7 @@ ARG THRIFT_VERSION
 ARG BUILDARCH
 
 RUN apt-get --yes update && \
-    apt-get --yes --no-install-recommends install iproute2=5.10.0-4 && \
+    apt-get --yes --no-install-recommends install iproute2=5.10.0-4 sshpass=1.09-1+b1 && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 
@@ -17,13 +17,19 @@ RUN wget -q -O- "https://github.com/valitydev/thrift/releases/download/${THRIFT_
 ENV NETUNREACH_NETWORK="10.254.254.0/24"
 ENV NETUNREACH_ADDRESS="10.254.254.10"
 
-RUN echo '#!/bin/sh' >> /entrypoint.sh && \
-    echo "ip route add throw ${NETUNREACH_NETWORK}" >> /entrypoint.sh && \
-    echo 'exec "$@"' >> /entrypoint.sh && \
-    chmod +x /entrypoint.sh
+COPY ./test_resources/ssh/ /root/.ssh/
+RUN chown -R root:root /root/.ssh && \
+    chmod 600 /root/.ssh/*
+
+COPY ./test_resources/entrypoint.sh.dev /entrypoint.sh
+RUN chmod +x /entrypoint.sh
 
 ENTRYPOINT ["/entrypoint.sh"]
 
 ENV CHARSET=UTF-8
 ENV LANG=C.UTF-8
+ENV SERVICE_NAME=mg
 CMD ["/bin/bash"]
+
+EXPOSE 4369
+EXPOSE 8022

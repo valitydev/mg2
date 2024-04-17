@@ -139,7 +139,7 @@ check_chain(Options, ID, ReportPid) ->
 
 -spec check_chain(mg_core_machine:options(), id(), seq(), [action()], state(), pid()) -> ok.
 % TODO убрать константы
-check_chain(_, ID, 100000, _, _, ReportPid) ->
+check_chain(_, ID, 10000, _, _, ReportPid) ->
     ReportPid ! ?CHAIN_COMPLETE(ID, erlang:monotonic_time()),
     ok;
 check_chain(Options, ID, Seq, AllActions, State, ReportPid) ->
@@ -317,7 +317,8 @@ automaton_options() ->
             pulse => ?MODULE,
             storage => mg_core_storage_memory
         },
-        pulse => ?MODULE
+        pulse => ?MODULE,
+        scaling => global_based
     }.
 
 -spec lists_random(list(T)) -> T.

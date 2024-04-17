@@ -35,6 +35,8 @@
 
 -type pulse() :: mg_core_pulse:handler().
 
+-type scaling_opts() :: #{scaling := mg_core_cluster:scaling_type()}.
+
 -spec construct_child_specs(config()) -> [supervisor:child_spec()].
 construct_child_specs(
     #{
@@ -46,6 +48,7 @@ construct_child_specs(
     Quotas = maps:get(quotas, Config, []),
     HealthChecks = maps:get(health_check, Config, #{}),
     ClusterOpts = maps:get(cluster, Config, #{}),
+    Scaling = maps:get(scaling, ClusterOpts, global_based),
 
     QuotasChildSpec = quotas_child_specs(Quotas, quota),
     EventMachinesChildSpec = events_machines_child_specs(Namespaces, Pulse),
@@ -53,7 +56,7 @@ construct_child_specs(
         woody_server,
         #{
             pulse => Pulse,
-            automaton => api_automaton_options(Namespaces, Pulse),
+            automaton => api_automaton_options(Namespaces, Pulse, #{scaling => Scaling}),
             woody_server => WoodyServer,
             additional_routes => [
                 get_startup_route(),
@@ -62,7 +65,7 @@ construct_child_specs(
             ]
         }
     ),
-    ClusterSpec = mg_core_union:child_spec(ClusterOpts),
+    ClusterSpec = mg_core_cluster:child_spec(ClusterOpts),
 
     lists:flatten([
         QuotasChildSpec,
@@ -129,7 +132,8 @@ machine_options(NS, Config, Pulse) ->
     Options = maps:with(
         [
             retries,
-            timer_processing_timeout
+            timer_processing_timeout,
+            scaling
         ],
         Config
     ),
@@ -150,8 +154,8 @@ machine_options(NS, Config, Pulse) ->
         suicide_probability => maps:get(suicide_probability, Config, undefined)
     }.
 
--spec api_automaton_options(namespaces(), pulse()) -> mg_woody_automaton:options().
-api_automaton_options(NSs, Pulse) ->
+-spec api_automaton_options(namespaces(), pulse(), scaling_opts()) -> mg_woody_automaton:options().
+api_automaton_options(NSs, Pulse, ScalingOpts) ->
     maps:fold(
         fun(NS, ConfigNS, Options) ->
             Options#{
@@ -163,7 +167,7 @@ api_automaton_options(NSs, Pulse) ->
                 )
             }
         end,
-        #{},
+        ScalingOpts,
         NSs
     ).
 

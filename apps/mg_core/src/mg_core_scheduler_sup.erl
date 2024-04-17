@@ -30,6 +30,7 @@
     scan_ahead => mg_core_queue_scanner:scan_ahead(),
     retry_scan_delay => mg_core_queue_scanner:scan_delay(),
     squad_opts => mg_core_gen_squad:opts(),
+    scaling => mg_core_cluster:scaling_type(),
     % workers
     task_handler := mg_core_utils:mod_opts(),
     % common
@@ -59,7 +60,7 @@ start_link(SchedulerID, Options) ->
         Options
     ),
     ScannerOptions = maps:with(
-        [queue_handler, max_scan_limit, scan_ahead, retry_scan_delay, squad_opts, pulse],
+        [queue_handler, max_scan_limit, scan_ahead, retry_scan_delay, squad_opts, pulse, scaling],
         Options
     ),
     WorkerOptions = maps:with(

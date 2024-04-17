@@ -164,6 +164,7 @@
 -type options() :: #{
     namespace := mg_core:ns(),
     pulse := mg_core_pulse:handler(),
+    scaling := mg_core_cluster:scaling_type(),
     storage => storage_options(),
     notification => mg_core_notification:options(),
     processor => mg_core_utils:mod_opts(),
@@ -1416,9 +1417,9 @@ manager_options(Options = #{namespace := NS, worker := ManagerOptions, pulse := 
     }.
 
 -spec storage_options(options()) -> mg_core_storage:options().
-storage_options(#{namespace := NS, storage := StorageOptions, pulse := Handler}) ->
+storage_options(#{namespace := NS, storage := StorageOptions, pulse := Handler, scaling := Scaling}) ->
     {Mod, Options} = mg_core_utils:separate_mod_opts(StorageOptions, #{}),
-    {Mod, Options#{name => {NS, ?MODULE, machines}, pulse => Handler}}.
+    {Mod, Options#{name => {NS, ?MODULE, machines}, pulse => Handler, scaling => Scaling}}.
 
 -spec notification_options(options()) -> mg_core_notification:options().
 notification_options(#{notification := NotificationOptions}) ->
@@ -1501,7 +1502,8 @@ scheduler_options(HandlerMod, Options, HandlerOptions, Config) ->
         max_scan_limit => maps:get(max_scan_limit, Config, undefined),
         scan_ahead => maps:get(scan_ahead, Config, undefined),
         task_handler => Handler,
-        pulse => Pulse
+        pulse => Pulse,
+        scaling => maps:get(scaling, Options, global_based)
     }).
 
 -spec scheduler_cutoff(scheduler_opt()) -> seconds().

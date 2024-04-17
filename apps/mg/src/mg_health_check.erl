@@ -2,10 +2,11 @@
 
 -export([global/0]).
 -export([startup/0]).
+-export([skip/0]).
 
 -spec global() -> {erl_health:status(), erl_health:details()}.
 global() ->
-    ClusterSize = mg_core_union:cluster_size(),
+    ClusterSize = mg_core_cluster:cluster_size(),
     ConnectedCount = erlang:length(erlang:nodes()),
     case is_quorum(ClusterSize, ConnectedCount) of
         true ->
@@ -21,6 +22,10 @@ global() ->
 startup() ->
     %% maybe any checks?
     logger:info("union. node ~p started", [node()]),
+    skip().
+
+-spec skip() -> {erl_health:status(), erl_health:details()}.
+skip() ->
     {passing, []}.
 
 %% Internal functions

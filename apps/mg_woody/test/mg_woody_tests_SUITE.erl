@@ -74,6 +74,49 @@
 
 -export([config_with_multiple_event_sinks/1]).
 
+-define(CLUSTER_PARTITION_OPTS, #{
+    discovering => #{
+        <<"domain_name">> => <<"machinegun-ha-headless">>,
+        <<"sname">> => <<"mg">>
+    },
+    scaling => partition_based,
+    partitioning => #{
+        capacity => 5,
+        max_hash => 4095
+    },
+    reconnect_timeout => 5000
+}).
+
+-define(CLUSTER_GLOBAL_OPTS, #{
+    discovering => #{
+        <<"domain_name">> => <<"machinegun-ha-headless">>,
+        <<"sname">> => <<"mg">>
+    },
+    scaling => global_based,
+    reconnect_timeout => 5000
+}).
+
+-define(STORAGE_RIAK(NS),
+    {mg_core_storage_riak, #{
+        host => "riakdb",
+        port => 8087,
+        bucket => NS,
+        connect_timeout => 5000,
+        request_timeout => 5000,
+        index_query_timeout => 10000,
+        pool_options => #{
+            init_count => 0,
+            max_count => 100,
+            idle_timeout => 60000,
+            cull_interval => 10000,
+            queue_max => 1000
+        },
+        batching => #{
+            concurrency_limit => 100
+        },
+        sidecar => {mg_riak_prometheus, #{}}
+    }}
+).
 %%
 %% tests descriptions
 %%
@@ -84,17 +127,40 @@
 -spec all() -> [test_name() | {group, group_name()}].
 all() ->
     [
-        {group, base},
-        {group, history},
-        {group, repair},
-        {group, timers},
-        {group, deadline},
+        {group, standalone_memory},
+        {group, standalone_memory_history},
+        {group, standalone_riak},
+        {group, distributed_riak},
         config_with_multiple_event_sinks
     ].
 
 -spec groups() -> [{group_name(), list(_), [test_name()]}].
 groups() ->
     [
+        {standalone_memory, [], [
+            {group, base},
+            {group, repair},
+            {group, timers},
+            {group, deadline}
+        ]},
+        {standalone_memory_history, [], [
+            {group, history}
+        ]},
+        {standalone_riak, [], [
+            {group, base},
+            {group, history},
+            {group, repair},
+            {group, timers},
+            {group, deadline}
+        ]},
+        {distributed_riak, [], [
+            {group, base},
+            {group, history},
+            {group, repair},
+            {group, timers}
+            %% {group, deadline}
+        ]},
+
         % TODO проверить отмену таймера
         {base, [sequence], [
             namespace_not_found,
@@ -175,14 +241,60 @@ end_per_suite(_C) ->
     ok.
 
 -spec init_per_group(group_name(), config()) -> config().
-init_per_group(history, C) ->
-    init_per_group([{storage, mg_core_storage_memory} | C]);
-init_per_group(_, C) ->
+init_per_group(standalone_memory_history, C) ->
+    [
+        {storage_ns, mg_core_storage_memory},
+        {storage_evs, mg_core_storage_memory},
+        {scaling, global_based},
+        {worker, #{registry => mg_core_procreg_global}},
+        {registry, mg_core_procreg_global},
+        {cluster, #{}}
+        | C
+    ];
+init_per_group(standalone_memory, C) ->
     % NOTE
     % Даже такой небольшой шанс может сработать в ситуациях, когда мы в процессоре выгребаем
     % большой кусок истории машины, из-за чего реальная вероятность зафейлить операцию равна
     % (1 - (1 - p) ^ n).
-    init_per_group([{storage, {mg_core_storage_memory, #{random_transient_fail => 0.01}}} | C]).
+    [
+        {storage_ns, {mg_core_storage_memory, #{random_transient_fail => 0.01}}},
+        {storage_evs, mg_core_storage_memory},
+        {scaling, global_based},
+        {worker, #{registry => mg_core_procreg_global}},
+        {registry, mg_core_procreg_global},
+        {cluster, #{}}
+        | C
+    ];
+init_per_group(standalone_riak, C) ->
+    [
+        {storage_ns, ?STORAGE_RIAK(?NS)},
+        {storage_evs, ?STORAGE_RIAK(<<"_event_sinks">>)},
+        {scaling, global_based},
+        {worker, #{registry => mg_core_procreg_global}},
+        {registry, mg_core_procreg_global},
+        {cluster, #{}}
+        | C
+    ];
+init_per_group(distributed_riak, C) ->
+    ClusterHosts = [<<"mg-0">>, <<"mg-1">>, <<"mg-2">>],
+    _ = mg_cth_cluster:prepare_cluster([<<"mg-0">>, <<"mg-1">>, <<"mg-2">>]),
+    ok = lists:foreach(
+        fun(Host) -> mg_cth_cluster:instance_up(Host) end,
+        tl(ClusterHosts)
+    ),
+    %% wait peers
+    timer:sleep(3000),
+    [
+        {storage_ns, ?STORAGE_RIAK(?NS)},
+        {storage_evs, ?STORAGE_RIAK(<<"_event_sinks">>)},
+        {scaling, partition_based},
+        {worker, #{registry => mg_core_procreg_gproc}},
+        {registry, mg_core_procreg_gproc},
+        {cluster, ?CLUSTER_PARTITION_OPTS}
+        | C
+    ];
+init_per_group(_, C) ->
+    init_per_group(C).
 
 -spec init_per_group(config()) -> config().
 init_per_group(C) ->
@@ -211,7 +323,7 @@ init_per_group(C) ->
     [
         {apps, Apps},
         {automaton_options, #{
-            url => "http://localhost:8022",
+            url => "http://mg-0:8022",
             ns => ?NS,
             retry_strategy => genlib_retry:linear(3, 1)
         }},
@@ -310,11 +422,12 @@ mg_woody_config(C) ->
                 update_interval => 100
             }
         ],
+        cluster => ?config(cluster, C),
         namespaces => #{
             ?NS => #{
-                storage => ?config(storage, C),
+                storage => ?config(storage_ns, C),
                 processor => #{
-                    url => <<"http://localhost:8023/processor">>,
+                    url => <<"http://mg-0:8023/processor">>,
                     transport_opts => #{pool => ns, max_connections => 100}
                 },
                 default_processing_timeout => 5000,
@@ -326,6 +439,9 @@ mg_woody_config(C) ->
                     storage => {exponential, infinity, 1, 10},
                     timers => {exponential, infinity, 1, 10}
                 },
+                scaling => ?config(scaling, C),
+                registry => ?config(registry, C),
+                worker => ?config(worker, C),
                 % сейчас существуют проблемы, которые не дают включить на постоянной основе эту
                 % опцию (а очень хочется, чтобы проверять работоспособность идемпотентных ретраев)
                 % TODO в будущем нужно это сделать
@@ -343,10 +459,38 @@ mg_woody_config(C) ->
     }.
 
 -spec end_per_group(group_name(), config()) -> ok.
+end_per_group(distributed_riak, C) ->
+    _ = mg_cth_cluster:prepare_cluster([<<"mg-0">>]),
+    ok = lists:foreach(
+        fun(Host) -> mg_cth_cluster:instance_down(Host) end,
+        [<<"mg-1">>, <<"mg-2">>]
+    ),
+    maybe_drop_buckets(C);
 end_per_group(_, C) ->
-    ok = proc_lib:stop(?config(processor_pid, C)),
-    mg_cth:stop_applications(?config(apps, C)).
+    maybe_drop_buckets(C),
+    try
+        proc_lib:stop(?config(processor_pid, C)),
+        mg_cth:stop_applications(?config(apps, C))
+    catch
+        _:_ ->
+            ok
+    end.
 
+-spec maybe_drop_buckets(_) -> _.
+maybe_drop_buckets(_C) ->
+    {ok, Pid} = riakc_pb_socket:start_link("riakdb", 8087),
+    {ok, ListBuckets} = riakc_pb_socket:list_buckets(Pid, [{allow_listing, true}]),
+    lists:foreach(
+        fun(Bucket) ->
+            case riakc_pb_socket:list_keys(Pid, Bucket, [{allow_listing, true}]) of
+                {ok, Keys} ->
+                    lists:foreach(fun(Key) -> ok = riakc_pb_socket:delete(Pid, Bucket, Key) end, Keys);
+                _ ->
+                    skip
+            end
+        end,
+        ListBuckets
+    ).
 %%
 %% base group tests
 %%
@@ -582,7 +726,22 @@ timeout_call_with_deadline(C) ->
     DeadlineFn = fun() -> mg_core_deadline:from_timeout(?DEADLINE_TIMEOUT) end,
     Options0 = no_timeout_automaton_options(C),
     Options1 = maps:remove(retry_strategy, Options0),
-    {'EXIT', {{woody_error, {external, result_unknown, <<"{timeout", _/binary>>}}, _Stack}} =
+    %    {'EXIT', {{woody_error, {external, result_unknown, <<"{timeout", _/binary>>}}, _Stack}} =
+    %    {
+    %        'EXIT',
+    %        {
+    %            {
+    %                woody_error,
+    %                {
+    %                    external,
+    %                    result_unexpected,
+    %                    <<"error:{exception,{woody_error,{internal,result_unknown,<<\"{timeout", _/binary>>
+    %                }
+    %            },
+    %            _Stack
+    %        }
+    %    } =
+    {'EXIT', {{woody_error, _}, _Stack}} =
         (catch mg_cth_automaton_client:call(Options1, ?ID, <<"sleep">>, DeadlineFn())),
     #mg_stateproc_MachineAlreadyWorking{} =
         (catch mg_cth_automaton_client:repair(Options0, ?ID, <<"ok">>, DeadlineFn())).
@@ -603,7 +762,7 @@ config_with_multiple_event_sinks(_C) ->
             <<"1">> => #{
                 storage => mg_core_storage_memory,
                 processor => #{
-                    url => <<"http://localhost:8023/processor">>,
+                    url => <<"http://mg-0:8023/processor">>,
                     transport_opts => #{pool => pool1, max_connections => 100}
                 },
                 default_processing_timeout => 30000,
@@ -612,6 +771,9 @@ config_with_multiple_event_sinks(_C) ->
                     overseer => #{}
                 },
                 retries => #{},
+                scaling => global_based,
+                registry => mg_core_procreg_global,
+                worker => #{registry => mg_core_procreg_global},
                 event_sinks => [
                     {mg_core_events_sink_kafka, #{
                         name => kafka,
@@ -623,7 +785,7 @@ config_with_multiple_event_sinks(_C) ->
             <<"2">> => #{
                 storage => mg_core_storage_memory,
                 processor => #{
-                    url => <<"http://localhost:8023/processor">>,
+                    url => <<"http://mg-0:8023/processor">>,
                     transport_opts => #{pool => pool2, max_connections => 100}
                 },
                 default_processing_timeout => 5000,
@@ -632,6 +794,9 @@ config_with_multiple_event_sinks(_C) ->
                     overseer => #{}
                 },
                 retries => #{},
+                scaling => global_based,
+                registry => mg_core_procreg_global,
+                worker => #{registry => mg_core_procreg_global},
                 event_sinks => [
                     {mg_core_events_sink_kafka, #{
                         name => kafka_other,

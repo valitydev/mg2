@@ -40,7 +40,8 @@
     scan_ahead => scan_ahead(),
     retry_scan_delay => scan_delay(),
     squad_opts => mg_core_gen_squad:opts(),
-    pulse => mg_core_pulse:handler()
+    pulse => mg_core_pulse:handler(),
+    scaling => mg_core_cluster:scaling_type()
 }.
 
 -export_type([options/0]).
@@ -152,7 +153,8 @@ where_is(SchedulerID) ->
     scan_ahead :: scan_ahead(),
     retry_delay :: scan_delay(),
     timer :: reference() | undefined,
-    pulse :: mg_core_pulse:handler() | undefined
+    pulse :: mg_core_pulse:handler() | undefined,
+    scaling :: mg_core_cluster:scaling_type()
 }).
 
 -type st() :: #st{}.
@@ -168,10 +170,13 @@ init({SchedulerID, Options}) ->
         max_limit = maps:get(max_scan_limit, Options, ?DEFAULT_MAX_LIMIT),
         scan_ahead = maps:get(scan_ahead, Options, ?DEFAULT_SCAN_AHEAD),
         retry_delay = maps:get(retry_scan_delay, Options, ?DEFAULT_RETRY_SCAN_DELAY),
-        pulse = maps:get(pulse, Options, undefined)
+        pulse = maps:get(pulse, Options, undefined),
+        scaling = maps:get(scaling, Options, global_based)
     }}.
 
 -spec discover(st()) -> {ok, [pid()], st()}.
+discover(St = #st{scaling = partition_based}) ->
+    {ok, [], St};
 discover(St = #st{scheduler_id = SchedulerID}) ->
     Nodes = erlang:nodes(),
     Pids = multicall(Nodes, ?MODULE, where_is, [SchedulerID], ?DISCOVER_TIMEOUT),

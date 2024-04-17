@@ -44,7 +44,8 @@
     rescan_delay => milliseconds(),
     scan_handicap => seconds(),
     scan_cutoff => seconds(),
-    reschedule_time => seconds()
+    reschedule_time => seconds(),
+    scaling => mg_core_cluster:scaling_type()
 }.
 
 -record(state, {
@@ -176,8 +177,9 @@ machine_options(#{machine := MachineOptions}) ->
     MachineOptions.
 
 -spec notification_options(options()) -> mg_core_notification:options().
-notification_options(#{notification := NotificationOptions}) ->
-    NotificationOptions.
+notification_options(#{notification := NotificationOptions, machine := Machine}) ->
+    Scaling = maps:get(scaling, Machine, global_based),
+    NotificationOptions#{scaling => Scaling}.
 
 -spec create_task(options(), mg_core_notification:id(), target_time()) -> task().
 create_task(Options, NotificationID, Timestamp) ->

@@ -2,6 +2,10 @@ services:
 
   testrunner:
     image: $DEV_IMAGE_TAG
+    environment:
+      WORK_DIR: $PWD
+      OTEL_TRACES_EXPORTER: none
+      OTEL_TRACES_SAMPLER: always_off
     build:
       dockerfile: Dockerfile.dev
       context: .
@@ -10,13 +14,10 @@ services:
         THRIFT_VERSION: $THRIFT_VERSION
     volumes:
       - .:$PWD
-    hostname: $SERVICE_NAME
+    hostname: ${SERVICE_NAME}-0
     cap_add:
       - NET_ADMIN
     working_dir: $PWD
-    environment:
-      OTEL_TRACES_EXPORTER: none
-      OTEL_TRACES_SAMPLER: always_off
     depends_on:
       riakdb:
         condition: service_started
@@ -30,9 +31,43 @@ services:
         condition: service_healthy
       kafka3:
         condition: service_healthy
+
+      distrunner1:
+        condition: service_started
+      distrunner2:
+        condition: service_started
+      distrunner3:
+        condition: service_started
+      distrunner4:
+        condition: service_started
     ports:
       - "8022"
     command: /sbin/init
+
+  distrunner1: &mg-cluster
+    image: distrunner-test
+    # scale: 2
+    hostname: ${SERVICE_NAME}-1
+    build:
+      dockerfile: Dockerfile.test
+      context: .
+      args:
+        OTP_VERSION: $OTP_VERSION
+        THRIFT_VERSION: $THRIFT_VERSION
+    cap_add:
+      - NET_ADMIN
+
+  distrunner2:
+    <<: *mg-cluster
+    hostname: ${SERVICE_NAME}-2
+
+  distrunner3:
+    <<: *mg-cluster
+    hostname: ${SERVICE_NAME}-3
+
+  distrunner4:
+    <<: *mg-cluster
+    hostname: ${SERVICE_NAME}-4
 
   riakdb: &member-node
     image: docker.io/basho/riak-kv:${RIAK_VERSION}

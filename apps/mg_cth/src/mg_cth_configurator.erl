@@ -18,13 +18,17 @@
     schedulers := mg_core_machine:schedulers_opt(),
     default_processing_timeout := timeout(),
     suicide_probability => mg_core_machine:suicide_probability(),
-    event_stash_size := non_neg_integer()
+    event_stash_size := non_neg_integer(),
+    scaling => mg_core_cluster:scaling_type(),
+    _ => _
 }.
 
 -type config() :: #{
     woody_server := mg_woody:woody_server(),
     namespaces := #{mg_core:ns() => events_machines()},
-    quotas => [mg_core_quota_worker:options()]
+    quotas => [mg_core_quota_worker:options()],
+    cluster => mg_core_cluster:cluster_options(),
+    _ => _
 }.
 
 -type processor() :: mg_woody_processor:options().
@@ -34,6 +38,8 @@ construct_child_specs(undefined) ->
     [];
 construct_child_specs(#{woody_server := WoodyServer, namespaces := Namespaces} = Config) ->
     Quotas = maps:get(quotas, Config, []),
+    ClusterOpts = maps:get(cluster, Config, #{}),
+    Scaling = maps:get(scaling, ClusterOpts, global_based),
 
     QuotasChSpec = quotas_child_specs(Quotas, quota),
     EventMachinesChSpec = events_machines_child_specs(Namespaces),
@@ -41,14 +47,16 @@ construct_child_specs(#{woody_server := WoodyServer, namespaces := Namespaces} =
         woody_server,
         #{
             woody_server => WoodyServer,
-            automaton => api_automaton_options(Namespaces),
+            automaton => api_automaton_options(Namespaces, #{scaling => Scaling}),
             pulse => mg_cth_pulse
         }
     ),
+    ClusterSpec = mg_core_cluster:child_spec(ClusterOpts),
 
     lists:flatten([
         WoodyServerChSpec,
         QuotasChSpec,
+        ClusterSpec,
         EventMachinesChSpec
     ]).
 
@@ -91,7 +99,8 @@ machine_options(NS, Config) ->
     Options = maps:with(
         [
             retries,
-            timer_processing_timeout
+            timer_processing_timeout,
+            scaling
         ],
         Config
     ),
@@ -112,8 +121,8 @@ machine_options(NS, Config) ->
         suicide_probability => maps:get(suicide_probability, Config, undefined)
     }.
 
--spec api_automaton_options(_) -> mg_woody_automaton:options().
-api_automaton_options(NSs) ->
+-spec api_automaton_options(_, _Opts) -> mg_woody_automaton:options().
+api_automaton_options(NSs, Opts) ->
     maps:fold(
         fun(NS, ConfigNS, Options) ->
             Options#{
@@ -125,7 +134,7 @@ api_automaton_options(NSs) ->
                 )
             }
         end,
-        #{},
+        Opts,
         NSs
     ).
 

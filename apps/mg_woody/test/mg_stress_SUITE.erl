@@ -112,7 +112,7 @@ mg_woody_config(_C) ->
             ?NS => #{
                 storage => mg_core_storage_memory,
                 processor => #{
-                    url => <<"http://localhost:8023/processor">>,
+                    url => <<"http://mg-0:8023/processor">>,
                     transport_opts => #{pool => ns, max_connections => 100}
                 },
                 default_processing_timeout => 5000,
@@ -121,6 +121,7 @@ mg_woody_config(_C) ->
                 },
                 retries => #{},
                 event_sinks => [],
+                scaling => global_based,
                 event_stash_size => 10
             }
         }

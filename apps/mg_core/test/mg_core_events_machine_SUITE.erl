@@ -436,6 +436,7 @@ events_machine_options(Base, StorageOptions, ProcessorOptions, NS) ->
         namespace => NS,
         processor => {?MODULE, ProcessorOptions},
         machines => #{
+            scaling => partition_based,
             namespace => NS,
             storage => mg_cth:build_storage(NS, Storage),
             worker => #{
