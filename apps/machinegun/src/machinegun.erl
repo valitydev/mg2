@@ -1,4 +1,4 @@
--module(mg).
+-module(machinegun).
 
 %% API
 -export([start/0]).
