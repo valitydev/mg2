@@ -159,7 +159,7 @@ groups() ->
 init_per_suite(C) ->
     Apps = mg_cth:start_applications([
         gproc,
-        {mg, mg_config()}
+        {machinegun, mg_config()}
     ]),
     [{apps, Apps} | C].
 
