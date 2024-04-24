@@ -26,6 +26,7 @@
 -export([stress_test/1]).
 
 -define(NS, <<"NS">>).
+-define(ES_ID, <<"test_event_sink">>).
 
 -type test_name() :: atom().
 -type config() :: [{atom(), _}].
@@ -82,6 +83,7 @@ init_per_suite(C) ->
             ns => ?NS,
             retry_strategy => genlib_retry:new_strategy({exponential, 5, 2, 1000})
         }},
+        {event_sink_options, "http://localhost:8022"},
         {processor_pid, ProcessorPid}
         | C
     ].
@@ -120,9 +122,15 @@ mg_woody_config(_C) ->
                     timers => #{}
                 },
                 retries => #{},
-                event_sinks => [],
+                event_sinks => [
+                    {mg_core_events_sink_machine, #{name => default, machine_id => ?ES_ID}}
+                ],
                 event_stash_size => 10
             }
+        },
+        event_sink_ns => #{
+            storage => mg_core_storage_memory,
+            default_processing_timeout => 5000
         }
     }.
 
