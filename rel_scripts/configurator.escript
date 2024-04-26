@@ -553,12 +553,12 @@ event_sink({Name, ESYamlConfig}) ->
     event_sink(?C:atom(?C:conf([type], ESYamlConfig)), Name, ESYamlConfig).
 
 event_sink(machine, Name, ESYamlConfig) ->
-    {mg_core_events_sink_machine, #{
+    {mg_event_sink_machine, #{
         name => ?C:atom(Name),
         machine_id => ?C:conf([machine_id], ESYamlConfig)
     }};
 event_sink(kafka, Name, ESYamlConfig) ->
-    {mg_core_events_sink_kafka, #{
+    {mg_event_sink_kafka, #{
         name => ?C:atom(Name),
         client => ?C:atom(?C:conf([client], ESYamlConfig)),
         topic => ?C:conf([topic], ESYamlConfig)

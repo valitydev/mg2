@@ -1,4 +1,4 @@
-{application, mg_core , [
+{application, mg_es_kafka , [
     {description, "Event sink kafka implementation"},
     {vsn, "1"},
     {registered, []},

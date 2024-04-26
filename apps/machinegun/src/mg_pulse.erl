@@ -1,5 +1,5 @@
 %%%
-%%% Copyright 2020 RBKmoney
+%%% Copyright 2024 Valitydev
 %%%
 %%% Licensed under the Apache License, Version 2.0 (the "License");
 %%% you may not use this file except in compliance with the License.
@@ -17,6 +17,7 @@
 -module(mg_pulse).
 
 -include_lib("mg_woody/include/pulse.hrl").
+-include_lib("mg_es_kafka/include/pulse.hrl").
 
 %% mg_pulse handler
 -behaviour(mg_core_pulse).
@@ -28,7 +29,8 @@
     mg_core_pulse:beat()
     | mg_core_queue_scanner:beat()
     | #woody_event{}
-    | #woody_request_handle_error{}.
+    | #woody_request_handle_error{}
+    | #mg_event_sink_kafka_sent{}.
 
 -type options() :: #{
     woody_event_handler_options => woody_event_handler:options(),
@@ -48,6 +50,7 @@ handle_beat(Options, Beat) ->
     ok = mg_core_pulse_otel:handle_beat(Options, Beat),
     ok = mg_pulse_log:handle_beat(maps:get(woody_event_handler_options, Options, #{}), Beat),
     ok = mg_pulse_prometheus:handle_beat(#{}, Beat),
+    ok = mg_event_sink_kafka_prometheus_pulse:handle_beat(#{}, Beat),
     ok = maybe_handle_lifecycle_kafka(Options, Beat).
 
 %%

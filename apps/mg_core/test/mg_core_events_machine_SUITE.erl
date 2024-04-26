@@ -35,8 +35,8 @@
 -export_type([options/0]).
 -export([process_signal/4, process_call/4, process_repair/4]).
 
-%% mg_core_events_sink handler
--behaviour(mg_core_events_sink).
+%% mg_core_event_sink handler
+-behaviour(mg_core_event_sink).
 -export([add_events/6]).
 
 %% mg_core_storage callbacks

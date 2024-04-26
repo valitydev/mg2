@@ -14,7 +14,7 @@
 %%% limitations under the License.
 %%%
 
--module(mg_core_events_sink_machine_SUITE).
+-module(mg_event_sink_machine_SUITE).
 -include_lib("stdlib/include/assert.hrl").
 -include_lib("common_test/include/ct.hrl").
 
@@ -61,7 +61,7 @@ groups() ->
 -spec init_per_suite(config()) -> config().
 init_per_suite(C) ->
     % dbg:tracer(), dbg:p(all, c),
-    % dbg:tpl({mg_core_events_sink_machine, '_', '_'}, x),
+    % dbg:tpl({mg_event_sink_machine, '_', '_'}, x),
     Apps = mg_cth:start_applications([mg_core]),
     Pid = start_event_sink(event_sink_ns_options()),
     true = erlang:unlink(Pid),
@@ -89,7 +89,7 @@ add_events_test(C) ->
 
 -spec get_unexisted_event_test(config()) -> _.
 get_unexisted_event_test(_C) ->
-    [] = mg_core_events_sink_machine:get_history(
+    [] = mg_event_sink_machine:get_history(
         event_sink_ns_options(),
         ?ES_ID,
         {42, undefined, forward}
@@ -114,7 +114,7 @@ not_idempotent_add_get_events_test(C) ->
 
 -spec add_events(config()) -> _.
 add_events(C) ->
-    mg_core_events_sink_machine:add_events(
+    mg_event_sink_machine:add_events(
         event_sink_options(),
         ?SOURCE_NS,
         ?SOURCE_ID,
@@ -127,23 +127,23 @@ add_events(C) ->
 get_history(_C) ->
     HRange = {undefined, undefined, forward},
     % _ = ct:pal("~p", [PreparedEvents]),
-    EventsSinkEvents = mg_core_events_sink_machine:get_history(
+    EventsSinkEvents = mg_event_sink_machine:get_history(
         event_sink_ns_options(),
         ?ES_ID,
         HRange
     ),
     [{ID, Body} || #{id := ID, body := Body} <- EventsSinkEvents].
 
--spec start_event_sink(mg_core_events_sink_machine:ns_options()) -> pid().
+-spec start_event_sink(mg_event_sink_machine:ns_options()) -> pid().
 start_event_sink(Options) ->
     mg_core_utils:throw_if_error(
         genlib_adhoc_supervisor:start_link(
             #{strategy => one_for_all},
-            [mg_core_events_sink_machine:child_spec(Options, event_sink)]
+            [mg_event_sink_machine:child_spec(Options, event_sink)]
         )
     ).
 
--spec event_sink_ns_options() -> mg_core_events_sink_machine:ns_options().
+-spec event_sink_ns_options() -> mg_event_sink_machine:ns_options().
 event_sink_ns_options() ->
     #{
         namespace => ?ES_ID,
@@ -156,7 +156,7 @@ event_sink_ns_options() ->
         events_storage => mg_core_storage_memory
     }.
 
--spec event_sink_options() -> mg_core_events_sink_machine:options().
+-spec event_sink_options() -> mg_event_sink_machine:options().
 event_sink_options() ->
     NSOptions = event_sink_ns_options(),
     NSOptions#{

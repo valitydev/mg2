@@ -25,6 +25,7 @@
         mg_proto,
         woody,
         mg_core,
+        mg_es_machine,
         opentelemetry_api
     ]},
     {env, []},

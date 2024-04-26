@@ -123,7 +123,7 @@ mg_woody_config(_C) ->
                 },
                 retries => #{},
                 event_sinks => [
-                    {mg_core_events_sink_machine, #{name => default, machine_id => ?ES_ID}}
+                    {mg_event_sink_machine, #{name => default, machine_id => ?ES_ID}}
                 ],
                 event_stash_size => 10
             }

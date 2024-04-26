@@ -1,5 +1,5 @@
 %%%
-%%% Copyright 2020 RBKmoney
+%%% Copyright 2024 Valitydev
 %%%
 %%% Licensed under the Apache License, Version 2.0 (the "License");
 %%% you may not use this file except in compliance with the License.
@@ -240,21 +240,6 @@ setup() ->
         {labels, [namespace, name]},
         {help, "Total number of killed used Machinegun riak pool connections."}
     ]),
-    %% Event sink / kafka
-    true = prometheus_counter:declare([
-        {name, mg_events_sink_produced_total},
-        {registry, registry()},
-        {labels, [namespace, name]},
-        {help, "Total number of Machinegun event sink events."}
-    ]),
-    true = prometheus_histogram:declare([
-        {name, mg_events_sink_kafka_produced_duration_seconds},
-        {registry, registry()},
-        {labels, [namespace, name, action]},
-        {buckets, duration_buckets()},
-        {duration_unit, seconds},
-        {help, "Machinegun event sink addition duration."}
-    ]),
     ok.
 
 %% Internals
@@ -416,16 +401,6 @@ dispatch_metrics(#mg_core_riak_connection_pool_connection_killed{name = {NS, _Ca
     ok = inc(mg_riak_pool_killed_in_use_connections_total, [NS, Type]);
 dispatch_metrics(#mg_core_riak_connection_pool_error{name = {NS, _Caller, Type}, reason = connect_timeout}) ->
     ok = inc(mg_riak_pool_connect_timeout_errors_total, [NS, Type]);
-% Event sink operations
-dispatch_metrics(#mg_core_events_sink_kafka_sent{
-    name = Name,
-    namespace = NS,
-    encode_duration = EncodeDuration,
-    send_duration = SendDuration
-}) ->
-    ok = inc(mg_events_sink_produced_total, [NS, Name]),
-    ok = observe(mg_events_sink_kafka_produced_duration_seconds, [NS, Name, encode], EncodeDuration),
-    ok = observe(mg_events_sink_kafka_produced_duration_seconds, [NS, Name, send], SendDuration);
 % Unknown
 dispatch_metrics(_Beat) ->
     ok.

@@ -14,7 +14,7 @@
 %%% limitations under the License.
 %%%
 
--module(mg_core_events_sink_kafka_SUITE).
+-module(mg_event_sink_kafka_SUITE).
 -include_lib("stdlib/include/assert.hrl").
 -include_lib("common_test/include/ct.hrl").
 -include_lib("kafka_protocol/include/kpro_public.hrl").
@@ -63,7 +63,7 @@ groups() ->
 -spec init_per_suite(config()) -> config().
 init_per_suite(C) ->
     % dbg:tracer(), dbg:p(all, c),
-    % dbg:tpl({mg_core_events_sink_kafka, '_', '_'}, x),
+    % dbg:tpl({mg_event_sink_kafka, '_', '_'}, x),
     AppSpecs = [
         {brod, [
             {clients, [
@@ -105,7 +105,7 @@ add_events_test(C) ->
 -spec add_events(config()) -> ok.
 add_events(C) ->
     F = fun() ->
-        mg_core_events_sink_kafka:add_events(
+        mg_event_sink_kafka:add_events(
             event_sink_options(),
             ?SOURCE_NS,
             ?SOURCE_ID,
@@ -138,7 +138,7 @@ do_read_all(Hosts, Topic, Partition, Offset, Result) ->
             do_read_all(Hosts, Topic, Partition, NewOffset, NewRecords ++ Result)
     end.
 
--spec event_sink_options() -> mg_core_events_sink_kafka:options().
+-spec event_sink_options() -> mg_event_sink_kafka:options().
 event_sink_options() ->
     #{
         name => kafka,

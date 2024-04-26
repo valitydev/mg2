@@ -13,7 +13,7 @@
     % all but `worker_options.worker` option
     worker => mg_core_workers_manager:ns_options(),
     storage := mg_core_machine:storage_options(),
-    event_sinks => [mg_core_events_sink:handler()],
+    event_sinks => [mg_core_event_sink:handler()],
     retries := mg_core_machine:retry_opt(),
     schedulers := mg_core_machine:schedulers_opt(),
     default_processing_timeout := timeout(),
@@ -151,19 +151,19 @@ api_automaton_options(NSs, EventSinkNS) ->
         NSs
     ).
 
--spec event_sink_options(mg_core_events_sink:handler(), _) -> mg_core_events_sink:handler().
-event_sink_options({mg_core_events_sink_machine, EventSinkConfig}, EvSinks) ->
+-spec event_sink_options(mg_core_event_sink:handler(), _) -> mg_core_event_sink:handler().
+event_sink_options({mg_event_sink_machine, EventSinkConfig}, EvSinks) ->
     EventSinkNS = event_sink_namespace_options(EvSinks),
-    {mg_core_events_sink_machine, maps:merge(EventSinkNS, EventSinkConfig)};
-event_sink_options({mg_core_events_sink_kafka, EventSinkConfig}, _Config) ->
-    {mg_core_events_sink_kafka, EventSinkConfig#{
+    {mg_event_sink_machine, maps:merge(EventSinkNS, EventSinkConfig)};
+event_sink_options({mg_event_sink_kafka, EventSinkConfig}, _Config) ->
+    {mg_event_sink_kafka, EventSinkConfig#{
         pulse => pulse(),
         encoder => fun mg_woody_event_sink:serialize/3
     }}.
 
 -spec event_sink_ns_child_spec(_, atom()) -> supervisor:child_spec().
 event_sink_ns_child_spec(EventSinkNS, ChildID) ->
-    mg_core_events_sink_machine:child_spec(event_sink_namespace_options(EventSinkNS), ChildID).
+    mg_event_sink_machine:child_spec(event_sink_namespace_options(EventSinkNS), ChildID).
 
 -spec api_event_sink_options(_, _) -> mg_woody_event_sink:options().
 api_event_sink_options(NSs, EventSinkNS) ->
@@ -176,11 +176,11 @@ collect_event_sink_machines(NSs) ->
     EventSinks = ordsets:from_list([
         maps:get(machine_id, SinkConfig)
      || NSConfig <- NSConfigs,
-        {mg_core_events_sink_machine, SinkConfig} <- maps:get(event_sinks, NSConfig, [])
+        {mg_event_sink_machine, SinkConfig} <- maps:get(event_sinks, NSConfig, [])
     ]),
     ordsets:to_list(EventSinks).
 
--spec event_sink_namespace_options(_) -> mg_core_events_sink_machine:ns_options().
+-spec event_sink_namespace_options(_) -> mg_event_sink_machine:ns_options().
 event_sink_namespace_options(#{storage := Storage} = EventSinkNS) ->
     NS = <<"_event_sinks">>,
     MachinesStorage = sub_storage_options(<<"machines">>, Storage),

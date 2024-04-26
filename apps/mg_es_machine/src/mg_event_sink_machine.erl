@@ -1,5 +1,5 @@
 %%%
-%%% Copyright 2017 RBKmoney
+%%% Copyright 2024 Valitydev
 %%%
 %%% Licensed under the Apache License, Version 2.0 (the "License");
 %%% you may not use this file except in compliance with the License.
@@ -14,7 +14,7 @@
 %%% limitations under the License.
 %%%
 
--module(mg_core_events_sink_machine).
+-module(mg_event_sink_machine).
 
 %% API
 -export_type([event_body/0]).
@@ -26,8 +26,8 @@
 -export([get_history/3]).
 -export([repair/4]).
 
-%% mg_core_events_sink handler
--behaviour(mg_core_events_sink).
+%% mg_core_event_sink handler
+-behaviour(mg_core_event_sink).
 -export([add_events/6]).
 
 %% mg_core_machine handler

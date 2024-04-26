@@ -353,11 +353,11 @@ mg_woody_config(C) ->
                 % сейчас же можно иногда включать и смотреть
                 % suicide_probability => 0.1,
                 event_sinks => [
-                    {mg_core_events_sink_machine, #{
+                    {mg_event_sink_machine, #{
                         name => machine,
                         machine_id => ?ES_ID
                     }},
-                    {mg_core_events_sink_kafka, #{
+                    {mg_event_sink_kafka, #{
                         name => kafka,
                         topic => ?ES_ID,
                         client => mg_cth:config(kafka_client_name)
@@ -731,7 +731,7 @@ config_with_multiple_event_sinks(_C) ->
                 },
                 retries => #{},
                 event_sinks => [
-                    {mg_core_events_sink_machine, #{name => default, machine_id => <<"SingleES">>}}
+                    {mg_event_sink_machine, #{name => default, machine_id => <<"SingleES">>}}
                 ]
             },
             <<"2">> => #{
@@ -747,11 +747,11 @@ config_with_multiple_event_sinks(_C) ->
                 },
                 retries => #{},
                 event_sinks => [
-                    {mg_core_events_sink_machine, #{
+                    {mg_event_sink_machine, #{
                         name => machine,
                         machine_id => <<"SingleES">>
                     }},
-                    {mg_core_events_sink_kafka, #{
+                    {mg_event_sink_kafka, #{
                         name => kafka,
                         topic => <<"mg_core_event_sink">>,
                         client => mg_cth:config(kafka_client_name)

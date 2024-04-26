@@ -123,7 +123,7 @@
     machines => mg_core_machine:options(),
     retries => #{_Subject => genlib_retry:policy()},
     pulse => mg_core_pulse:handler(),
-    event_sinks => [mg_core_events_sink:handler()],
+    event_sinks => [mg_core_event_sink:handler()],
     default_processing_timeout => timeout(),
     event_stash_size => non_neg_integer()
 }.
@@ -433,7 +433,7 @@ push_events_to_event_sinks(Options, ID, ReqCtx, Deadline, Events) ->
     EventSinks = maps:get(event_sinks, Options, []),
     lists:foreach(
         fun(EventSinkHandler) ->
-            ok = mg_core_events_sink:add_events(
+            ok = mg_core_event_sink:add_events(
                 EventSinkHandler,
                 Namespace,
                 ID,

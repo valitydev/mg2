@@ -14,12 +14,12 @@
 %%% limitations under the License.
 %%%
 
--module(mg_core_events_sink_kafka).
+-module(mg_event_sink_kafka).
 
--include_lib("mg_core/include/pulse.hrl").
+-include_lib("mg_es_kafka/include/pulse.hrl").
 
-%% mg_core_events_sink handler
--behaviour(mg_core_events_sink).
+%% mg_core_event_sink handler
+-behaviour(mg_core_event_sink).
 -export([add_events/6]).
 
 %% Types
@@ -53,7 +53,7 @@ add_events(Options, NS, MachineID, Events, ReqCtx, Deadline) ->
     EncodeTimestamp = erlang:monotonic_time(),
     {ok, Partition, Offset} = produce(Client, Topic, event_key(NS, MachineID), Batch),
     FinishTimestamp = erlang:monotonic_time(),
-    ok = mg_core_pulse:handle_beat(Pulse, #mg_core_events_sink_kafka_sent{
+    ok = mg_core_pulse:handle_beat(Pulse, #mg_event_sink_kafka_sent{
         name = Name,
         namespace = NS,
         machine_id = MachineID,

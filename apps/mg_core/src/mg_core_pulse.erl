@@ -75,8 +75,6 @@
     | #mg_core_storage_search_finish{}
     | #mg_core_storage_delete_start{}
     | #mg_core_storage_delete_finish{}
-    % Event sink operations
-    | #mg_core_events_sink_kafka_sent{}
     % Riak client call handling
     | #mg_core_riak_client_get_start{}
     | #mg_core_riak_client_get_finish{}

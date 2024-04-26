@@ -14,7 +14,7 @@
 %%% limitations under the License.
 %%%
 
--module(mg_core_events_sink_kafka_errors_SUITE).
+-module(mg_event_sink_kafka_errors_SUITE).
 -include_lib("stdlib/include/assert.hrl").
 -include_lib("common_test/include/ct.hrl").
 -include_lib("mg_cth/include/mg_cth.hrl").
@@ -78,7 +78,7 @@ groups() ->
 -spec init_per_suite(config()) -> config().
 init_per_suite(C) ->
     % dbg:tracer(), dbg:p(all, c),
-    % dbg:tpl({mg_core_events_sink_kafka, '_', '_'}, x),
+    % dbg:tpl({mg_event_sink_kafka, '_', '_'}, x),
     {Events, _} = mg_core_events:generate_events_with_range(
         [{#{}, Body} || Body <- [1, 2, 3]],
         undefined
@@ -143,7 +143,7 @@ add_events_ssl_failed_test(C) ->
         _ = ?assertException(
             throw,
             {transient, {event_sink_unavailable, {connect_failed, [{_, {{failed_to_upgrade_to_ssl, _}, _ST}}]}}},
-            mg_core_events_sink_kafka:add_events(
+            mg_event_sink_kafka:add_events(
                 event_sink_options(),
                 ?SOURCE_NS,
                 ?SOURCE_ID,
@@ -287,7 +287,7 @@ add_events_nxdomain_test(C) ->
         _ = mg_cth:stop_applications(Apps)
     end.
 
--spec event_sink_options() -> mg_core_events_sink_kafka:options().
+-spec event_sink_options() -> mg_event_sink_kafka:options().
 event_sink_options() ->
     #{
         name => kafka,
@@ -315,7 +315,7 @@ change_proxy_mode(ModeWas, Mode, Proxy, C) ->
 
 -spec add_events(config()) -> ok.
 add_events(C) ->
-    mg_core_events_sink_kafka:add_events(
+    mg_event_sink_kafka:add_events(
         event_sink_options(),
         ?SOURCE_NS,
         ?SOURCE_ID,

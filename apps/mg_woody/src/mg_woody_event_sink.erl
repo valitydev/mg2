@@ -30,7 +30,7 @@
 %%
 %% API
 %%
--type options() :: {[mg_core:id()], mg_core_events_sink_machine:ns_options()}.
+-type options() :: {[mg_core:id()], mg_event_sink_machine:ns_options()}.
 
 -spec handler(options()) -> mg_woody_utils:woody_handler().
 handler(Options) ->
@@ -57,7 +57,7 @@ handle_function('GetHistory', {EventSinkID, Range}, WoodyContext, {AvaliableEven
             },
             fun() ->
                 _ = check_event_sink(AvaliableEventSinks, EventSinkID),
-                mg_core_events_sink_machine:get_history(
+                mg_event_sink_machine:get_history(
                     Options,
                     EventSinkID,
                     mg_woody_packer:unpack(history_range, Range)
@@ -68,7 +68,7 @@ handle_function('GetHistory', {EventSinkID, Range}, WoodyContext, {AvaliableEven
     {ok, mg_woody_packer:pack(sink_history, SinkHistory)}.
 
 %%
-%% events_sink events encoder
+%% event_sink events encoder
 %%
 
 -spec serialize(mg_core:ns(), mg_core:id(), mg_core_events:event()) -> iodata().
@@ -110,6 +110,6 @@ check_event_sink(AvaliableEventSinks, EventSinkID) ->
             throw({logic, event_sink_not_found})
     end.
 
--spec pulse(mg_core_events_sink_machine:ns_options()) -> mg_core_pulse:handler().
+-spec pulse(mg_event_sink_machine:ns_options()) -> mg_core_pulse:handler().
 pulse(#{pulse := Pulse}) ->
     Pulse.

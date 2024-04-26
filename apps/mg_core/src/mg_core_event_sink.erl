@@ -14,7 +14,7 @@
 %%% limitations under the License.
 %%%
 
--module(mg_core_events_sink).
+-module(mg_core_event_sink).
 
 -export([add_events/6]).
 

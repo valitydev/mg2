@@ -19,6 +19,7 @@
 -include_lib("common_test/include/ct.hrl").
 -include_lib("stdlib/include/assert.hrl").
 -include_lib("mg_core/include/pulse.hrl").
+-include_lib("mg_es_kafka/include/pulse.hrl").
 -include_lib("prometheus/include/prometheus_model.hrl").
 
 %% tests descriptions
@@ -75,7 +76,6 @@
 -export([riak_pool_killed_free_connections_test/1]).
 -export([riak_pool_killed_in_use_connections_test/1]).
 -export([riak_pool_connect_timeout_errors_test/1]).
--export([events_sink_kafka_sent_test/1]).
 
 -export([riak_pool_collector_test/1]).
 
@@ -144,8 +144,7 @@ groups() ->
             riak_pool_queue_limit_reached_errors_test,
             riak_pool_killed_free_connections_test,
             riak_pool_killed_in_use_connections_test,
-            riak_pool_connect_timeout_errors_test,
-            events_sink_kafka_sent_test
+            riak_pool_connect_timeout_errors_test
         ]},
         {collectors, [], [
             riak_pool_collector_test
@@ -727,38 +726,6 @@ riak_pool_connect_timeout_errors_test(_C) ->
     ?assertEqual(
         1,
         prometheus_counter:value(mg_riak_pool_connect_timeout_errors_total, [?NS, type])
-    ).
-
--spec events_sink_kafka_sent_test(config()) -> _.
-events_sink_kafka_sent_test(_C) ->
-    Buckets = test_millisecond_buckets(),
-    Name = kafka,
-    _ = maps:fold(
-        fun(DurationMs, BucketIdx, {Counter, BucketAcc}) ->
-            ok = test_beat(#mg_core_events_sink_kafka_sent{
-                name = Name,
-                namespace = ?NS,
-                machine_id = <<"ID">>,
-                request_context = null,
-                deadline = undefined,
-                encode_duration = erlang:convert_time_unit(DurationMs, millisecond, native),
-                send_duration = erlang:convert_time_unit(DurationMs, millisecond, native),
-                data_size = 0,
-                partition = 0,
-                offset = 0
-            }),
-            ?assertEqual(prometheus_counter:value(mg_events_sink_produced_total, [?NS, Name]), Counter),
-            {BucketsHits, _} =
-                prometheus_histogram:value(mg_events_sink_kafka_produced_duration_seconds, [?NS, Name, encode]),
-            {BucketsHits, _} =
-                prometheus_histogram:value(mg_events_sink_kafka_produced_duration_seconds, [?NS, Name, send]),
-            BucketHit = lists:nth(BucketIdx, BucketsHits),
-            %% Check that bucket under index BucketIdx received one hit
-            ?assertEqual(maps:get(BucketIdx, BucketAcc, 0) + 1, BucketHit),
-            {Counter + 1, BucketAcc#{BucketIdx => BucketHit}}
-        end,
-        {1, #{}},
-        Buckets
     ).
 
 %%

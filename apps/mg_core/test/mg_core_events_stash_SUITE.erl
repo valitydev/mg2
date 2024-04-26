@@ -16,8 +16,8 @@
 -behaviour(mg_core_events_machine).
 -export([process_signal/4, process_call/4, process_repair/4]).
 
-%% mg_core_events_sink handler
--behaviour(mg_core_events_sink).
+%% mg_core_event_sink handler
+-behaviour(mg_core_event_sink).
 -export([add_events/6]).
 
 %% Pulse

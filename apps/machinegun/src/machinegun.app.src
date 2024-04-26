@@ -27,6 +27,8 @@
         prometheus,
         prometheus_cowboy,
         mg_core,
+        mg_es_kafka,
+        mg_es_machine,
         mg_woody,
         opentelemetry_api,
         opentelemetry_exporter,
