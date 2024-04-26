@@ -1,0 +1,17 @@
+{application, mg_core , [
+    {description, "Event sink kafka implementation"},
+    {vsn, "1"},
+    {registered, []},
+    {applications, [
+        kernel,
+        stdlib,
+        genlib,
+        mg_core,
+        brod
+    ]},
+    {env, []},
+    {modules, []},
+    {maintainers, []},
+    {licenses, []},
+    {links, []}
+]}.

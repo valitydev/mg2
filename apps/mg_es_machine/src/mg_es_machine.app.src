@@ -1,0 +1,16 @@
+{application, mg_es_machine , [
+    {description, "Event sink machine implementation"},
+    {vsn, "1"},
+    {registered, []},
+    {applications, [
+        kernel,
+        stdlib,
+        genlib,
+        mg_core
+    ]},
+    {env, []},
+    {modules, []},
+    {maintainers, []},
+    {licenses, []},
+    {links, []}
+]}.
