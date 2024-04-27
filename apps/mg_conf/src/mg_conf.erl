@@ -1,6 +1,6 @@
--module(mg_configurator).
+-module(mg_conf).
 
--export([construct_child_specs/1]).
+-export([construct_child_specs/2]).
 
 -type modernizer() :: #{
     current_format_version := mg_core_events:format_version(),
@@ -33,26 +33,31 @@
     woody_server := mg_woody:woody_server(),
     event_sink_ns := event_sink_ns(),
     namespaces := namespaces(),
-    pulse := pulse(),
     quotas => [mg_core_quota_worker:options()],
+    pulse := pulse(),
     health_check => erl_health:check()
 }.
+
+-export_type([event_sink_ns/0]).
+-export_type([namespaces/0]).
+-export_type([config/0]).
 
 -type processor() :: mg_woody_processor:options().
 
 -type pulse() :: mg_core_pulse:handler().
 
--spec construct_child_specs(config()) -> [supervisor:child_spec()].
+-spec construct_child_specs(config(), [woody_server_thrift_http_handler:route(any())]) -> [supervisor:child_spec()].
 construct_child_specs(
     #{
         woody_server := WoodyServer,
         event_sink_ns := EventSinkNS,
         namespaces := Namespaces,
         pulse := Pulse
-    } = Config
+    } = Config,
+    AdditionalRoutes
 ) ->
     Quotas = maps:get(quotas, Config, []),
-    HealthChecks = maps:get(health_check, Config, #{}),
+
     ClusterOpts = maps:get(cluster, Config, #{}),
 
     QuotasChildSpec = quotas_child_specs(Quotas, quota),
@@ -65,11 +70,7 @@ construct_child_specs(
             automaton => api_automaton_options(Namespaces, EventSinkNS, Pulse),
             event_sink => api_event_sink_options(Namespaces, EventSinkNS, Pulse),
             woody_server => WoodyServer,
-            additional_routes => [
-                get_startup_route(),
-                get_health_route(HealthChecks),
-                get_prometheus_route()
-            ]
+            additional_routes => AdditionalRoutes
         }
     ),
     ClusterSpec = mg_core_union:child_spec(ClusterOpts),
@@ -84,27 +85,6 @@ construct_child_specs(
 
 %%
 
--spec get_startup_route() -> {iodata(), module(), _Opts :: any()}.
-get_startup_route() ->
-    EvHandler = {erl_health_event_handler, []},
-    Check = #{
-        startup => #{
-            runner => {mg_health_check, startup, []},
-            event_handler => EvHandler
-        }
-    },
-    erl_health_handle:get_startup_route(Check).
-
--spec get_health_route(erl_health:check()) -> {iodata(), module(), _Opts :: any()}.
-get_health_route(Check0) ->
-    EvHandler = {erl_health_event_handler, []},
-    Check = maps:map(fun(_, V = {_, _, _}) -> #{runner => V, event_handler => EvHandler} end, Check0),
-    erl_health_handle:get_route(Check).
-
--spec get_prometheus_route() -> {iodata(), module(), _Opts :: any()}.
-get_prometheus_route() ->
-    {"/metrics/[:registry]", prometheus_cowboy2_handler, []}.
-
 -spec quotas_child_specs([mg_core_quota_worker:options()], atom()) -> [supervisor:child_spec()].
 quotas_child_specs(Quotas, ChildID) ->
     [
@@ -118,7 +98,7 @@ events_machines_child_specs(NSs, EventSinkNS, Pulse) ->
         events_machine_options(NS, NSs, EventSinkNS, Pulse)
      || NS <- maps:keys(NSs)
     ],
-    mg_namespace_sup:child_spec(NsOptions, namespaces_sup).
+    mg_conf_namespace_sup:child_spec(NsOptions, namespaces_sup).
 
 -spec events_machine_options(mg_core:ns(), namespaces(), event_sink_ns(), pulse()) -> mg_core_events_machine:options().
 events_machine_options(NS, NSs, EventSinkNS, Pulse) ->

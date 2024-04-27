@@ -362,7 +362,11 @@ mg_woody_config(C) ->
                         topic => ?ES_ID,
                         client => mg_cth:config(kafka_client_name)
                     }}
-                ]
+                ],
+                worker => #{
+                    registry => mg_core_procreg_global,
+                    sidecar => mg_cth_worker
+                }
             }
         },
         event_sink_ns => #{
@@ -732,7 +736,11 @@ config_with_multiple_event_sinks(_C) ->
                 retries => #{},
                 event_sinks => [
                     {mg_event_sink_machine, #{name => default, machine_id => <<"SingleES">>}}
-                ]
+                ],
+                worker => #{
+                    registry => mg_core_procreg_global,
+                    sidecar => mg_cth_worker
+                }
             },
             <<"2">> => #{
                 storage => mg_core_storage_memory,
@@ -756,7 +764,11 @@ config_with_multiple_event_sinks(_C) ->
                         topic => <<"mg_core_event_sink">>,
                         client => mg_cth:config(kafka_client_name)
                     }}
-                ]
+                ],
+                worker => #{
+                    registry => mg_core_procreg_global,
+                    sidecar => mg_cth_worker
+                }
             }
         },
         event_sink_ns => #{

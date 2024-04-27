@@ -1,5 +1,5 @@
-{application, mg_cth, [
-    {description, "Machinegun's Common Test helpers"},
+{application, mg_conf, [
+    {description, "Machinegun configuration"},
     {vsn, "1"},
     {registered, []},
     {applications, [
@@ -7,13 +7,12 @@
         stdlib,
         genlib,
         mg_core,
-        mg_es_machine,
         mg_es_kafka,
+        mg_es_machine,
         mg_woody
     ]},
     {env, []},
     {modules, []},
-    {maintainers, []},
-    {licenses, ["Apache 2.0"]},
+    {licenses, []},
     {links, []}
 ]}.

@@ -1,5 +1,5 @@
 %%%
-%%% Copyright 2022 Valitydev
+%%% Copyright 2024 Valitydev
 %%%
 %%% Licensed under the Apache License, Version 2.0 (the "License");
 %%% you may not use this file except in compliance with the License.
@@ -14,7 +14,7 @@
 %%% limitations under the License.
 %%%
 
--module(mg_namespace_sup).
+-module(mg_conf_namespace_sup).
 
 -type namespaces() :: [mg_core_events_machine:options()].
 

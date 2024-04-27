@@ -32,7 +32,8 @@
         mg_woody,
         opentelemetry_api,
         opentelemetry_exporter,
-        opentelemetry
+        opentelemetry,
+        mg_conf
     ]},
     {env, []},
     {modules, []},

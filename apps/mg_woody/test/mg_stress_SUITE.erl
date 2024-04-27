@@ -125,7 +125,11 @@ mg_woody_config(_C) ->
                 event_sinks => [
                     {mg_event_sink_machine, #{name => default, machine_id => ?ES_ID}}
                 ],
-                event_stash_size => 10
+                event_stash_size => 10,
+                worker => #{
+                    registry => mg_core_procreg_global,
+                    sidecar => mg_cth_worker
+                }
             }
         },
         event_sink_ns => #{
