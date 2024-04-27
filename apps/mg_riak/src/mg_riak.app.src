@@ -14,18 +14,20 @@
 %%% limitations under the License.
 %%%
 
-{application, mg_core , [
-    {description, "Machinegun FSM processor"},
+{application, mg_riak , [
+    {description, "Machinegun Riak Storage"},
     {vsn, "1"},
     {registered, []},
     {applications, [
         kernel,
         stdlib,
-        genlib,
         gproc,
-        brod,
+        genlib,
+        prometheus,
+        mg_core,
+        riakc,
+        pooler,
         msgpack,
-        snowflake,
         opentelemetry_api
     ]},
     {env, []},

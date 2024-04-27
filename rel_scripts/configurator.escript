@@ -323,7 +323,7 @@ storage(NS, YamlConfig) ->
             mg_core_storage_memory;
         <<"riak">> ->
             PoolSize = ?C:conf([storage, pool, size], YamlConfig, 100),
-            {mg_core_storage_riak, #{
+            {mg_riak_storage, #{
                 host => ?C:conf([storage, host], YamlConfig),
                 port => ?C:conf([storage, port], YamlConfig),
                 bucket => NS,

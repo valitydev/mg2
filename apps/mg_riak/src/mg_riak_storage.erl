@@ -46,9 +46,9 @@
 %%% TODO:
 %%%  - классификация и обработка ошибок
 %%%
--module(mg_core_storage_riak).
+-module(mg_riak_storage).
 -include_lib("riakc/include/riakc.hrl").
--include("pulse.hrl").
+-include_lib("mg_riak/include/pulse.hrl").
 
 %% mg_core_storage callbacks
 -behaviour(mg_core_storage).
@@ -599,7 +599,7 @@ update_or_create([<<"pooler">>, PoolNameString, <<"error_no_members_count">>], _
     #{name := Name, pulse := Handler} = pulse_options(PoolNameString),
     mg_core_pulse:handle_beat(
         Handler,
-        #mg_core_riak_connection_pool_state_reached{
+        #mg_riak_connection_pool_state_reached{
             name = Name,
             state = no_free_connections
         }
@@ -608,7 +608,7 @@ update_or_create([<<"pooler">>, PoolNameString, <<"queue_max_reached">>], _, _Co
     #{name := Name, pulse := Handler} = pulse_options(PoolNameString),
     mg_core_pulse:handle_beat(
         Handler,
-        #mg_core_riak_connection_pool_state_reached{
+        #mg_riak_connection_pool_state_reached{
             name = Name,
             state = queue_limit_reached
         }
@@ -617,7 +617,7 @@ update_or_create([<<"pooler">>, PoolNameString, <<"starting_member_timeout">>], 
     #{name := Name, pulse := Handler} = pulse_options(PoolNameString),
     mg_core_pulse:handle_beat(
         Handler,
-        #mg_core_riak_connection_pool_error{
+        #mg_riak_connection_pool_error{
             name = Name,
             reason = connect_timeout
         }
@@ -626,7 +626,7 @@ update_or_create([<<"pooler">>, PoolNameString, <<"killed_free_count">>], _, _Co
     #{name := Name, pulse := Handler} = pulse_options(PoolNameString),
     mg_core_pulse:handle_beat(
         Handler,
-        #mg_core_riak_connection_pool_connection_killed{
+        #mg_riak_connection_pool_connection_killed{
             name = Name,
             state = free
         }
@@ -635,7 +635,7 @@ update_or_create([<<"pooler">>, PoolNameString, <<"killed_in_use_count">>], _, _
     #{name := Name, pulse := Handler} = pulse_options(PoolNameString),
     mg_core_pulse:handle_beat(
         Handler,
-        #mg_core_riak_connection_pool_connection_killed{
+        #mg_riak_connection_pool_connection_killed{
             name = Name,
             state = in_use
         }
@@ -649,40 +649,40 @@ update_or_create(_MetricKey, _Value, _Type, []) ->
 
 -spec emit_beat_start(mg_core_storage:request(), options()) -> ok.
 emit_beat_start({get, _}, #{pulse := Handler, name := Name}) ->
-    ok = mg_core_pulse:handle_beat(Handler, #mg_core_riak_client_get_start{
+    ok = mg_core_pulse:handle_beat(Handler, #mg_riak_client_get_start{
         name = Name
     });
 emit_beat_start({put, _, _, _, _}, #{pulse := Handler, name := Name}) ->
-    ok = mg_core_pulse:handle_beat(Handler, #mg_core_riak_client_put_start{
+    ok = mg_core_pulse:handle_beat(Handler, #mg_riak_client_put_start{
         name = Name
     });
 emit_beat_start({search, _}, #{pulse := Handler, name := Name}) ->
-    ok = mg_core_pulse:handle_beat(Handler, #mg_core_riak_client_search_start{
+    ok = mg_core_pulse:handle_beat(Handler, #mg_riak_client_search_start{
         name = Name
     });
 emit_beat_start({delete, _, _}, #{pulse := Handler, name := Name}) ->
-    ok = mg_core_pulse:handle_beat(Handler, #mg_core_riak_client_delete_start{
+    ok = mg_core_pulse:handle_beat(Handler, #mg_riak_client_delete_start{
         name = Name
     }).
 
 -spec emit_beat_finish(mg_core_storage:request(), options(), duration()) -> ok.
 emit_beat_finish({get, _}, #{pulse := Handler, name := Name}, Duration) ->
-    ok = mg_core_pulse:handle_beat(Handler, #mg_core_riak_client_get_finish{
+    ok = mg_core_pulse:handle_beat(Handler, #mg_riak_client_get_finish{
         name = Name,
         duration = Duration
     });
 emit_beat_finish({put, _, _, _, _}, #{pulse := Handler, name := Name}, Duration) ->
-    ok = mg_core_pulse:handle_beat(Handler, #mg_core_riak_client_put_finish{
+    ok = mg_core_pulse:handle_beat(Handler, #mg_riak_client_put_finish{
         name = Name,
         duration = Duration
     });
 emit_beat_finish({search, _}, #{pulse := Handler, name := Name}, Duration) ->
-    ok = mg_core_pulse:handle_beat(Handler, #mg_core_riak_client_search_finish{
+    ok = mg_core_pulse:handle_beat(Handler, #mg_riak_client_search_finish{
         name = Name,
         duration = Duration
     });
 emit_beat_finish({delete, _, _}, #{pulse := Handler, name := Name}, Duration) ->
-    ok = mg_core_pulse:handle_beat(Handler, #mg_core_riak_client_delete_finish{
+    ok = mg_core_pulse:handle_beat(Handler, #mg_riak_client_delete_finish{
         name = Name,
         duration = Duration
     }).

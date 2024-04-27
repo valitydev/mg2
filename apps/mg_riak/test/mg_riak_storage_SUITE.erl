@@ -1,5 +1,5 @@
 %%%
-%%% Copyright 2017 RBKmoney
+%%% Copyright 2024 Valitydev
 %%%
 %%% Licensed under the Apache License, Version 2.0 (the "License");
 %%% you may not use this file except in compliance with the License.
@@ -20,7 +20,7 @@
 %%% TODO:
 %%%  - сделать проверку, что неймспейсы не пересекаются
 %%%
--module(mg_core_storages_SUITE).
+-module(mg_riak_storage_SUITE).
 -include_lib("common_test/include/ct.hrl").
 -include_lib("stdlib/include/assert.hrl").
 
@@ -40,6 +40,10 @@
 -export([indexes_test_with_limits/1]).
 -export([stress_test/1]).
 
+-export([riak_pool_stable_test/1]).
+-export([riak_pool_overload_test/1]).
+-export([riak_pool_misbehaving_connection_test/1]).
+
 -export([handle_beat/2]).
 
 %%
@@ -52,13 +56,19 @@
 -spec all() -> [test_name() | {group, group_name()}].
 all() ->
     [
-        {group, memory}
+        {group, riak}
     ].
 
 -spec groups() -> [{group_name(), list(_), [test_name()]}].
 groups() ->
     [
-        {memory, [], tests()}
+        {riak, [],
+            tests() ++
+                [
+                    riak_pool_stable_test,
+                    riak_pool_overload_test,
+                    riak_pool_misbehaving_connection_test
+                ]}
     ].
 
 -spec tests() -> [test_name()].
@@ -79,7 +89,9 @@ tests() ->
 -spec init_per_suite(config()) -> config().
 init_per_suite(C) ->
     % dbg:tracer(), dbg:p(all, c),
-    Apps = mg_cth:start_applications([msgpack, gproc]),
+    % dbg:tpl({riakc_pb_socket, 'get_index_eq', '_'}, x),
+    % dbg:tpl({riakc_pb_socket, 'get_index_range', '_'}, x),
+    Apps = mg_cth:start_applications([msgpack, gproc, riakc, pooler]),
     [{apps, Apps} | C].
 
 -spec end_per_suite(config()) -> ok.
@@ -351,12 +363,137 @@ stop_wait(Pid, Reason, Timeout) ->
 
 %%
 
+-spec riak_pool_stable_test(_C) -> ok.
+riak_pool_stable_test(_C) ->
+    Namespace = <<"riak_pool_stable_test">>,
+    InitialCount = 1,
+    RequestCount = 10,
+    Options = riak_options(Namespace, #{
+        init_count => InitialCount,
+        max_count => RequestCount div 2,
+        idle_timeout => 1000,
+        cull_interval => 1000,
+        queue_max => RequestCount * 2
+    }),
+    Storage = {mg_riak_storage, Options},
+    Pid = start_storage(Storage),
+
+    % Run multiple requests concurrently
+    _ = genlib_pmap:map(
+        fun(N) ->
+            base_test(genlib:to_binary(N), Storage)
+        end,
+        lists:seq(1, RequestCount)
+    ),
+
+    % Give pool 3 seconds to get back to initial state
+    ok = timer:sleep(3000),
+
+    {ok, Utilization} = mg_riak_storage:pool_utilization(Options),
+    ?assertMatch(
+        #{
+            in_use_count := 0,
+            free_count := InitialCount
+        },
+        maps:from_list(Utilization)
+    ),
+
+    ok = stop_storage(Pid).
+
+-spec riak_pool_overload_test(_C) -> ok.
+riak_pool_overload_test(_C) ->
+    Namespace = <<"riak_pool_overload_test">>,
+    RequestCount = 40,
+    Options = riak_options(
+        Namespace,
+        #{
+            init_count => 1,
+            max_count => 4,
+            queue_max => RequestCount div 4
+        }
+    ),
+    Storage = {mg_riak_storage, Options},
+    Pid = start_storage(Storage),
+
+    ?assertThrow(
+        {transient, {storage_unavailable, no_pool_members}},
+        genlib_pmap:map(
+            fun(N) ->
+                base_test(genlib:to_binary(N), Storage)
+            end,
+            lists:seq(1, RequestCount)
+        )
+    ),
+
+    ok = stop_storage(Pid).
+
+-spec riak_pool_misbehaving_connection_test(_C) -> ok.
+riak_pool_misbehaving_connection_test(_C) ->
+    Namespace = <<"riak_pool_overload_test">>,
+    WorkersCount = 4,
+    RequestCount = 4,
+    Options = riak_options(
+        Namespace,
+        #{
+            init_count => 1,
+            max_count => WorkersCount div 2,
+            queue_max => WorkersCount * 2
+        }
+    ),
+    Storage = {mg_riak_storage, Options},
+    Pid = start_storage(Storage),
+
+    _ = genlib_pmap:map(
+        fun(RequestID) ->
+            Key = genlib:to_binary(RequestID),
+            case RequestID of
+                N when (N rem WorkersCount) == (N div WorkersCount) ->
+                    % Ensure that request fails occasionally...
+                    ?assertThrow(
+                        {transient, {storage_unavailable, _}},
+                        mg_core_storage:put(Storage, Key, <<"NOTACONTEXT">>, <<>>, [])
+                    );
+                _ ->
+                    % ...And it will not affect any concurrently running requests.
+                    ?assertEqual(
+                        undefined,
+                        mg_core_storage:get(Storage, Key)
+                    )
+            end
+        end,
+        lists:seq(1, RequestCount * WorkersCount),
+        #{proc_limit => WorkersCount}
+    ),
+
+    ok = stop_storage(Pid).
+
+%%
+
 -spec storage_options(atom(), binary()) -> mg_core_storage:options().
-storage_options(memory, _) ->
-    {mg_core_storage_memory, #{
+storage_options(riak, Namespace) ->
+    {mg_riak_storage,
+        riak_options(
+            Namespace,
+            #{
+                init_count => 1,
+                max_count => 10,
+                idle_timeout => 1000,
+                cull_interval => 1000,
+                auto_grow_threshold => 5,
+                queue_max => 100
+            }
+        )}.
+
+-spec riak_options(mg_core:ns(), map()) -> mg_riak_storage:options().
+riak_options(Namespace, PoolOptions) ->
+    #{
+        name => storage,
         pulse => ?MODULE,
-        name => storage
-    }}.
+        host => "riakdb",
+        port => 8087,
+        bucket => Namespace,
+        pool_options => PoolOptions
+    }.
 
 -spec start_storage(mg_core_storage:options()) -> pid().
 start_storage(Options) ->

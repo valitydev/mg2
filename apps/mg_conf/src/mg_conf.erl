@@ -227,8 +227,8 @@ sub_storage_options(SubNS, Storage0) ->
 -spec add_bucket_postfix(mg_core:ns(), mg_core_storage:options()) -> mg_core_storage:options().
 add_bucket_postfix(_, {mg_core_storage_memory, _} = Storage) ->
     Storage;
-add_bucket_postfix(SubNS, {mg_core_storage_riak, #{bucket := Bucket} = Options}) ->
-    {mg_core_storage_riak, Options#{bucket := mg_core_utils:concatenate_namespaces(Bucket, SubNS)}}.
+add_bucket_postfix(SubNS, {mg_riak_storage, #{bucket := Bucket} = Options}) ->
+    {mg_riak_storage, Options#{bucket := mg_core_utils:concatenate_namespaces(Bucket, SubNS)}}.
 
 -spec modernizer_options(modernizer() | undefined, pulse()) -> #{modernizer => mg_core_events_modernizer:options()}.
 modernizer_options(#{current_format_version := CurrentFormatVersion, handler := WoodyClient}, Pulse) ->

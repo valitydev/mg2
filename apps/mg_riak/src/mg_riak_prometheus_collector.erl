@@ -82,7 +82,7 @@ collect_storage_metrics(#{name := {NS, _Module, Type}} = Storage, Callback) ->
 
 -spec gather_metrics(storage()) -> pooler_metrics().
 gather_metrics(#{name := Name} = Storage) ->
-    case mg_core_storage_riak:pool_utilization(Storage) of
+    case mg_riak_storage:pool_utilization(Storage) of
         {ok, Metrics} ->
             Metrics;
         {error, Reason} ->

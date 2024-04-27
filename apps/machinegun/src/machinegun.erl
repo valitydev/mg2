@@ -36,8 +36,9 @@ setup_metrics() ->
     ok = woody_ranch_prometheus_collector:setup(),
     ok = woody_hackney_prometheus_collector:setup(),
     ok = mg_pulse_prometheus:setup(),
-    ok = mg_event_sink_kafka_prometheus_pulse:setup(),
-    ok = mg_riak_prometheus:setup().
+    ok = mg_riak_pulse_prometheus:setup(),
+    ok = mg_riak_prometheus:setup(),
+    ok = mg_event_sink_kafka_prometheus_pulse:setup().
 
 %% TODO Maybe move those to `mg_conf'.
 
