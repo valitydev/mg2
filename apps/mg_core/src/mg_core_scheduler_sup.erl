@@ -29,7 +29,7 @@
     max_scan_limit => mg_core_queue_scanner:scan_limit() | unlimited,
     scan_ahead => mg_core_queue_scanner:scan_ahead(),
     retry_scan_delay => mg_core_queue_scanner:scan_delay(),
-    squad_opts => mg_core_gen_squad:opts(),
+    squad_opts => gen_squad:opts(),
     % workers
     task_handler := mg_core_utils:mod_opts(),
     % common

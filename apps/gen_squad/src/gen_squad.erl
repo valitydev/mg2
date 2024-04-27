@@ -1,5 +1,5 @@
 %%%
-%%% Copyright 2019 RBKmoney
+%%% Copyright 2024 Valitydev
 %%%
 %%% Licensed under the Apache License, Version 2.0 (the "License");
 %%% you may not use this file except in compliance with the License.
@@ -27,7 +27,7 @@
 %%%  - Do we even need monitors?
 %%%  - More tests
 %%%
--module(mg_core_gen_squad).
+-module(gen_squad).
 
 %%
 
@@ -134,11 +134,16 @@
     discovery => discovery_opts(),
     heartbeat => heartbeat_opts(),
     promotion => promotion_opts(),
-    pulse => mg_core_gen_squad_pulse:handler()
+    pulse => gen_squad_pulse:handler()
 }.
 
 -export_type([opts/0]).
 -export_type([heartbeat_opts/0]).
+
+-type gen_reg_name() ::
+    {local, atom()}
+    | {global, term()}
+    | {via, module(), term()}.
 
 %%
 
@@ -146,7 +151,7 @@
 start_link(Module, Args, Opts) ->
     gen_server:start_link(?MODULE, mk_state(Module, Args, set_defaults(Opts)), []).
 
--spec start_link(mg_core_procreg:reg_name(), module(), _Args, opts()) ->
+-spec start_link(gen_reg_name(), module(), _Args, opts()) ->
     {ok, pid()} | ignore | {error, _}.
 start_link(RegName, Module, Args, Opts) ->
     gen_server:start_link(RegName, ?MODULE, mk_state(Module, Args, set_defaults(Opts)), []).
@@ -236,7 +241,7 @@ init(St0) ->
         {ok, St = #st{squad = Squad0, opts = Opts}} ->
             Squad = add_member(self(), Squad0, Opts),
             HeartOpts = maps:with([heartbeat, pulse], Opts),
-            {ok, HeartPid} = mg_core_gen_squad_heart:start_link(heartbeat, HeartOpts),
+            {ok, HeartPid} = gen_squad_heart:start_link(heartbeat, HeartOpts),
             {ok, defer_discovery(St#st{heart = HeartPid, squad = Squad})};
         Ret ->
             Ret
@@ -247,7 +252,7 @@ handle_call(Call, From, St = #st{squad = Squad}) ->
     invoke_callback(handle_call, [Call, From, get_rank(St), Squad], try_cancel_st_timer(user, St)).
 
 -type cast() ::
-    mg_core_gen_squad_heart:envelope()
+    gen_squad_heart:envelope()
     | heartbeat.
 
 -spec handle_cast(cast(), st()) -> noreply(st()).
@@ -259,7 +264,7 @@ handle_cast(heartbeat, St) ->
 handle_cast(Cast, St = #st{squad = Squad}) ->
     invoke_callback(handle_cast, [Cast, get_rank(St), Squad], try_cancel_st_timer(user, St)).
 
--spec handle_broadcast(mg_core_gen_squad_heart:payload(), st()) -> noreply(st()).
+-spec handle_broadcast(gen_squad_heart:payload(), st()) -> noreply(st()).
 handle_broadcast(
     #{msg := howdy, from := Pid, members := Pids},
     St = #st{squad = Squad0, opts = Opts}
@@ -360,7 +365,7 @@ try_update_squad(Squad, St0 = #st{heart = HeartPid, opts = Opts}) ->
     ok =
         case has_squad_changed(Squad, St0) of
             {true, Members} ->
-                mg_core_gen_squad_heart:update_members(Members, HeartPid);
+                gen_squad_heart:update_members(Members, HeartPid);
             false ->
                 ok
         end,
@@ -486,13 +491,13 @@ account_heartbeat(Member) ->
 
 -type recepient_filter() :: fun((pid()) -> boolean()).
 
--spec broadcast(mg_core_gen_squad_heart:message(), recepient_filter(), squad(), _Ctx, opts()) -> ok.
+-spec broadcast(gen_squad_heart:message(), recepient_filter(), squad(), _Ctx, opts()) -> ok.
 broadcast(Message, RecepientFilter, Squad, Ctx, Opts) ->
     Self = self(),
     Members = members(maps:remove(Self, Squad)),
     Recepients = lists:filter(RecepientFilter, Members),
     Pulse = maps:get(pulse, Opts, undefined),
-    mg_core_gen_squad_heart:broadcast(Message, Self, Members, Recepients, Ctx, Pulse).
+    gen_squad_heart:broadcast(Message, Self, Members, Recepients, Ctx, Pulse).
 
 -spec newbies(squad()) -> recepient_filter().
 newbies(Squad) ->
@@ -581,10 +586,10 @@ cancel_monitor(MRef, Opts) ->
 
 %%
 
--spec beat(mg_core_gen_squad_pulse:beat(), st() | opts()) -> _.
+-spec beat(gen_squad_pulse:beat(), st() | opts()) -> _.
 beat(Beat, #st{opts = Opts}) ->
     beat(Beat, Opts);
 beat(Beat, #{pulse := Handler}) ->
-    mg_core_gen_squad_pulse:handle_beat(Handler, Beat);
+    gen_squad_pulse:handle_beat(Handler, Beat);
 beat(_Beat, _St) ->
     ok.

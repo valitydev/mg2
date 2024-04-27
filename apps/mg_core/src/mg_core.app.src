@@ -14,7 +14,7 @@
 %%% limitations under the License.
 %%%
 
-{application, mg_core , [
+{application, mg_core, [
     {description, "Machinegun FSM processor"},
     {vsn, "1"},
     {registered, []},
@@ -26,6 +26,7 @@
         brod,
         msgpack,
         snowflake,
+        gen_squad,
         opentelemetry_api
     ]},
     {env, []},

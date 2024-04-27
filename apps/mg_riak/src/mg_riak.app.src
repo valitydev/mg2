@@ -14,7 +14,7 @@
 %%% limitations under the License.
 %%%
 
-{application, mg_riak , [
+{application, mg_riak, [
     {description, "Machinegun Riak Storage"},
     {vsn, "1"},
     {registered, []},

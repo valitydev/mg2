@@ -1,5 +1,5 @@
 %%%
-%%% Copyright 2019 RBKmoney
+%%% Copyright 2024 Valitydev
 %%%
 %%% Licensed under the Apache License, Version 2.0 (the "License");
 %%% you may not use this file except in compliance with the License.
@@ -39,7 +39,7 @@
     max_scan_limit => scan_limit() | unlimited,
     scan_ahead => scan_ahead(),
     retry_scan_delay => scan_delay(),
-    squad_opts => mg_core_gen_squad:opts(),
+    squad_opts => gen_squad:opts(),
     pulse => mg_core_pulse:handler()
 }.
 
@@ -49,7 +49,7 @@
 -export_type([scan_limit/0]).
 -export_type([scan_ahead/0]).
 
--type beat() :: {squad, {atom(), mg_core_gen_squad_pulse:beat(), _ExtraMeta}}.
+-type beat() :: {squad, {atom(), gen_squad_pulse:beat(), _ExtraMeta}}.
 -export_type([beat/0]).
 
 %%
@@ -84,7 +84,7 @@
 -export([start_link/2]).
 -export([where_is/1]).
 
--behaviour(mg_core_gen_squad).
+-behaviour(gen_squad).
 -export([init/1]).
 -export([discover/1]).
 -export([handle_rank_change/3]).
@@ -92,7 +92,7 @@
 -export([handle_cast/4]).
 -export([handle_info/4]).
 
--behaviour(mg_core_gen_squad_pulse).
+-behaviour(gen_squad_pulse).
 -export([handle_beat/2]).
 
 %%
@@ -130,7 +130,7 @@ start_link(SchedulerID, Options) ->
             maps:with([pulse], Options)
         )
     ),
-    mg_core_gen_squad:start_link(
+    gen_squad:start_link(
         self_reg_name(SchedulerID),
         ?MODULE,
         {SchedulerID, Options},
@@ -157,8 +157,8 @@ where_is(SchedulerID) ->
 
 -type st() :: #st{}.
 
--type rank() :: mg_core_gen_squad:rank().
--type squad() :: mg_core_gen_squad:squad().
+-type rank() :: gen_squad:rank().
+-type squad() :: gen_squad:squad().
 
 -spec init({scheduler_id(), options()}) -> {ok, st()}.
 init({SchedulerID, Options}) ->
@@ -191,7 +191,7 @@ handle_rank_change(follower, _Squad, St) ->
 -spec handle_cast(_Cast, rank(), squad(), st()) -> {noreply, st()}.
 handle_cast(Cast, Rank, _Squad, St) ->
     ok = logger:error(
-        "unexpected mg_core_gen_squad cast received: ~p, from ~p, rank ~p, state ~p",
+        "unexpected gen_squad cast received: ~p, from ~p, rank ~p, state ~p",
         [Cast, Rank, St]
     ),
     {noreply, St}.
@@ -199,7 +199,7 @@ handle_cast(Cast, Rank, _Squad, St) ->
 -spec handle_call(_Call, mg_core_utils:gen_server_from(), rank(), squad(), st()) -> {noreply, st()}.
 handle_call(Call, From, Rank, _Squad, St) ->
     ok = logger:error(
-        "unexpected mg_core_gen_squad call received: ~p, from ~p, rank ~p, state ~p",
+        "unexpected gen_squad call received: ~p, from ~p, rank ~p, state ~p",
         [Call, From, Rank, St]
     ),
     {noreply, St}.
@@ -213,12 +213,12 @@ handle_info(scan, follower, _Squad, St) ->
     {noreply, St};
 handle_info(Info, Rank, _Squad, St) ->
     ok = logger:warning(
-        "unexpected mg_core_gen_squad info received: ~p, rank ~p, state ~p",
+        "unexpected gen_squad info received: ~p, rank ~p, state ~p",
         [Info, Rank, St]
     ),
     {noreply, St}.
 
--spec handle_scan(mg_core_gen_squad:squad(), st()) -> st().
+-spec handle_scan(gen_squad:squad(), st()) -> st().
 handle_scan(Squad, St0 = #st{max_limit = MaxLimit, retry_delay = RetryDelay}) ->
     StartedAt = erlang:monotonic_time(),
     %% Try to find out which schedulers are here, getting their statuses
@@ -269,10 +269,10 @@ disseminate_tasks(Tasks, Schedulers, Capacities, _St) ->
         Partitions
     ).
 
--spec inquire_schedulers(mg_core_gen_squad:squad(), st()) -> [mg_core_scheduler:status()].
+-spec inquire_schedulers(gen_squad:squad(), st()) -> [mg_core_scheduler:status()].
 inquire_schedulers(Squad, #st{scheduler_id = SchedulerID}) ->
     %% Take all known members, there's at least one which is `self()`
-    Members = mg_core_gen_squad:members(Squad),
+    Members = gen_squad:members(Squad),
     Nodes = lists:map(fun erlang:node/1, Members),
     multicall(Nodes, mg_core_scheduler, inquire, [SchedulerID], ?INQUIRY_TIMEOUT).
 
@@ -371,7 +371,7 @@ emit_scan_success_beat({Delay, Tasks}, Limit, StartedAt, #st{
 
 %%
 
--spec handle_beat({mg_core_pulse:handler(), scheduler_id()}, mg_core_gen_squad_pulse:beat()) -> _.
+-spec handle_beat({mg_core_pulse:handler(), scheduler_id()}, gen_squad_pulse:beat()) -> _.
 handle_beat({Handler, {Name, NS}}, Beat) ->
     Producer = queue_scanner,
     Extra = [{scheduler_type, Name}, {namespace, NS}],

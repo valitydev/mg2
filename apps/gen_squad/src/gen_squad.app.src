@@ -1,14 +1,11 @@
-{application, mg_es_kafka, [
-    {description, "Event sink kafka implementation"},
+{application, gen_squad, [
+    {description, "Generic squad behaviour"},
     {vsn, "1"},
     {registered, []},
     {applications, [
         kernel,
         stdlib,
-        genlib,
-        brod,
-        mg_core,
-        prometheus
+        genlib
     ]},
     {env, []},
     {modules, []},

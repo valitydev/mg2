@@ -1,5 +1,5 @@
 %%%
-%%% Copyright 2019 RBKmoney
+%%% Copyright 2024 Valitydev
 %%%
 %%% Licensed under the Apache License, Version 2.0 (the "License");
 %%% you may not use this file except in compliance with the License.
@@ -14,7 +14,7 @@
 %%% limitations under the License.
 %%%
 
--module(mg_core_gen_squad_heart).
+-module(gen_squad_heart).
 
 -export([start_link/2]).
 -export([update_members/2]).
@@ -43,9 +43,9 @@
 
 -type envelope() :: {'$squad', payload()}.
 
--type pulse() :: mg_core_gen_squad_pulse:handler().
+-type pulse() :: gen_squad_pulse:handler().
 -type opts() :: #{
-    heartbeat => mg_core_gen_squad:heartbeat_opts(),
+    heartbeat => gen_squad:heartbeat_opts(),
     pulse => pulse()
 }.
 
@@ -165,12 +165,12 @@ monitor_self(St = #st{self = Self}) ->
 
 %%
 
--spec beat(mg_core_gen_squad_pulse:beat(), st() | opts() | pulse() | undefined) -> _.
+-spec beat(gen_squad_pulse:beat(), st() | opts() | pulse() | undefined) -> _.
 beat(Beat, #st{opts = Opts}) ->
     beat(Beat, Opts);
 beat(Beat, Opts = #{}) ->
     beat(Beat, maps:get(pulse, Opts, undefined));
 beat(Beat, Handler) when Handler /= undefined ->
-    mg_core_gen_squad_pulse:handle_beat(Handler, Beat);
+    gen_squad_pulse:handle_beat(Handler, Beat);
 beat(_Beat, undefined) ->
     ok.

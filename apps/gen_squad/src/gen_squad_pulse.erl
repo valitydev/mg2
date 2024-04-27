@@ -1,5 +1,5 @@
 %%%
-%%% Copyright 2019 RBKmoney
+%%% Copyright 2024 Valitydev
 %%%
 %%% Licensed under the Apache License, Version 2.0 (the "License");
 %%% you may not use this file except in compliance with the License.
@@ -14,21 +14,21 @@
 %%% limitations under the License.
 %%%
 
--module(mg_core_gen_squad_pulse).
+-module(gen_squad_pulse).
 
 -callback handle_beat(_Options, beat()) -> _.
 
 %% TODO remove weak circular deps
 -type beat() ::
-    {rank, {changed, mg_core_gen_squad:rank()}}
+    {rank, {changed, gen_squad:rank()}}
     | {
         {member, pid()},
         added
-        | {refreshed, mg_core_gen_squad:member()}
-        | {removed, mg_core_gen_squad:member(), _Reason :: lost | {down, _}}
+        | {refreshed, gen_squad:member()}
+        | {removed, gen_squad:member(), _Reason :: lost | {down, _}}
     }
     | {
-        {broadcast, mg_core_gen_squad_heart:payload()},
+        {broadcast, gen_squad_heart:payload()},
         {sent, [pid()], _Ctx}
         | received
     }
@@ -46,7 +46,10 @@
     }
     | {unexpected, {{call, _From} | cast | info, _Payload}}.
 
--type handler() :: mg_core_utils:mod_opts().
+-type mod_opts() :: mod_opts(term()).
+-type mod_opts(Options) :: {module(), Options} | module().
+
+-type handler() :: mod_opts().
 
 -export_type([beat/0]).
 -export_type([handler/0]).
@@ -57,5 +60,17 @@
 
 -spec handle_beat(handler(), any()) -> _.
 handle_beat(Handler, Beat) ->
-    {Mod, Options} = mg_core_utils:separate_mod_opts(Handler),
+    {Mod, Options} = separate_mod_opts(Handler),
     Mod:handle_beat(Options, Beat).
+
+%%
+
+-spec separate_mod_opts(mod_opts()) -> {module(), _Arg}.
+separate_mod_opts(ModOpts) ->
+    separate_mod_opts(ModOpts, undefined).
+
+-spec separate_mod_opts(mod_opts(Defaults), Defaults) -> {module(), Defaults}.
+separate_mod_opts(ModOpts = {_, _}, _) ->
+    ModOpts;
+separate_mod_opts(Mod, Default) ->
+    {Mod, Default}.

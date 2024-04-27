@@ -122,7 +122,7 @@ format_beat(_Beat, _Options) ->
     undefined.
 
 %% squad
--spec format_squad_beat(mg_core_gen_squad_pulse:beat()) -> log_msg() | undefined.
+-spec format_squad_beat(gen_squad_pulse:beat()) -> log_msg() | undefined.
 format_squad_beat({rank, {changed, Rank}}) ->
     {info, {"rank changed to: ~p", [Rank]}, [
         {mg_pulse_event_id, squad_rank_changed},

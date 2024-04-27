@@ -1,4 +1,4 @@
-{application, mg_es_machine , [
+{application, mg_es_machine, [
     {description, "Event sink machine implementation"},
     {vsn, "1"},
     {registered, []},

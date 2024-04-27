@@ -1,5 +1,5 @@
 %%%
-%%% Copyright 2019 RBKmoney
+%%% Copyright 2024 Valitydev
 %%%
 %%% Licensed under the Apache License, Version 2.0 (the "License");
 %%% you may not use this file except in compliance with the License.
@@ -14,10 +14,10 @@
 %%% limitations under the License.
 %%%
 
--module(mg_core_gen_squad_SUITE).
--include_lib("common_test/include/ct.hrl").
+-module(gen_squad_SUITE).
+
 -include_lib("stdlib/include/assert.hrl").
--include_lib("mg_cth/include/mg_cth.hrl").
+-include("gen_squad_cth.hrl").
 
 %% tests descriptions
 -export([all/0]).
@@ -29,7 +29,7 @@
 -export([squad_shrinks_consistently/1]).
 
 %% squad behaviour
--behaviour(mg_core_gen_squad).
+-behaviour(gen_squad).
 -export([init/1]).
 -export([discover/1]).
 -export([handle_rank_change/3]).
@@ -37,7 +37,7 @@
 -export([handle_cast/4]).
 -export([handle_info/4]).
 
--behaviour(mg_core_gen_squad_pulse).
+-behaviour(gen_squad_pulse).
 -export([handle_beat/2]).
 
 %% tests descriptions
@@ -56,12 +56,11 @@ all() ->
 
 -spec init_per_suite(config()) -> config().
 init_per_suite(C) ->
-    Apps = mg_cth:start_applications([mg_core]),
-    [{apps, Apps} | C].
+    C.
 
 -spec end_per_suite(config()) -> ok.
-end_per_suite(C) ->
-    mg_cth:stop_applications(?config(apps, C)).
+end_per_suite(_C) ->
+    ok.
 
 %%
 
@@ -122,9 +121,9 @@ squad_shrinks_consistently(_) ->
     _ = ?assertEqual([LeaderLast], lists:filter(fun erlang:is_process_alive/1, Members)),
     ok.
 
--spec start_member(mg_core_gen_squad:opts()) -> pid().
+-spec start_member(gen_squad:opts()) -> pid().
 start_member(Opts) ->
-    {ok, Pid} = mg_core_gen_squad:start_link(?MODULE, #{runner => self(), known => []}, Opts),
+    {ok, Pid} = gen_squad:start_link(?MODULE, #{runner => self(), known => []}, Opts),
     Pid.
 
 -spec neighbours([T]) -> [{T, T}].
@@ -134,8 +133,8 @@ neighbours([]) -> [].
 
 %%
 
--type rank() :: mg_core_gen_squad:rank().
--type squad() :: mg_core_gen_squad:squad().
+-type rank() :: gen_squad:rank().
+-type squad() :: gen_squad:squad().
 
 -type st() :: #{
     runner := pid(),
@@ -152,7 +151,7 @@ discover(St = #{known := Known}) ->
 
 -spec handle_rank_change(rank(), squad(), st()) -> {noreply, st()}.
 handle_rank_change(Rank, Squad, St = #{runner := Runner}) ->
-    _ = Runner ! {self(), Rank, mg_core_gen_squad:members(Squad)},
+    _ = Runner ! {self(), Rank, gen_squad:members(Squad)},
     case Rank of
         leader -> {noreply, St, 200};
         follower -> {noreply, St}
@@ -164,7 +163,7 @@ handle_rank_change(_Rank, _Squad, St) ->
 
 -spec handle_call(call(), _From, rank(), squad(), st()) -> {noreply, st()} | {reply, _, st()}.
 handle_call(report, _From, Rank, Squad, St) ->
-    {reply, {self(), Rank, mg_core_gen_squad:members(Squad)}, St};
+    {reply, {self(), Rank, gen_squad:members(Squad)}, St};
 handle_call(Call, From, _Rank, _Squad, _St) ->
     erlang:error({unexpected, {call, Call, From}}).
 
@@ -184,7 +183,7 @@ handle_info(timeout, leader, _Squad, St) ->
 handle_info(Info, _Rank, _Squad, _St) ->
     erlang:error({unexpected, {info, Info}}).
 
--spec handle_beat(_, mg_core_gen_squad_pulse:beat()) -> _.
+-spec handle_beat(_, gen_squad_pulse:beat()) -> _.
 handle_beat(_Start, {{timer, _}, _}) ->
     ok;
 handle_beat(_Start, {{monitor, _}, _}) ->
