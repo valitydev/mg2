@@ -1,5 +1,5 @@
 %%%
-%%% Copyright 2018 RBKmoney
+%%% Copyright 2024 Valitydev
 %%%
 %%% Licensed under the Apache License, Version 2.0 (the "License");
 %%% you may not use this file except in compliance with the License.
@@ -17,6 +17,8 @@
 
 -include_lib("mg_core/include/pulse.hrl").
 
+-behaviour(mg_skd_pulse).
+
 %% API
 -export_type([beat/0]).
 -export_type([handler/0]).
@@ -28,20 +30,12 @@
 %% API
 %%
 -type beat() ::
+    mg_skd_pulse:beat()
     % Timer
-    #mg_core_timer_lifecycle_created{}
+    | #mg_core_timer_lifecycle_created{}
     | #mg_core_timer_lifecycle_rescheduled{}
     | #mg_core_timer_lifecycle_rescheduling_error{}
     | #mg_core_timer_lifecycle_removed{}
-    % Scheduler handling
-    | #mg_core_scheduler_task_add_error{}
-    | #mg_core_scheduler_search_success{}
-    | #mg_core_scheduler_search_error{}
-    | #mg_core_scheduler_task_error{}
-    | #mg_core_scheduler_new_tasks{}
-    | #mg_core_scheduler_task_started{}
-    | #mg_core_scheduler_task_finished{}
-    | #mg_core_scheduler_quota_reserved{}
     % Timer handling
     | #mg_core_timer_process_started{}
     | #mg_core_timer_process_finished{}

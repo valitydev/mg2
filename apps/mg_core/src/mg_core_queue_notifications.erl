@@ -22,11 +22,11 @@
 
 -export([build_task/5]).
 
--behaviour(mg_core_queue_scanner).
+-behaviour(mg_skd_scanner).
 -export([init/1]).
 -export([search_tasks/3]).
 
--behaviour(mg_core_scheduler_worker).
+-behaviour(mg_skd_worker).
 -export([execute_task/2]).
 
 %% Types
@@ -34,7 +34,7 @@
 -type seconds() :: non_neg_integer().
 -type milliseconds() :: non_neg_integer().
 -type options() :: #{
-    scheduler_id := mg_core_scheduler:id(),
+    scheduler_id := mg_skd:id(),
     pulse := mg_core_pulse:handler(),
     machine := mg_core_machine:options(),
     notification := mg_core_notification:options(),
@@ -63,10 +63,10 @@
     args := mg_core_storage:opaque(),
     context := mg_core_notification:context()
 }.
--type target_time() :: mg_core_queue_task:target_time().
--type task() :: mg_core_queue_task:task(task_id(), task_payload()).
--type scan_delay() :: mg_core_queue_scanner:scan_delay().
--type scan_limit() :: mg_core_queue_scanner:scan_limit().
+-type target_time() :: mg_skd_task:target_time().
+-type task() :: mg_skd_task:task(task_id(), task_payload()).
+-type scan_delay() :: mg_skd_scanner:scan_delay().
+-type scan_limit() :: mg_skd_scanner:scan_limit().
 
 -type fail_action() :: delete | ignore | {reschedule, target_time()}.
 
@@ -107,7 +107,7 @@ init(_Options) ->
 
 -spec search_tasks(options(), scan_limit(), state()) -> {{scan_delay(), [task()]}, state()}.
 search_tasks(Options, Limit, State = #state{}) ->
-    CurrentTs = mg_core_queue_task:current_time(),
+    CurrentTs = mg_skd_task:current_time(),
     ScanCutoff = maps:get(scan_cutoff, Options, ?DEFAULT_SCAN_CUTOFF),
     ScanHandicap = get_handicap_seconds(State),
     TFrom = CurrentTs - ScanHandicap - ScanCutoff,
@@ -149,7 +149,7 @@ execute_task(Options, #{id := NotificationID, machine_id := MachineID, payload :
                 delete ->
                     ok = mg_core_notification:delete(notification_options(Options), NotificationID, Context);
                 {reschedule, NewTargetTime} ->
-                    ok = mg_core_scheduler:send_task(SchedulerID, Task#{target_time => NewTargetTime});
+                    ok = mg_skd:send_task(SchedulerID, Task#{target_time => NewTargetTime});
                 ignore ->
                     erlang:raise(throw, Reason, Stacktrace)
             end
@@ -203,7 +203,7 @@ task_fail_action(_Options, _) ->
 -spec get_reschedule_time(options()) -> target_time().
 get_reschedule_time(Options) ->
     Reschedule = maps:get(reschedule_time, Options, ?DEFAULT_RESCHEDULE_SECONDS),
-    mg_core_queue_task:current_time() + Reschedule.
+    mg_skd_task:current_time() + Reschedule.
 
 -spec emit_delivery_error_beat(
     options(),

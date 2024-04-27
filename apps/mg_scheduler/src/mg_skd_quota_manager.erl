@@ -1,5 +1,5 @@
 %%%
-%%% Copyright 2019 RBKmoney
+%%% Copyright 2024 Valitydev
 %%%
 %%% Licensed under the Apache License, Version 2.0 (the "License");
 %%% you may not use this file except in compliance with the License.
@@ -14,7 +14,7 @@
 %%% limitations under the License.
 %%%
 
--module(mg_core_quota_manager).
+-module(mg_skd_quota_manager).
 
 -export([child_spec/2]).
 -export([start_link/1]).
@@ -25,8 +25,8 @@
 -export_type([options/0]).
 
 %% Internal types
--type quota_name() :: mg_core_quota_worker:name().
--type quota_options() :: mg_core_quota_worker:options().
+-type quota_name() :: mg_skd_quota_worker:name().
+-type quota_options() :: mg_skd_quota_worker:options().
 
 %%
 %% API
@@ -41,12 +41,12 @@ child_spec(Options, ChildID) ->
         type => supervisor
     }.
 
--spec start_link(options()) -> mg_core_utils:gen_start_ret().
+-spec start_link(options()) -> mg_skd_utils:gen_start_ret().
 start_link(Options) ->
     genlib_adhoc_supervisor:start_link(
         #{strategy => one_for_one},
         [
-            mg_core_quota_worker:child_spec(QuotaOptions, Name)
+            mg_skd_quota_worker:child_spec(QuotaOptions, Name)
          || #{name := Name} = QuotaOptions <- maps:values(Options)
         ]
     ).

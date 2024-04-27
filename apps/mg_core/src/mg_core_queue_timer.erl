@@ -18,11 +18,11 @@
 
 -export([build_task/2]).
 
--behaviour(mg_core_queue_scanner).
+-behaviour(mg_skd_scanner).
 -export([init/1]).
 -export([search_tasks/3]).
 
--behaviour(mg_core_scheduler_worker).
+-behaviour(mg_skd_worker).
 -export([execute_task/2]).
 
 %% Types
@@ -49,10 +49,10 @@
 
 -type task_id() :: mg_core:id().
 -type task_payload() :: #{}.
--type target_time() :: mg_core_queue_task:target_time().
--type task() :: mg_core_queue_task:task(task_id(), task_payload()).
--type scan_delay() :: mg_core_queue_scanner:scan_delay().
--type scan_limit() :: mg_core_queue_scanner:scan_limit().
+-type target_time() :: mg_skd_task:target_time().
+-type task() :: mg_skd_task:task(task_id(), task_payload()).
+-type scan_delay() :: mg_skd_scanner:scan_delay().
+-type scan_limit() :: mg_skd_scanner:scan_limit().
 
 % 1 minute
 -define(DEFAULT_PROCESSING_TIMEOUT, 60000).
@@ -75,7 +75,7 @@ build_task(ID, Timestamp) ->
 
 -spec search_tasks(options(), scan_limit(), state()) -> {{scan_delay(), [task()]}, state()}.
 search_tasks(Options = #{timer_queue := TimerQueue}, Limit, State = #state{}) ->
-    CurrentTs = mg_core_queue_task:current_time(),
+    CurrentTs = mg_skd_task:current_time(),
     Lookahead = maps:get(lookahead, Options, 0),
     Query = {TimerQueue, 1, CurrentTs + Lookahead},
     {Timers, Continuation} = mg_core_machine:search(machine_options(Options), Query, Limit),

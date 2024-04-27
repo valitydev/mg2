@@ -16,6 +16,7 @@
 
 -module(mg_pulse_prometheus).
 
+-include_lib("mg_scheduler/include/pulse.hrl").
 -include_lib("mg_core/include/pulse.hrl").
 
 -export([setup/0]).
@@ -250,7 +251,7 @@ dispatch_metrics(#mg_core_timer_process_finished{namespace = NS, queue = Queue, 
     ok = inc(mg_timer_processing_changes_total, [NS, Queue, finished]),
     ok = observe(mg_timer_processing_duration_seconds, [NS, Queue], Duration);
 % Scheduler
-dispatch_metrics(#mg_core_scheduler_search_success{
+dispatch_metrics(#mg_skd_search_success{
     scheduler_name = Name,
     namespace = NS,
     delay = DelayMS,
@@ -259,25 +260,25 @@ dispatch_metrics(#mg_core_scheduler_search_success{
     ok = inc(mg_scheduler_scan_changes_total, [NS, Name, success]),
     ok = observe(mg_scheduler_scan_delay_seconds, [NS, Name], decode_delay(DelayMS)),
     ok = observe(mg_scheduler_scan_duration_seconds, [NS, Name], Duration);
-dispatch_metrics(#mg_core_scheduler_search_error{scheduler_name = Name, namespace = NS}) ->
+dispatch_metrics(#mg_skd_search_error{scheduler_name = Name, namespace = NS}) ->
     ok = inc(mg_scheduler_scan_changes_total, [NS, Name, error]);
-dispatch_metrics(#mg_core_scheduler_task_error{scheduler_name = Name, namespace = NS}) ->
+dispatch_metrics(#mg_skd_task_error{scheduler_name = Name, namespace = NS}) ->
     ok = inc(mg_scheduler_task_changes_total, [NS, Name, error]);
-dispatch_metrics(#mg_core_scheduler_new_tasks{scheduler_name = Name, namespace = NS, new_tasks_count = Count}) ->
+dispatch_metrics(#mg_skd_new_tasks{scheduler_name = Name, namespace = NS, new_tasks_count = Count}) ->
     ok = inc(mg_scheduler_task_changes_total, [NS, Name, created], Count);
-dispatch_metrics(#mg_core_scheduler_task_started{scheduler_name = Name, namespace = NS, task_delay = DelayMS}) ->
+dispatch_metrics(#mg_skd_task_started{scheduler_name = Name, namespace = NS, task_delay = DelayMS}) ->
     ok = inc(mg_scheduler_task_changes_total, [NS, Name, started]),
     ok = observe(mg_scheduler_task_processing_delay_seconds, [NS, Name], decode_delay(DelayMS));
-dispatch_metrics(#mg_core_scheduler_task_finished{} = Beat) ->
-    #mg_core_scheduler_task_finished{
+dispatch_metrics(#mg_skd_task_finished{} = Beat) ->
+    #mg_skd_task_finished{
         scheduler_name = Name,
         namespace = NS,
         process_duration = Duration
     } = Beat,
     ok = inc(mg_scheduler_task_changes_total, [NS, Name, finished]),
     ok = observe(mg_scheduler_task_processing_duration_seconds, [NS, Name], Duration);
-dispatch_metrics(#mg_core_scheduler_quota_reserved{} = Beat) ->
-    #mg_core_scheduler_quota_reserved{
+dispatch_metrics(#mg_skd_quota_reserved{} = Beat) ->
+    #mg_skd_quota_reserved{
         scheduler_name = Name,
         namespace = NS,
         active_tasks = Active,

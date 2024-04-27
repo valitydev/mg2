@@ -28,7 +28,7 @@
 -type beat() ::
     mg_core_pulse:beat()
     | mg_riak_pulse:beat()
-    | mg_core_queue_scanner:beat()
+    | mg_skd_scanner:beat()
     | #woody_event{}
     | #woody_request_handle_error{}
     | #mg_event_sink_kafka_sent{}.

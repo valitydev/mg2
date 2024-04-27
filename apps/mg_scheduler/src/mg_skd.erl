@@ -1,5 +1,5 @@
 %%%
-%%% Copyright 2019 RBKmoney
+%%% Copyright 2024 Valitydev
 %%%
 %%% Licensed under the Apache License, Version 2.0 (the "License");
 %%% you may not use this file except in compliance with the License.
@@ -14,7 +14,7 @@
 %%% limitations under the License.
 %%%
 
--module(mg_core_scheduler).
+-module(mg_skd).
 
 -export([child_spec/3]).
 -export([start_link/2]).
@@ -34,17 +34,17 @@
 -type options() :: #{
     start_interval => non_neg_integer(),
     capacity := non_neg_integer(),
-    quota_name := mg_core_quota_worker:name(),
-    quota_share => mg_core_quota:share(),
-    pulse => mg_core_pulse:handler()
+    quota_name := mg_skd_quota_worker:name(),
+    quota_share => mg_skd_quota:share(),
+    pulse => mg_skd_pulse:handler()
 }.
 
 -type name() :: atom().
--type id() :: {name(), mg_core:ns()}.
+-type id() :: {name(), mg_skd_utils:ns()}.
 
--type task_id() :: mg_core_queue_task:id().
--type task() :: mg_core_queue_task:task().
--type target_time() :: mg_core_queue_task:target_time().
+-type task_id() :: mg_skd_task:id().
+-type task() :: mg_skd_task:task().
+-type target_time() :: mg_skd_task:target_time().
 
 -export_type([id/0]).
 -export_type([name/0]).
@@ -54,11 +54,11 @@
 %% Internal types
 -record(state, {
     id :: id(),
-    pulse :: mg_core_pulse:handler(),
+    pulse :: mg_skd_pulse:handler(),
     capacity :: non_neg_integer(),
-    quota_name :: mg_core_quota_worker:name(),
-    quota_share :: mg_core_quota:share(),
-    quota_reserved :: mg_core_quota:resource() | undefined,
+    quota_name :: mg_skd_quota_worker:name(),
+    quota_share :: mg_skd_quota:share(),
+    quota_reserved :: mg_skd_quota:resource() | undefined,
     timer :: timer:tref(),
     waiting_tasks :: task_queue(),
     active_tasks :: #{task_id() => pid()},
@@ -99,7 +99,7 @@ child_spec(ID, Options, ChildID) ->
         type => worker
     }.
 
--spec start_link(id(), options()) -> mg_core_utils:gen_start_ret().
+-spec start_link(id(), options()) -> mg_skd_utils:gen_start_ret().
 start_link(ID, Options) ->
     gen_server:start_link(self_reg_name(ID), ?MODULE, {ID, Options}, []).
 
@@ -117,7 +117,7 @@ distribute_tasks(Pid, Tasks) when is_pid(Pid) ->
 
 %% gen_server callbacks
 
--spec init({id(), options()}) -> mg_core_utils:gen_server_init_ret(state()).
+-spec init({id(), options()}) -> mg_skd_utils:gen_server_init_ret(state()).
 init({ID, Options}) ->
     {ok, TimerRef} = timer:send_interval(maps:get(start_interval, Options, 1000), start),
     {ok, #state{
@@ -133,8 +133,8 @@ init({ID, Options}) ->
         timer = TimerRef
     }}.
 
--spec handle_call(Call :: any(), mg_core_utils:gen_server_from(), state()) ->
-    mg_core_utils:gen_server_handle_call_ret(state()).
+-spec handle_call(Call :: any(), mg_skd_utils:gen_server_from(), state()) ->
+    mg_skd_utils:gen_server_handle_call_ret(state()).
 handle_call(inquire, _From, State) ->
     Status = #{
         pid => self(),
@@ -150,7 +150,7 @@ handle_call(Call, From, State) ->
 -type cast() ::
     {tasks, [task()]}.
 
--spec handle_cast(cast(), state()) -> mg_core_utils:gen_server_handle_cast_ret(state()).
+-spec handle_cast(cast(), state()) -> mg_skd_utils:gen_server_handle_cast_ret(state()).
 handle_cast({tasks, Tasks}, State0) ->
     State1 = add_tasks(Tasks, State0),
     State2 = maybe_update_reserved(State1),
@@ -164,7 +164,7 @@ handle_cast(Cast, State) ->
     {'DOWN', monitor(), process, pid(), _Info}
     | start.
 
--spec handle_info(info(), state()) -> mg_core_utils:gen_server_handle_info_ret(state()).
+-spec handle_info(info(), state()) -> mg_skd_utils:gen_server_handle_info_ret(state()).
 handle_info({'DOWN', Monitor, process, _Object, _Info}, State0) ->
     State1 = forget_about_task(Monitor, State0),
     State2 = start_new_tasks(State1),
@@ -179,13 +179,13 @@ handle_info(Info, State) ->
 
 % Process registration
 
--spec self_reg_name(id()) -> mg_core_procreg:reg_name().
+-spec self_reg_name(id()) -> mg_skd_procreg:reg_name().
 self_reg_name(ID) ->
-    mg_core_procreg:reg_name(mg_core_procreg_gproc, {?MODULE, ID}).
+    mg_skd_procreg:reg_name(mg_skd_procreg_gproc, {?MODULE, ID}).
 
--spec self_ref(id()) -> mg_core_procreg:ref().
+-spec self_ref(id()) -> mg_skd_procreg:ref().
 self_ref(ID) ->
-    mg_core_procreg:ref(mg_core_procreg_gproc, {?MODULE, ID}).
+    mg_skd_procreg:ref(mg_skd_procreg_gproc, {?MODULE, ID}).
 
 % Helpers
 
@@ -250,7 +250,7 @@ start_multiple_tasks(N, Iterator, State) when N > 0 ->
             case dequeue_task(Rank, WaitingTasks) of
                 {Task = #{}, NewWaitingTasks} ->
                     % ...so let's start it.
-                    {ok, Pid, Monitor} = mg_core_scheduler_worker:start_task(ID, Task, SpanCtx),
+                    {ok, Pid, Monitor} = mg_skd_worker:start_task(ID, Task, SpanCtx),
                     NewState = State#state{
                         waiting_tasks = NewWaitingTasks,
                         active_tasks = ActiveTasks#{TaskID => Pid},
@@ -317,7 +317,7 @@ update_reserved(State = #state{id = ID, quota_name = Quota, quota_share = QuotaS
         client_id => ID,
         share => QuotaShare
     },
-    Reserved = mg_core_quota_worker:reserve(
+    Reserved = mg_skd_quota_worker:reserve(
         ClientOptions,
         TotalActiveTasks,
         TotalKnownTasks,
@@ -337,25 +337,25 @@ get_waiting_task_count(#state{waiting_tasks = WaitingTasks}) ->
 
 %% logging
 
--include_lib("mg_core/include/pulse.hrl").
+-include_lib("mg_scheduler/include/pulse.hrl").
 
--spec emit_beat(mg_core_pulse:handler(), mg_core_pulse:beat()) -> ok.
+-spec emit_beat(mg_skd_pulse:handler(), mg_skd_pulse:beat()) -> ok.
 emit_beat(Handler, Beat) ->
-    ok = mg_core_pulse:handle_beat(Handler, Beat).
+    ok = mg_skd_pulse:handle_beat(Handler, Beat).
 
 -spec emit_new_tasks_beat(non_neg_integer(), state()) -> ok.
 emit_new_tasks_beat(NewTasksCount, #state{pulse = Pulse, id = {Name, NS}}) ->
-    emit_beat(Pulse, #mg_core_scheduler_new_tasks{
+    emit_beat(Pulse, #mg_skd_new_tasks{
         namespace = NS,
         scheduler_name = Name,
         new_tasks_count = NewTasksCount
     }).
 
--spec emit_reserved_beat(non_neg_integer(), non_neg_integer(), mg_core_quota:resource(), state()) ->
+-spec emit_reserved_beat(non_neg_integer(), non_neg_integer(), mg_skd_quota:resource(), state()) ->
     ok.
 emit_reserved_beat(Active, Total, Reserved, State) ->
     #state{pulse = Pulse, id = {Name, NS}, quota_name = Quota} = State,
-    emit_beat(Pulse, #mg_core_scheduler_quota_reserved{
+    emit_beat(Pulse, #mg_skd_quota_reserved{
         namespace = NS,
         scheduler_name = Name,
         active_tasks = Active,

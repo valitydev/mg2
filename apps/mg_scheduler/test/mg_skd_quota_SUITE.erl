@@ -1,5 +1,5 @@
 %%%
-%%% Copyright 2018 RBKmoney
+%%% Copyright 2024 Valitydev
 %%%
 %%% Licensed under the Apache License, Version 2.0 (the "License");
 %%% you may not use this file except in compliance with the License.
@@ -14,7 +14,7 @@
 %%% limitations under the License.
 %%%
 
--module(mg_core_quota_SUITE).
+-module(mg_skd_quota_SUITE).
 
 -include_lib("common_test/include/ct.hrl").
 -include_lib("stdlib/include/assert.hrl").
@@ -52,14 +52,14 @@
 -type group_name() :: atom().
 
 -record(client, {
-    options :: mg_core_quota:client_options(),
+    options :: mg_skd_quota:client_options(),
     usage = 0 :: resource(),
     expectation = 0 :: resource(),
     reserved = 0 :: resource()
 }).
 -type client() :: #client{}.
--type quota() :: mg_core_quota:state().
--type resource() :: mg_core_quota:resource().
+-type quota() :: mg_skd_quota:state().
+-type resource() :: mg_skd_quota:resource().
 
 %%
 %% tests descriptions
@@ -124,7 +124,7 @@ end_per_test(_Name, _C) ->
 -spec no_over_allocation_test(config()) -> any().
 no_over_allocation_test(_C) ->
     Limit = 100,
-    Q0 = mg_core_quota:new(#{
+    Q0 = mg_skd_quota:new(#{
         limit => #{value => Limit}
     }),
     Clients0 = create_clients(10),
@@ -135,7 +135,7 @@ no_over_allocation_test(_C) ->
 -spec fair_sharing_without_usage_test(config()) -> any().
 fair_sharing_without_usage_test(_C) ->
     Limit = 100,
-    Q0 = mg_core_quota:new(#{
+    Q0 = mg_skd_quota:new(#{
         limit => #{value => Limit}
     }),
     Clients0 = create_clients(10),
@@ -144,7 +144,7 @@ fair_sharing_without_usage_test(_C) ->
     {Clients2, Q1} = reserve(Clients1, Q0),
     ok = validate_quota_contract(Clients2, Limit),
     % Don't use reserved resurces and recalculate targets
-    {ok, Q2} = mg_core_quota:recalculate_targets(Q1),
+    {ok, Q2} = mg_skd_quota:recalculate_targets(Q1),
     {Clients3, _Q3} = reserve(Clients2, Q2),
     ok = validate_quota_contract(Clients3, Limit),
     Expected = repeat(10, 10),
@@ -153,7 +153,7 @@ fair_sharing_without_usage_test(_C) ->
 -spec sharing_respects_usage_test(config()) -> any().
 sharing_respects_usage_test(_C) ->
     Limit = 100,
-    Q0 = mg_core_quota:new(#{
+    Q0 = mg_skd_quota:new(#{
         limit => #{value => Limit}
     }),
     Clients0 = create_clients(10),
@@ -167,7 +167,7 @@ sharing_respects_usage_test(_C) ->
     {Clients4, Q2} = reserve(Clients3, Q1),
     ok = validate_quota_contract(Clients4, Limit),
     % Recalculate targets
-    {ok, Q3} = mg_core_quota:recalculate_targets(Q2),
+    {ok, Q3} = mg_skd_quota:recalculate_targets(Q2),
     {Clients5, _Q4} = reserve(Clients4, Q3),
     ok = validate_quota_contract(Clients5, Limit),
     Expected = repeat(10, 5) ++ repeat(0, 5),
@@ -176,7 +176,7 @@ sharing_respects_usage_test(_C) ->
 -spec fair_sharing_with_full_usage_test(config()) -> any().
 fair_sharing_with_full_usage_test(_C) ->
     Limit = 100,
-    Q0 = mg_core_quota:new(#{
+    Q0 = mg_skd_quota:new(#{
         limit => #{value => Limit}
     }),
     Clients0 = create_clients(2),
@@ -189,7 +189,7 @@ fair_sharing_with_full_usage_test(_C) ->
     {Clients4, Q2} = reserve(Clients3, Q1),
     ok = validate_quota_contract(Clients4, Limit),
     % Recalculate targets
-    {ok, Q3} = mg_core_quota:recalculate_targets(Q2),
+    {ok, Q3} = mg_skd_quota:recalculate_targets(Q2),
     {Clients5, Q4} = reserve(Clients4, Q3),
     ok = validate_quota_contract(Clients5, Limit),
     ?assertEqual([50, 0], get_reserve(Clients5)),
@@ -202,7 +202,7 @@ fair_sharing_with_full_usage_test(_C) ->
 -spec fair_share_with_large_limit(config()) -> any().
 fair_share_with_large_limit(_C) ->
     Limit = 100,
-    Q0 = mg_core_quota:new(#{
+    Q0 = mg_skd_quota:new(#{
         limit => #{value => Limit}
     }),
     Clients0 = create_clients(10),
@@ -213,7 +213,7 @@ fair_share_with_large_limit(_C) ->
 -spec unwanted_resources_redistribution_test(config()) -> any().
 unwanted_resources_redistribution_test(_C) ->
     Limit = 100,
-    Q0 = mg_core_quota:new(#{
+    Q0 = mg_skd_quota:new(#{
         limit => #{value => Limit}
     }),
     Clients0 = create_clients(2),
@@ -228,7 +228,7 @@ unwanted_resources_redistribution_test(_C) ->
 -spec guaranteed_resources_redistribution_test(config()) -> any().
 guaranteed_resources_redistribution_test(_C) ->
     Limit = 100,
-    Q0 = mg_core_quota:new(#{
+    Q0 = mg_skd_quota:new(#{
         limit => #{value => Limit}
     }),
     Clients0 = create_clients(2),
@@ -247,7 +247,7 @@ guaranteed_resources_redistribution_test(_C) ->
 -spec large_amount_of_clients_not_freeze_test(config()) -> any().
 large_amount_of_clients_not_freeze_test(_C) ->
     Limit = 100,
-    Q0 = mg_core_quota:new(#{
+    Q0 = mg_skd_quota:new(#{
         limit => #{value => Limit}
     }),
     Clients0 = create_clients(10000),
@@ -258,7 +258,7 @@ large_amount_of_clients_not_freeze_test(_C) ->
 -spec large_amount_of_clients_with_zero_share_not_freeze_test(config()) -> any().
 large_amount_of_clients_with_zero_share_not_freeze_test(_C) ->
     Limit = 100,
-    Q0 = mg_core_quota:new(#{
+    Q0 = mg_skd_quota:new(#{
         limit => #{value => Limit}
     }),
     Clients0 = create_clients(10000, repeat(0, 10000)),
@@ -269,7 +269,7 @@ large_amount_of_clients_with_zero_share_not_freeze_test(_C) ->
 -spec sharing_respects_shares(config()) -> any().
 sharing_respects_shares(_C) ->
     Limit = 6,
-    Q0 = mg_core_quota:new(#{
+    Q0 = mg_skd_quota:new(#{
         limit => #{value => Limit}
     }),
     Clients0 = create_clients(2, [1, 2]),
@@ -280,7 +280,7 @@ sharing_respects_shares(_C) ->
 -spec sharing_respects_zero_shares(config()) -> any().
 sharing_respects_zero_shares(_C) ->
     Limit = 6,
-    Q0 = mg_core_quota:new(#{
+    Q0 = mg_skd_quota:new(#{
         limit => #{value => Limit}
     }),
     Clients0 = create_clients(2, [0, 2]),
@@ -291,7 +291,7 @@ sharing_respects_zero_shares(_C) ->
 -spec share_can_be_changed(config()) -> any().
 share_can_be_changed(_C) ->
     Limit = 6,
-    Q0 = mg_core_quota:new(#{
+    Q0 = mg_skd_quota:new(#{
         limit => #{value => Limit}
     }),
     Clients0 = create_clients(2, [1, 1]),
@@ -313,7 +313,7 @@ repeat(Element, Count) ->
 create_clients(Number) ->
     create_clients(Number, repeat(1, Number)).
 
--spec create_clients(non_neg_integer(), [mg_core_quota:share()]) -> [client()].
+-spec create_clients(non_neg_integer(), [mg_skd_quota:share()]) -> [client()].
 create_clients(Number, Shares) ->
     [
         #client{
@@ -333,7 +333,7 @@ reserve(Clients, Quota) ->
 -spec do_reserve(client(), Acc) -> Acc when Acc :: {[client()], quota()}.
 do_reserve(Client, {Acc, Quota}) ->
     #client{options = Options, usage = Usage, expectation = Exp} = Client,
-    {ok, Reserved, NewQuota} = mg_core_quota:reserve(Options, Usage, Exp, Quota),
+    {ok, Reserved, NewQuota} = mg_skd_quota:reserve(Options, Usage, Exp, Quota),
     {[Client#client{reserved = Reserved} | Acc], NewQuota}.
 
 -spec loop([client()], quota()) -> {[client()], quota()}.
@@ -345,7 +345,7 @@ loop(Clients, Quota, 0) ->
     {Clients, Quota};
 loop(Clients0, Quota0, N) when N > 0 ->
     {Clients1, Quota1} = reserve(Clients0, Quota0),
-    {ok, Quota2} = mg_core_quota:recalculate_targets(Quota1),
+    {ok, Quota2} = mg_skd_quota:recalculate_targets(Quota1),
     loop(Clients1, Quota2, N - 1).
 
 -spec get_reserve([client()]) -> [resource()].
@@ -360,14 +360,14 @@ get_expectation(Clients) ->
 set_expectation(Clients, Expecations) ->
     [C#client{expectation = E} || {C, E} <- lists:zip(Clients, Expecations)].
 
--spec set_share([client()], [mg_core_quota:share()]) -> [client()].
+-spec set_share([client()], [mg_skd_quota:share()]) -> [client()].
 set_share(Clients, Shares) ->
     [
         C#client{options = O#{share => S}}
      || {#client{options = O} = C, S} <- lists:zip(Clients, Shares)
     ].
 
--spec validate_quota_contract([client()], Limit :: mg_core_quota:resource()) -> ok.
+-spec validate_quota_contract([client()], Limit :: mg_skd_quota:resource()) -> ok.
 validate_quota_contract(Clients, Limit) ->
     true = lists:sum(get_reserve(Clients)) =< Limit,
     TotalUsage = [C#client.usage || C <- Clients],

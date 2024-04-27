@@ -14,7 +14,7 @@
     #woody_event{}
     | #woody_request_handle_error{}
     | mg_core_pulse:beat()
-    | mg_core_queue_scanner:beat().
+    | mg_skd_scanner:beat().
 
 -export_type([options/0]).
 

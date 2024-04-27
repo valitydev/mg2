@@ -1,5 +1,5 @@
 %%%
-%%% Copyright 2019 RBKmoney
+%%% Copyright 2024 Valitydev
 %%%
 %%% Licensed under the Apache License, Version 2.0 (the "License");
 %%% you may not use this file except in compliance with the License.
@@ -14,7 +14,7 @@
 %%% limitations under the License.
 %%%
 
--module(mg_core_quota_worker).
+-module(mg_skd_quota_worker).
 
 -behaviour(gen_server).
 
@@ -38,10 +38,10 @@
     update_interval => timeout()
 }.
 -type name() :: binary() | unlimited.
--type share() :: mg_core_quota:share().
--type resource() :: mg_core_quota:resource().
--type client_id() :: mg_core_quota:client_id().
--type limit_options() :: mg_core_quota:limit_options().
+-type share() :: mg_skd_quota:share().
+-type resource() :: mg_skd_quota:resource().
+-type client_id() :: mg_skd_quota:client_id().
+-type limit_options() :: mg_skd_quota:limit_options().
 
 -export_type([name/0]).
 -export_type([share/0]).
@@ -65,9 +65,9 @@
     pid :: pid()
 }).
 -type state() :: #state{}.
--type quota() :: mg_core_quota:state().
+-type quota() :: mg_skd_quota:state().
 -type client() :: #client{}.
--type client_options() :: mg_core_quota:client_options().
+-type client_options() :: mg_skd_quota:client_options().
 -type monitor() :: reference().
 
 -define(DEFAULT_UPDATE_INTERVAL, 5000).
@@ -86,7 +86,7 @@ child_spec(Options, ChildID) ->
         shutdown => 5000
     }.
 
--spec start_link(options()) -> mg_core_utils:gen_start_ret().
+-spec start_link(options()) -> mg_skd_utils:gen_start_ret().
 start_link(#{name := Name} = Options) ->
     gen_server:start_link(self_reg_name(Name), ?MODULE, Options, []).
 
@@ -99,24 +99,24 @@ reserve(ClientOptions, Usage, Expectation, Name) ->
 
 %% gen_server callbacks
 
--spec init(options()) -> mg_core_utils:gen_server_init_ret(state()).
+-spec init(options()) -> mg_skd_utils:gen_server_init_ret(state()).
 init(Options) ->
     #{limit := Limit} = Options,
     Interval = maps:get(update_interval, Options, ?DEFAULT_UPDATE_INTERVAL),
     {ok, #state{
         options = Options,
-        quota = mg_core_quota:new(#{limit => Limit}),
+        quota = mg_skd_quota:new(#{limit => Limit}),
         clients = #{},
         client_monitors = #{},
         interval = Interval,
         timer = erlang:send_after(Interval, self(), ?UPDATE_MESSAGE)
     }}.
 
--spec handle_call(Call :: any(), mg_core_utils:gen_server_from(), state()) ->
-    mg_core_utils:gen_server_handle_call_ret(state()).
+-spec handle_call(Call :: any(), mg_skd_utils:gen_server_from(), state()) ->
+    mg_skd_utils:gen_server_handle_call_ret(state()).
 handle_call({reserve, ClientOptions, Usage, Expectation}, {Pid, _Tag}, State0) ->
     State1 = ensure_is_registered(ClientOptions, Pid, State0),
-    {ok, NewReserved, NewQuota} = mg_core_quota:reserve(
+    {ok, NewReserved, NewQuota} = mg_skd_quota:reserve(
         ClientOptions,
         Usage,
         Expectation,
@@ -127,14 +127,14 @@ handle_call(Call, From, State) ->
     ok = logger:error("unexpected gen_server call received: ~p from ~p", [Call, From]),
     {noreply, State}.
 
--spec handle_cast(Cast :: any(), state()) -> mg_core_utils:gen_server_handle_cast_ret(state()).
+-spec handle_cast(Cast :: any(), state()) -> mg_skd_utils:gen_server_handle_cast_ret(state()).
 handle_cast(Cast, State) ->
     ok = logger:error("unexpected gen_server cast received: ~p", [Cast]),
     {noreply, State}.
 
--spec handle_info(Info :: any(), state()) -> mg_core_utils:gen_server_handle_info_ret(state()).
+-spec handle_info(Info :: any(), state()) -> mg_skd_utils:gen_server_handle_info_ret(state()).
 handle_info(?UPDATE_MESSAGE, State) ->
-    {ok, NewQuota} = mg_core_quota:recalculate_targets(State#state.quota),
+    {ok, NewQuota} = mg_skd_quota:recalculate_targets(State#state.quota),
     {noreply, restart_timer(?UPDATE_MESSAGE, State#state{quota = NewQuota})};
 handle_info({'DOWN', Monitor, process, _Object, _Info}, State) ->
     {noreply, forget_about_client(Monitor, State)};
@@ -143,7 +143,7 @@ handle_info(Info, State) ->
     {noreply, State}.
 
 -spec code_change(OldVsn :: any(), state(), Extra :: any()) ->
-    mg_core_utils:gen_server_code_change_ret(state()).
+    mg_skd_utils:gen_server_code_change_ret(state()).
 code_change(_OldVsn, State, _Extra) ->
     {ok, State}.
 
@@ -179,7 +179,7 @@ forget_about_client(Monitor, State) ->
             State#state{
                 clients = maps:remove(ClientID, AllClients),
                 client_monitors = maps:remove(Monitor, Monitors),
-                quota = mg_core_quota:remove_client(ClientID, Quota)
+                quota = mg_skd_quota:remove_client(ClientID, Quota)
             };
         error ->
             State
@@ -187,11 +187,11 @@ forget_about_client(Monitor, State) ->
 
 % Worker registration
 
--spec self_ref(name()) -> mg_core_utils:gen_ref().
+-spec self_ref(name()) -> mg_skd_utils:gen_ref().
 self_ref(ID) ->
     {via, gproc, {n, l, wrap_id(ID)}}.
 
--spec self_reg_name(name()) -> mg_core_utils:gen_reg_name().
+-spec self_reg_name(name()) -> mg_skd_utils:gen_reg_name().
 self_reg_name(ID) ->
     {via, gproc, {n, l, wrap_id(ID)}}.
 

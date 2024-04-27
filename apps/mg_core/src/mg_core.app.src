@@ -26,7 +26,7 @@
         brod,
         msgpack,
         snowflake,
-        gen_squad,
+        mg_scheduler,
         opentelemetry_api
     ]},
     {env, []},

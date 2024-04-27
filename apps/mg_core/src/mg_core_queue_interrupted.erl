@@ -16,11 +16,11 @@
 
 -module(mg_core_queue_interrupted).
 
--behaviour(mg_core_queue_scanner).
+-behaviour(mg_skd_scanner).
 -export([init/1]).
 -export([search_tasks/3]).
 
--behaviour(mg_core_scheduler_worker).
+-behaviour(mg_skd_worker).
 -export([execute_task/2]).
 
 %% Types
@@ -45,8 +45,8 @@
 
 -type task_id() :: mg_core:id().
 -type task_payload() :: #{}.
--type task() :: mg_core_queue_task:task(task_id(), task_payload()).
--type scan_delay() :: mg_core_queue_scanner:scan_delay().
+-type task() :: mg_skd_task:task(task_id(), task_payload()).
+-type scan_delay() :: mg_skd_scanner:scan_delay().
 
 % 1 minute
 -define(DEFAULT_PROCESSING_TIMEOUT, 60000).
@@ -62,7 +62,7 @@ init(_Options) ->
 -spec search_tasks(options(), _Limit :: non_neg_integer(), state()) ->
     {{scan_delay(), [task()]}, state()}.
 search_tasks(Options, Limit, #state{continuation = Continuation} = State) ->
-    CurrentTime = mg_core_queue_task:current_time(),
+    CurrentTime = mg_skd_task:current_time(),
     MachineOptions = machine_options(Options),
     Query = processing,
     {IDs, NewContinuation} = mg_core_machine:search(MachineOptions, Query, Limit, Continuation),

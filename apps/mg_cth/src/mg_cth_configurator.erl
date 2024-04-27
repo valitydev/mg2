@@ -6,7 +6,7 @@
     woody_server := mg_woody:woody_server(),
     event_sink_ns := mg_conf:event_sink_ns(),
     namespaces := mg_conf:namespaces(),
-    quotas => [mg_core_quota_worker:options()]
+    quotas => [mg_skd_quota_worker:options()]
 }.
 
 -spec construct_child_specs(config() | undefined) -> _.

@@ -18,6 +18,7 @@
 
 -include_lib("common_test/include/ct.hrl").
 -include_lib("stdlib/include/assert.hrl").
+-include_lib("mg_scheduler/include/pulse.hrl").
 -include_lib("mg_core/include/pulse.hrl").
 -include_lib("mg_es_kafka/include/pulse.hrl").
 
@@ -326,7 +327,7 @@ scheduler_search_success_test(_C) ->
     Buckets = test_millisecond_buckets(),
     _ = maps:fold(
         fun(DurationMs, BucketIdx, Acc) ->
-            ok = test_beat(#mg_core_scheduler_search_success{
+            ok = test_beat(#mg_skd_search_success{
                 namespace = ?NS,
                 scheduler_name = name,
                 delay = 0,
@@ -347,7 +348,7 @@ scheduler_search_success_test(_C) ->
 
 -spec scheduler_search_error_test(config()) -> _.
 scheduler_search_error_test(_C) ->
-    ok = test_beat(#mg_core_scheduler_search_error{
+    ok = test_beat(#mg_skd_search_error{
         namespace = ?NS,
         scheduler_name = name,
         exception = {throw, thrown, []}
@@ -355,7 +356,7 @@ scheduler_search_error_test(_C) ->
 
 -spec scheduler_task_error_test(config()) -> _.
 scheduler_task_error_test(_C) ->
-    ok = test_beat(#mg_core_scheduler_task_error{
+    ok = test_beat(#mg_skd_task_error{
         namespace = ?NS,
         machine_id = <<"ID">>,
         scheduler_name = name,
@@ -364,7 +365,7 @@ scheduler_task_error_test(_C) ->
 
 -spec scheduler_new_tasks_test(config()) -> _.
 scheduler_new_tasks_test(_C) ->
-    ok = test_beat(#mg_core_scheduler_new_tasks{
+    ok = test_beat(#mg_skd_new_tasks{
         namespace = ?NS,
         scheduler_name = name,
         new_tasks_count = 0
@@ -372,7 +373,7 @@ scheduler_new_tasks_test(_C) ->
 
 -spec scheduler_task_started_test(config()) -> _.
 scheduler_task_started_test(_C) ->
-    ok = test_beat(#mg_core_scheduler_task_started{
+    ok = test_beat(#mg_skd_task_started{
         namespace = ?NS,
         scheduler_name = name,
         machine_id = <<"ID">>,
@@ -384,7 +385,7 @@ scheduler_task_finished_test(_C) ->
     Buckets = test_millisecond_buckets(),
     _ = maps:fold(
         fun(DurationMs, BucketIdx, Acc) ->
-            ok = test_beat(#mg_core_scheduler_task_finished{
+            ok = test_beat(#mg_skd_task_finished{
                 namespace = ?NS,
                 scheduler_name = name,
                 machine_id = <<"ID">>,
@@ -404,7 +405,7 @@ scheduler_task_finished_test(_C) ->
 
 -spec scheduler_quota_reserved_test(config()) -> _.
 scheduler_quota_reserved_test(_C) ->
-    ok = test_beat(#mg_core_scheduler_quota_reserved{
+    ok = test_beat(#mg_skd_quota_reserved{
         namespace = ?NS,
         scheduler_name = name,
         active_tasks = 0,

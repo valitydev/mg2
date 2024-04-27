@@ -24,9 +24,9 @@
 %%% Distribution process DOES NOT take into account processing locality (_allocate tasks near
 %%% idling machines_), it just splits tasks uniformly among a set of known schedulers.
 
--module(mg_core_queue_scanner).
+-module(mg_skd_scanner).
 
--type scheduler_id() :: mg_core_scheduler:id().
+-type scheduler_id() :: mg_skd:id().
 -type scan_delay() :: milliseconds().
 -type scan_limit() :: non_neg_integer().
 % as in A×X + B
@@ -40,7 +40,7 @@
     scan_ahead => scan_ahead(),
     retry_scan_delay => scan_delay(),
     squad_opts => gen_squad:opts(),
-    pulse => mg_core_pulse:handler()
+    pulse => mg_skd_pulse:handler()
 }.
 
 -export_type([options/0]).
@@ -54,11 +54,11 @@
 
 %%
 
--type task() :: mg_core_queue_task:task().
+-type task() :: mg_skd_task:task().
 
 -type queue_state() :: any().
 -type queue_options() :: any().
--type queue_handler() :: mg_core_utils:mod_opts(queue_options()).
+-type queue_handler() :: mg_skd_utils:mod_opts(queue_options()).
 
 -callback child_spec(queue_options(), atom()) -> supervisor:child_spec() | undefined.
 -callback init(queue_options()) -> {ok, queue_state()}.
@@ -100,7 +100,7 @@
 -spec child_spec(scheduler_id(), options(), _ChildID) -> supervisor:child_spec().
 child_spec(SchedulerID, Options, ChildID) ->
     Flags = #{strategy => rest_for_one},
-    ChildSpecs = mg_core_utils:lists_compact([
+    ChildSpecs = mg_skd_utils:lists_compact([
         handler_child_spec(Options, {ChildID, handler}),
         #{
             id => {ChildID, scanner},
@@ -117,11 +117,11 @@ child_spec(SchedulerID, Options, ChildID) ->
 
 -spec handler_child_spec(options(), _ChildID) -> supervisor:child_spec() | undefined.
 handler_child_spec(#{queue_handler := Handler}, ChildID) ->
-    mg_core_utils:apply_mod_opts_if_defined(Handler, child_spec, undefined, [ChildID]).
+    mg_skd_utils:apply_mod_opts_if_defined(Handler, child_spec, undefined, [ChildID]).
 
 %%
 
--spec start_link(scheduler_id(), options()) -> mg_core_utils:gen_start_ret().
+-spec start_link(scheduler_id(), options()) -> mg_skd_utils:gen_start_ret().
 start_link(SchedulerID, Options) ->
     SquadOpts = maps:merge(
         maps:get(squad_opts, Options, #{}),
@@ -139,7 +139,7 @@ start_link(SchedulerID, Options) ->
 
 -spec where_is(scheduler_id()) -> pid() | undefined.
 where_is(SchedulerID) ->
-    mg_core_utils:gen_ref_to_pid(self_ref(SchedulerID)).
+    mg_skd_utils:gen_ref_to_pid(self_ref(SchedulerID)).
 
 %%
 
@@ -152,7 +152,7 @@ where_is(SchedulerID) ->
     scan_ahead :: scan_ahead(),
     retry_delay :: scan_delay(),
     timer :: reference() | undefined,
-    pulse :: mg_core_pulse:handler() | undefined
+    pulse :: mg_skd_pulse:handler() | undefined
 }).
 
 -type st() :: #st{}.
@@ -196,7 +196,7 @@ handle_cast(Cast, Rank, _Squad, St) ->
     ),
     {noreply, St}.
 
--spec handle_call(_Call, mg_core_utils:gen_server_from(), rank(), squad(), st()) -> {noreply, st()}.
+-spec handle_call(_Call, mg_skd_utils:gen_server_from(), rank(), squad(), st()) -> {noreply, st()}.
 handle_call(Call, From, Rank, _Squad, St) ->
     ok = logger:error(
         "unexpected gen_squad call received: ~p, from ~p, rank ~p, state ~p",
@@ -253,30 +253,30 @@ scan_queue(Limit, St = #st{queue_handler = HandlerState, retry_delay = RetryDela
     ok = emit_scan_success_beat(Result, Limit, StartedAt, St),
     {Result, St#st{queue_handler = HandlerStateNext}}.
 
--spec disseminate_tasks([task()], [mg_core_scheduler:status()], [scan_limit()], st()) -> ok.
+-spec disseminate_tasks([task()], [mg_skd:status()], [scan_limit()], st()) -> ok.
 disseminate_tasks(Tasks, [_Scheduler = #{pid := Pid}], _Capacities, _St) ->
     %% A single scheduler, just send him all tasks optimizing away meaningless partitioning
-    mg_core_scheduler:distribute_tasks(Pid, Tasks);
+    mg_skd:distribute_tasks(Pid, Tasks);
 disseminate_tasks(Tasks, Schedulers, Capacities, _St) ->
     %% Partition tasks among known schedulers proportionally to their capacities
-    Partitions = mg_core_utils:partition(Tasks, lists:zip(Schedulers, Capacities)),
+    Partitions = mg_skd_utils:partition(Tasks, lists:zip(Schedulers, Capacities)),
     %% Distribute shares of tasks among schedulers, sending directly to pids
     maps:fold(
         fun(_Scheduler = #{pid := Pid}, TasksShare, _) ->
-            mg_core_scheduler:distribute_tasks(Pid, TasksShare)
+            mg_skd:distribute_tasks(Pid, TasksShare)
         end,
         ok,
         Partitions
     ).
 
--spec inquire_schedulers(gen_squad:squad(), st()) -> [mg_core_scheduler:status()].
+-spec inquire_schedulers(gen_squad:squad(), st()) -> [mg_skd:status()].
 inquire_schedulers(Squad, #st{scheduler_id = SchedulerID}) ->
     %% Take all known members, there's at least one which is `self()`
     Members = gen_squad:members(Squad),
     Nodes = lists:map(fun erlang:node/1, Members),
-    multicall(Nodes, mg_core_scheduler, inquire, [SchedulerID], ?INQUIRY_TIMEOUT).
+    multicall(Nodes, mg_skd, inquire, [SchedulerID], ?INQUIRY_TIMEOUT).
 
--spec compute_adjusted_capacity(mg_core_scheduler:status(), st()) -> scan_limit().
+-spec compute_adjusted_capacity(mg_skd:status(), st()) -> scan_limit().
 compute_adjusted_capacity(#{waiting_tasks := W, capacity := C}, #st{scan_ahead = {A, B}}) ->
     erlang:max(erlang:round(A * erlang:max(C - W, 0)) + B, 0).
 
@@ -324,32 +324,32 @@ cancel_timer(St) ->
 
 -spec init_handler(queue_handler()) -> queue_handler_state().
 init_handler(Handler) ->
-    {ok, InitialState} = mg_core_utils:apply_mod_opts(Handler, init),
+    {ok, InitialState} = mg_skd_utils:apply_mod_opts(Handler, init),
     {Handler, InitialState}.
 
 -spec run_handler(queue_handler_state(), _Function :: atom(), _Args :: list()) ->
     {_Result, queue_handler_state()}.
 run_handler({Handler, State}, Function, Args) ->
-    {Result, NextState} = mg_core_utils:apply_mod_opts(Handler, Function, Args ++ [State]),
+    {Result, NextState} = mg_skd_utils:apply_mod_opts(Handler, Function, Args ++ [State]),
     {Result, {Handler, NextState}}.
 
 %%
 
--spec self_reg_name(scheduler_id()) -> mg_core_procreg:reg_name().
+-spec self_reg_name(scheduler_id()) -> mg_skd_procreg:reg_name().
 self_reg_name(SchedulerID) ->
-    mg_core_procreg:reg_name(mg_core_procreg_gproc, {?MODULE, SchedulerID}).
+    mg_skd_procreg:reg_name(mg_skd_procreg_gproc, {?MODULE, SchedulerID}).
 
--spec self_ref(scheduler_id()) -> mg_core_procreg:ref().
+-spec self_ref(scheduler_id()) -> mg_skd_procreg:ref().
 self_ref(SchedulerID) ->
-    mg_core_procreg:ref(mg_core_procreg_gproc, {?MODULE, SchedulerID}).
+    mg_skd_procreg:ref(mg_skd_procreg_gproc, {?MODULE, SchedulerID}).
 
 %%
 
--include_lib("mg_core/include/pulse.hrl").
+-include_lib("mg_scheduler/include/pulse.hrl").
 
--spec emit_scan_error_beat(mg_core_utils:exception(), st()) -> ok.
+-spec emit_scan_error_beat(mg_skd_utils:exception(), st()) -> ok.
 emit_scan_error_beat(Exception, #st{pulse = Pulse, scheduler_id = {Name, NS}}) ->
-    mg_core_pulse:handle_beat(Pulse, #mg_core_scheduler_search_error{
+    mg_skd_pulse:handle_beat(Pulse, #mg_skd_search_error{
         namespace = NS,
         scheduler_name = Name,
         exception = Exception
@@ -360,7 +360,7 @@ emit_scan_success_beat({Delay, Tasks}, Limit, StartedAt, #st{
     pulse = Pulse,
     scheduler_id = {Name, NS}
 }) ->
-    mg_core_pulse:handle_beat(Pulse, #mg_core_scheduler_search_success{
+    mg_skd_pulse:handle_beat(Pulse, #mg_skd_search_success{
         namespace = NS,
         scheduler_name = Name,
         delay = Delay,
@@ -371,8 +371,8 @@ emit_scan_success_beat({Delay, Tasks}, Limit, StartedAt, #st{
 
 %%
 
--spec handle_beat({mg_core_pulse:handler(), scheduler_id()}, gen_squad_pulse:beat()) -> _.
+-spec handle_beat({mg_skd_pulse:handler(), scheduler_id()}, gen_squad_pulse:beat()) -> _.
 handle_beat({Handler, {Name, NS}}, Beat) ->
     Producer = queue_scanner,
     Extra = [{scheduler_type, Name}, {namespace, NS}],
-    mg_core_pulse:handle_beat(Handler, {squad, {Producer, Beat, Extra}}).
+    mg_skd_pulse:handle_beat(Handler, {squad, {Producer, Beat, Extra}}).

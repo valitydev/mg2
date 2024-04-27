@@ -13,7 +13,7 @@
 
 -type beat() ::
     mg_core_pulse:beat()
-    | mg_core_queue_scanner:beat().
+    | mg_skd_scanner:beat().
 
 -export_type([options/0]).
 
@@ -47,7 +47,7 @@ handle_beat(
 handle_beat(_Options, #mg_core_timer_lifecycle_removed{machine_id = ID, namespace = NS}) ->
     mg_core_otel:add_event(<<"timer removed">>, machine_tags(NS, ID));
 %% Scheduler handling
-%% TODO Handle and trace events for 'mg_core_scheduler_*' beats
+%% TODO Handle and trace events for 'mg_skd_*' beats
 %% Timer handling
 %% Wraps `Module:process_machine/7` when processor impact is 'timeout'.
 handle_beat(_Options, #mg_core_timer_process_started{machine_id = ID, namespace = NS, queue = Queue}) ->

@@ -1,5 +1,5 @@
 %%%
-%%% Copyright 2019 RBKmoney
+%%% Copyright 2024 Valitydev
 %%%
 %%% Licensed under the Apache License, Version 2.0 (the "License");
 %%% you may not use this file except in compliance with the License.
@@ -14,7 +14,7 @@
 %%% limitations under the License.
 %%%
 
--module(mg_core_queue_task).
+-module(mg_skd_task).
 
 -type id() :: any().
 -type payload() :: any().
@@ -24,7 +24,7 @@
 -type task(TaskID, TaskPayload) :: #{
     id := TaskID,
     target_time := target_time(),
-    machine_id := mg_core:id(),
+    machine_id := mg_skd_utils:id(),
     payload => TaskPayload
 }.
 

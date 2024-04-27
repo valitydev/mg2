@@ -1,5 +1,5 @@
 %%%
-%%% Copyright 2019 RBKmoney
+%%% Copyright 2024 Valitydev
 %%%
 %%% Licensed under the Apache License, Version 2.0 (the "License");
 %%% you may not use this file except in compliance with the License.
@@ -14,26 +14,26 @@
 %%% limitations under the License.
 %%%
 
--module(mg_core_scheduler_sup).
+-module(mg_skd_sup).
 
--type id() :: mg_core_scheduler:id().
+-type id() :: mg_skd:id().
 
 -type options() :: #{
     % manager
     start_interval => non_neg_integer(),
     capacity := non_neg_integer(),
-    quota_name := mg_core_quota_worker:name(),
-    quota_share => mg_core_quota:share(),
+    quota_name := mg_skd_quota_worker:name(),
+    quota_share => mg_skd_quota:share(),
     % scanner
-    queue_handler := mg_core_queue_scanner:queue_handler(),
-    max_scan_limit => mg_core_queue_scanner:scan_limit() | unlimited,
-    scan_ahead => mg_core_queue_scanner:scan_ahead(),
-    retry_scan_delay => mg_core_queue_scanner:scan_delay(),
+    queue_handler := mg_skd_scanner:queue_handler(),
+    max_scan_limit => mg_skd_scanner:scan_limit() | unlimited,
+    scan_ahead => mg_skd_scanner:scan_ahead(),
+    retry_scan_delay => mg_skd_scanner:scan_delay(),
     squad_opts => gen_squad:opts(),
     % workers
-    task_handler := mg_core_utils:mod_opts(),
+    task_handler := mg_skd_utils:mod_opts(),
     % common
-    pulse => mg_core_pulse:handler()
+    pulse => mg_skd_pulse:handler()
 }.
 
 -export_type([options/0]).
@@ -52,7 +52,7 @@ child_spec(ID, Options, ChildID) ->
         type => supervisor
     }.
 
--spec start_link(id(), options()) -> mg_core_utils:gen_start_ret().
+-spec start_link(id(), options()) -> mg_skd_utils:gen_start_ret().
 start_link(SchedulerID, Options) ->
     ManagerOptions = maps:with(
         [start_interval, capacity, quota_name, quota_share, pulse],
@@ -68,9 +68,9 @@ start_link(SchedulerID, Options) ->
     ),
     genlib_adhoc_supervisor:start_link(
         #{strategy => one_for_all},
-        mg_core_utils:lists_compact([
-            mg_core_queue_scanner:child_spec(SchedulerID, ScannerOptions, queue),
-            mg_core_scheduler_worker:child_spec(SchedulerID, WorkerOptions, tasks),
-            mg_core_scheduler:child_spec(SchedulerID, ManagerOptions, manager)
+        mg_skd_utils:lists_compact([
+            mg_skd_scanner:child_spec(SchedulerID, ScannerOptions, queue),
+            mg_skd_worker:child_spec(SchedulerID, WorkerOptions, tasks),
+            mg_skd:child_spec(SchedulerID, ManagerOptions, manager)
         ])
     ).

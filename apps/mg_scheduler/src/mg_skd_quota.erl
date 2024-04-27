@@ -1,5 +1,5 @@
 %%%
-%%% Copyright 2019 RBKmoney
+%%% Copyright 2024 Valitydev
 %%%
 %%% Licensed under the Apache License, Version 2.0 (the "License");
 %%% you may not use this file except in compliance with the License.
@@ -14,7 +14,7 @@
 %%% limitations under the License.
 %%%
 
--module(mg_core_quota).
+-module(mg_skd_quota).
 
 %% Менеджер ресурса, который пытается справедливо распределить ограниченный
 %% запас этого ресурса (размером limit) между множеством потребителей.

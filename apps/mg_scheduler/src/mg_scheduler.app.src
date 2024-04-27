@@ -1,0 +1,18 @@
+{application, mg_scheduler, [
+    {description, "Machinegun scheduler"},
+    {vsn, "1"},
+    {registered, []},
+    {applications, [
+        kernel,
+        stdlib,
+        genlib,
+        gproc,
+        gen_squad,
+        opentelemetry_api
+    ]},
+    {env, []},
+    {modules, []},
+    {maintainers, []},
+    {licenses, []},
+    {links, []}
+]}.

@@ -77,7 +77,7 @@
 %%
 -type name() :: term().
 
--type opaque() :: null | true | false | number() | binary() | [opaque()] | #{opaque() => opaque()}.
+-type opaque() :: mg_skd_utils:opaque().
 -type key() :: binary().
 -type value() :: opaque().
 -type kv() :: {key(), value()}.

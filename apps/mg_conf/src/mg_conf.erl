@@ -33,7 +33,7 @@
     woody_server := mg_woody:woody_server(),
     event_sink_ns := event_sink_ns(),
     namespaces := namespaces(),
-    quotas => [mg_core_quota_worker:options()],
+    quotas => [mg_skd_quota_worker:options()],
     pulse := pulse(),
     health_check => erl_health:check()
 }.
@@ -85,10 +85,10 @@ construct_child_specs(
 
 %%
 
--spec quotas_child_specs([mg_core_quota_worker:options()], atom()) -> [supervisor:child_spec()].
+-spec quotas_child_specs([mg_skd_quota_worker:options()], atom()) -> [supervisor:child_spec()].
 quotas_child_specs(Quotas, ChildID) ->
     [
-        mg_core_quota_worker:child_spec(Options, {ChildID, maps:get(name, Options)})
+        mg_skd_quota_worker:child_spec(Options, {ChildID, maps:get(name, Options)})
      || Options <- Quotas
     ].
 

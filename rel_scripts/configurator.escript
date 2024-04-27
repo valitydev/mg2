@@ -505,7 +505,7 @@ modernizer(Name, ModernizerYamlConfig) ->
         }
     }.
 
--spec scheduler(mg_core_quota:share(), ?C:yaml_config()) -> mg_core_machine:scheduler_opt().
+-spec scheduler(mg_skd_quota:share(), ?C:yaml_config()) -> mg_core_machine:scheduler_opt().
 scheduler(Share, Config) ->
     #{
         max_scan_limit => ?C:conf([scan_limit], Config, 5000),

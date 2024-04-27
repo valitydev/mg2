@@ -1,5 +1,5 @@
 %%%
-%%% Copyright 2019 RBKmoney
+%%% Copyright 2024 Valitydev
 %%%
 %%% Licensed under the Apache License, Version 2.0 (the "License");
 %%% you may not use this file except in compliance with the License.
@@ -14,9 +14,9 @@
 %%% limitations under the License.
 %%%
 
--module(mg_core_scheduler_worker).
+-module(mg_skd_worker).
 
--include_lib("mg_core/include/pulse.hrl").
+-include_lib("mg_scheduler/include/pulse.hrl").
 
 -export([child_spec/3]).
 -export([start_link/2]).
@@ -30,13 +30,13 @@
 -callback execute_task(Options :: any(), task()) -> ok.
 
 %% Internal types
--type scheduler_id() :: mg_core_scheduler:id().
--type task() :: mg_core_queue_task:task().
+-type scheduler_id() :: mg_skd:id().
+-type task() :: mg_skd_task:task().
 -type maybe_span() :: opentelemetry:span_ctx() | undefined.
 
 -type options() :: #{
-    task_handler := mg_core_utils:mod_opts(),
-    pulse => mg_core_pulse:handler()
+    task_handler := mg_skd_utils:mod_opts(),
+    pulse => mg_skd_pulse:handler()
 }.
 
 -type monitor() :: reference().
@@ -54,7 +54,7 @@ child_spec(SchedulerID, Options, ChildID) ->
         type => supervisor
     }.
 
--spec start_link(scheduler_id(), options()) -> mg_core_utils:gen_start_ret().
+-spec start_link(scheduler_id(), options()) -> mg_skd_utils:gen_start_ret().
 start_link(SchedulerID, Options) ->
     genlib_adhoc_supervisor:start_link(
         self_reg_name(SchedulerID),
@@ -78,7 +78,7 @@ start_task(SchedulerID, Task, SpanCtx) ->
             Error
     end.
 
--spec do_start_task(scheduler_id(), options(), task(), maybe_span()) -> mg_core_utils:gen_start_ret().
+-spec do_start_task(scheduler_id(), options(), task(), maybe_span()) -> mg_skd_utils:gen_start_ret().
 do_start_task(SchedulerID, Options, Task, SpanCtx) ->
     proc_lib:start_link(?MODULE, execute, [SchedulerID, Options, Task, SpanCtx]).
 
@@ -91,7 +91,7 @@ execute(SchedulerID, #{task_handler := Handler} = Options, Task, SpanCtx) ->
     ok = emit_start_beat(Task, SchedulerID, Options),
     ok =
         try
-            ok = mg_core_utils:apply_mod_opts(Handler, execute_task, [Task]),
+            ok = mg_skd_utils:apply_mod_opts(Handler, execute_task, [Task]),
             End = erlang:monotonic_time(),
             ok = emit_finish_beat(Task, Start, End, SchedulerID, Options)
         catch
@@ -104,13 +104,13 @@ execute(SchedulerID, #{task_handler := Handler} = Options, Task, SpanCtx) ->
 
 % Process registration
 
--spec self_ref(scheduler_id()) -> mg_core_utils:gen_ref().
+-spec self_ref(scheduler_id()) -> mg_skd_utils:gen_ref().
 self_ref(ID) ->
-    mg_core_procreg:ref(mg_core_procreg_gproc, wrap_id(ID)).
+    mg_skd_procreg:ref(mg_skd_procreg_gproc, wrap_id(ID)).
 
--spec self_reg_name(scheduler_id()) -> mg_core_utils:gen_reg_name().
+-spec self_reg_name(scheduler_id()) -> mg_skd_utils:gen_reg_name().
 self_reg_name(ID) ->
-    mg_core_procreg:reg_name(mg_core_procreg_gproc, wrap_id(ID)).
+    mg_skd_procreg:reg_name(mg_skd_procreg_gproc, wrap_id(ID)).
 
 -spec wrap_id(scheduler_id()) -> term().
 wrap_id(ID) ->
@@ -118,9 +118,9 @@ wrap_id(ID) ->
 
 %% logging
 
--spec emit_beat(options(), mg_core_pulse:beat()) -> ok.
+-spec emit_beat(options(), mg_skd_pulse:beat()) -> ok.
 emit_beat(Options, Beat) ->
-    ok = mg_core_pulse:handle_beat(maps:get(pulse, Options, undefined), Beat).
+    ok = mg_skd_pulse:handle_beat(maps:get(pulse, Options, undefined), Beat).
 
 -spec get_delay(task()) -> timeout().
 get_delay(#{target_time := Target}) ->
@@ -129,7 +129,7 @@ get_delay(#{target_time := Target}) ->
 
 -spec emit_start_beat(task(), scheduler_id(), options()) -> ok.
 emit_start_beat(Task, {Name, NS}, Options) ->
-    emit_beat(Options, #mg_core_scheduler_task_started{
+    emit_beat(Options, #mg_skd_task_started{
         namespace = NS,
         scheduler_name = Name,
         task_delay = get_delay(Task),
@@ -138,7 +138,7 @@ emit_start_beat(Task, {Name, NS}, Options) ->
 
 -spec emit_finish_beat(task(), integer(), integer(), scheduler_id(), options()) -> ok.
 emit_finish_beat(Task, StartedAt, FinishedAt, {Name, NS}, Options) ->
-    emit_beat(Options, #mg_core_scheduler_task_finished{
+    emit_beat(Options, #mg_skd_task_finished{
         namespace = NS,
         scheduler_name = Name,
         task_delay = get_delay(Task),
@@ -147,9 +147,9 @@ emit_finish_beat(Task, StartedAt, FinishedAt, {Name, NS}, Options) ->
         process_duration = FinishedAt - StartedAt
     }).
 
--spec emit_error_beat(task(), mg_core_utils:exception(), scheduler_id(), options()) -> ok.
+-spec emit_error_beat(task(), mg_skd_utils:exception(), scheduler_id(), options()) -> ok.
 emit_error_beat(Task, Exception, {Name, NS}, Options) ->
-    emit_beat(Options, #mg_core_scheduler_task_error{
+    emit_beat(Options, #mg_skd_task_error{
         namespace = NS,
         scheduler_name = Name,
         exception = Exception,
