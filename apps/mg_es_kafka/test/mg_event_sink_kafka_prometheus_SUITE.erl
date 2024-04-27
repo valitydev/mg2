@@ -42,11 +42,13 @@ groups() ->
 %%
 -spec init_per_suite(config()) -> config().
 init_per_suite(C) ->
-    C.
+    Apps = mg_cth:start_applications([mg_es_kafka]),
+    ok = mg_event_sink_kafka_prometheus_pulse:setup(),
+    [{apps, Apps} | C].
 
 -spec end_per_suite(config()) -> ok.
-end_per_suite(_C) ->
-    ok.
+end_per_suite(C) ->
+    mg_cth:stop_applications(?config(apps, C)).
 
 -spec init_per_group(group_name(), config()) -> config().
 init_per_group(_, C) ->

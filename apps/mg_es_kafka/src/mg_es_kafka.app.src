@@ -6,8 +6,9 @@
         kernel,
         stdlib,
         genlib,
+        brod,
         mg_core,
-        brod
+        prometheus
     ]},
     {env, []},
     {modules, []},
