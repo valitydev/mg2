@@ -197,7 +197,6 @@ handle_info(Info, State) ->
 
 -spec self_reg_name(id()) -> mg_procreg:reg_name().
 self_reg_name(ID) ->
-    %% TODO Decouple `mg_core'/`mg_skd' with `mg_procreg'.
     mg_procreg:reg_name(mg_procreg_gproc, {?MODULE, ID}).
 
 -spec self_ref(id()) -> mg_procreg:ref().

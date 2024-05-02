@@ -24,9 +24,6 @@
 -export([reg_name/2]).
 -export([select/2]).
 
--export([start_link/5]).
--export([call/4]).
-
 -type options() :: undefined.
 
 %%
@@ -43,12 +40,3 @@ reg_name(Options, Name) ->
 select(_Options, NamePattern) ->
     MatchSpec = [{{{n, l, NamePattern}, '_', '_'}, [], ['$$']}],
     [{Name, Pid} || [{n, l, Name}, Pid, _] <- gproc:select(MatchSpec)].
-
--spec start_link(options(), mg_procreg:reg_name(), module(), _Args, list()) ->
-    mg_procreg:start_link_ret().
-start_link(_Options, RegName, Module, Args, Opts) ->
-    gen_server:start_link(RegName, Module, Args, Opts).
-
--spec call(options(), mg_procreg:ref(), _Call, timeout()) -> _Reply.
-call(_Options, Ref, Call, Timeout) ->
-    gen_server:call(Ref, Call, Timeout).

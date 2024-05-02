@@ -54,6 +54,7 @@
 -export([apply_mod_opts/3]).
 -export([apply_mod_opts_if_defined/3]).
 -export([apply_mod_opts_if_defined/4]).
+-export([apply_mod_opts_with_fallback/4]).
 -export([separate_mod_opts/1]).
 -export([separate_mod_opts/2]).
 
@@ -238,14 +239,33 @@ apply_mod_opts_if_defined(ModOpts, Function, Default) ->
 
 -spec apply_mod_opts_if_defined(mod_opts(), atom(), _Default, list(_Arg)) -> _Result.
 apply_mod_opts_if_defined(ModOpts, Function, Default, Args) ->
+    case prepare_applicable_mod_opts(ModOpts, Function, Args) of
+        {ok, {Mod, Function, FunctionArgs}} ->
+            erlang:apply(Mod, Function, FunctionArgs);
+        {error, {undefined, _FunctionArgs}} ->
+            Default
+    end.
+
+-spec apply_mod_opts_with_fallback(mod_opts(), atom(), Fallback :: fun(), list(_Arg)) -> _Result.
+apply_mod_opts_with_fallback(ModOpts, Function, Fallback, Args) ->
+    case prepare_applicable_mod_opts(ModOpts, Function, Args) of
+        {ok, {Mod, Function, FunctionArgs}} ->
+            erlang:apply(Mod, Function, FunctionArgs);
+        {error, {undefined, FunctionArgs}} ->
+            erlang:apply(Fallback, FunctionArgs)
+    end.
+
+-spec prepare_applicable_mod_opts(mod_opts(), atom(), list(_Arg)) ->
+    {ok, MFArgs :: {module(), atom(), list(_Arg)}} | {error, {undefined, list(_Arg)}}.
+prepare_applicable_mod_opts(ModOpts, Function, Args) ->
     {Mod, Arg} = separate_mod_opts(ModOpts),
     FunctionArgs = [Arg | Args],
     ok = maybe_load_module(Mod),
     case erlang:function_exported(Mod, Function, length(FunctionArgs)) of
         true ->
-            erlang:apply(Mod, Function, FunctionArgs);
+            {ok, {Mod, Function, FunctionArgs}};
         false ->
-            Default
+            {error, {undefined, FunctionArgs}}
     end.
 
 -spec maybe_load_module(module()) -> ok.
