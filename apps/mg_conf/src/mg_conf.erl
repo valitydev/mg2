@@ -209,7 +209,7 @@ event_sink_namespace_options(#{storage := Storage} = EventSinkNS, Pulse) ->
 worker_manager_options(Config) ->
     maps:merge(
         #{
-            registry => mg_core_procreg_gproc
+            registry => mg_procreg_gproc
         },
         maps:get(worker, Config, #{})
     ).

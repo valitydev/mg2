@@ -28,6 +28,7 @@
         snowflake,
         mg_scheduler,
         mg_utils,
+        mg_procreg,
         opentelemetry_api
     ]},
     {env, []},

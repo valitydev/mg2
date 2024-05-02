@@ -195,14 +195,14 @@ handle_info(Info, State) ->
 
 % Process registration
 
--spec self_reg_name(id()) -> mg_skd_procreg:reg_name().
+-spec self_reg_name(id()) -> mg_procreg:reg_name().
 self_reg_name(ID) ->
     %% TODO Decouple `mg_core'/`mg_skd' with `mg_procreg'.
-    mg_skd_procreg:reg_name(mg_skd_procreg_gproc, {?MODULE, ID}).
+    mg_procreg:reg_name(mg_procreg_gproc, {?MODULE, ID}).
 
--spec self_ref(id()) -> mg_skd_procreg:ref().
+-spec self_ref(id()) -> mg_procreg:ref().
 self_ref(ID) ->
-    mg_skd_procreg:ref(mg_skd_procreg_gproc, {?MODULE, ID}).
+    mg_procreg:ref(mg_procreg_gproc, {?MODULE, ID}).
 
 % Helpers
 

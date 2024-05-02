@@ -127,7 +127,7 @@ mg_woody_config(_C) ->
                 ],
                 event_stash_size => 10,
                 worker => #{
-                    registry => mg_core_procreg_global,
+                    registry => mg_procreg_global,
                     sidecar => mg_cth_worker
                 }
             }

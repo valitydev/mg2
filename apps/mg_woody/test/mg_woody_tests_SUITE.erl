@@ -364,7 +364,7 @@ mg_woody_config(C) ->
                     }}
                 ],
                 worker => #{
-                    registry => mg_core_procreg_global,
+                    registry => mg_procreg_global,
                     sidecar => mg_cth_worker
                 }
             }
@@ -738,7 +738,7 @@ config_with_multiple_event_sinks(_C) ->
                     {mg_event_sink_machine, #{name => default, machine_id => <<"SingleES">>}}
                 ],
                 worker => #{
-                    registry => mg_core_procreg_global,
+                    registry => mg_procreg_global,
                     sidecar => mg_cth_worker
                 }
             },
@@ -766,7 +766,7 @@ config_with_multiple_event_sinks(_C) ->
                     }}
                 ],
                 worker => #{
-                    registry => mg_core_procreg_global,
+                    registry => mg_procreg_global,
                     sidecar => mg_cth_worker
                 }
             }

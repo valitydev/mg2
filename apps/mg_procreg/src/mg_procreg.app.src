@@ -1,5 +1,5 @@
-{application, mg_scheduler, [
-    {description, "Machinegun scheduler"},
+{application, mg_procreg, [
+    {description, "Machinegun process registry lib"},
     {vsn, "1"},
     {registered, []},
     {applications, [
@@ -7,10 +7,7 @@
         stdlib,
         genlib,
         gproc,
-        gen_squad,
-        mg_utils,
-        mg_procreg,
-        opentelemetry_api
+        mg_utils
     ]},
     {env, []},
     {modules, []},

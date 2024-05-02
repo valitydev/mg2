@@ -296,7 +296,7 @@ automaton_options(_C) ->
         processor => ?MODULE,
         storage => mg_core_storage_memory,
         worker => #{
-            registry => mg_core_procreg_global
+            registry => mg_procreg_global
         },
         notification => notification_options(),
         notification_processing_timeout => 500,

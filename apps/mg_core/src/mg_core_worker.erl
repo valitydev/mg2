@@ -49,7 +49,7 @@
 
 -type options() :: #{
     worker => mg_utils:mod_opts(),
-    registry => mg_core_procreg:options(),
+    registry => mg_procreg:options(),
     hibernate_timeout => pos_integer(),
     unload_timeout => pos_integer(),
     shutdown_timeout => timeout()
@@ -80,7 +80,7 @@ child_spec(ChildID, Options) ->
 
 -spec start_link(options(), mg_core:ns(), mg_core:id(), req_ctx()) -> mg_utils:gen_start_ret().
 start_link(Options, NS, ID, ReqCtx) ->
-    mg_core_procreg:start_link(
+    mg_procreg:start_link(
         procreg_options(Options),
         ?WRAP_ID(NS, ID),
         ?MODULE,
@@ -104,7 +104,7 @@ call(Options, NS, ID, Call, ReqCtx, Deadline, Pulse) ->
         request_context = ReqCtx,
         deadline = Deadline
     }),
-    mg_core_procreg:call(
+    mg_procreg:call(
         procreg_options(Options),
         ?WRAP_ID(NS, ID),
         {call, Deadline, Call, ReqCtx},
@@ -147,11 +147,11 @@ is_alive(Options, NS, ID) ->
     Pid =/= undefined andalso erlang:is_process_alive(Pid).
 
 % TODO nonuniform interface
--spec list(mg_core_procreg:options(), mg_core:ns()) -> [{mg_core:ns(), mg_core:id(), pid()}].
+-spec list(mg_procreg:options(), mg_core:ns()) -> [{mg_core:ns(), mg_core:id(), pid()}].
 list(Procreg, NS) ->
     [
         {NS, ID, Pid}
-     || {?WRAP_ID(_, ID), Pid} <- mg_core_procreg:select(Procreg, ?WRAP_ID(NS, '$1'))
+     || {?WRAP_ID(_, ID), Pid} <- mg_procreg:select(Procreg, ?WRAP_ID(NS, '$1'))
     ].
 
 %%
@@ -300,10 +300,10 @@ schedule_unload_timer(State = #{unload_tref := UnloadTRef}) ->
 start_timer(State) ->
     erlang:start_timer(unload_timeout(State), erlang:self(), unload).
 
--spec self_ref(options(), mg_core:ns(), mg_core:id()) -> mg_core_procreg:ref().
+-spec self_ref(options(), mg_core:ns(), mg_core:id()) -> mg_procreg:ref().
 self_ref(Options, NS, ID) ->
-    mg_core_procreg:ref(procreg_options(Options), ?WRAP_ID(NS, ID)).
+    mg_procreg:ref(procreg_options(Options), ?WRAP_ID(NS, ID)).
 
--spec procreg_options(options()) -> mg_core_procreg:options().
+-spec procreg_options(options()) -> mg_procreg:options().
 procreg_options(#{registry := ProcregOptions}) ->
     ProcregOptions.

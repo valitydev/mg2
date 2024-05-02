@@ -47,7 +47,7 @@
 -type options() :: #{
     name := name(),
     pulse := mpulse:handler(),
-    registry := mg_core_procreg:options(),
+    registry := mg_procreg:options(),
     message_queue_len_limit => queue_limit(),
     % all but `registry`
     worker_options := mg_core_worker:options(),
@@ -56,7 +56,7 @@
 -type queue_limit() :: non_neg_integer().
 
 -type ns_options() :: #{
-    registry => mg_core_procreg:options(),
+    registry => mg_procreg:options(),
     message_queue_len_limit => queue_limit(),
     % all but `registry`
     worker_options => mg_core_worker:options(),

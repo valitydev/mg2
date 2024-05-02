@@ -1,8 +1,8 @@
--module(mg_core_procreg_global).
+-module(mg_procreg_global).
 
 %%
 
--behaviour(mg_core_procreg).
+-behaviour(mg_procreg).
 
 -export([ref/2]).
 -export([reg_name/2]).
@@ -15,15 +15,15 @@
 
 %%
 
--spec ref(options(), mg_core_procreg:name()) -> mg_core_procreg:ref().
+-spec ref(options(), mg_procreg:name()) -> mg_procreg:ref().
 ref(_Options, Name) ->
     {global, Name}.
 
--spec reg_name(options(), mg_core_procreg:name()) -> mg_core_procreg:reg_name().
+-spec reg_name(options(), mg_procreg:name()) -> mg_procreg:reg_name().
 reg_name(Options, Name) ->
     ref(Options, Name).
 
--spec select(options(), mg_core_procreg:name_pattern()) -> [{mg_core_procreg:name(), pid()}].
+-spec select(options(), mg_procreg:name_pattern()) -> [{mg_procreg:name(), pid()}].
 select(_Options, NamePattern) ->
     lists:foldl(
         fun(Name, Acc) ->
@@ -36,12 +36,12 @@ select(_Options, NamePattern) ->
         global:registered_names()
     ).
 
--spec start_link(options(), mg_core_procreg:reg_name(), module(), _Args, list()) ->
-    mg_core_procreg:start_link_ret().
+-spec start_link(options(), mg_procreg:reg_name(), module(), _Args, list()) ->
+    mg_procreg:start_link_ret().
 start_link(_Options, RegName, Module, Args, Opts) ->
     gen_server:start_link(RegName, Module, Args, Opts).
 
--spec call(options(), mg_core_procreg:ref(), _Call, timeout()) -> _Reply.
+-spec call(options(), mg_procreg:ref(), _Call, timeout()) -> _Reply.
 call(_Options, Ref, Call, Timeout) ->
     gen_server:call(Ref, Call, Timeout).
 

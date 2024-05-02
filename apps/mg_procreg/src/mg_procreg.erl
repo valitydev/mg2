@@ -1,5 +1,5 @@
 %%%
-%%% Copyright 2019 RBKmoney
+%%% Copyright 2024 Valitydev
 %%%
 %%% Licensed under the Apache License, Version 2.0 (the "License");
 %%% you may not use this file except in compliance with the License.
@@ -14,7 +14,7 @@
 %%% limitations under the License.
 %%%
 
--module(mg_core_procreg).
+-module(mg_procreg).
 
 % Any term sans ephemeral ones, like `reference()`s / `pid()`s / `fun()`s.
 -type name() :: term().

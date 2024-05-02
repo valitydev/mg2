@@ -270,8 +270,8 @@ health_check(YamlConfig) ->
 
 health_check_fun(_YamlConfig) ->
     %% TODO Review necessity of that configuration handle
-    %% case ?C:conf([process_registry, module], YamlConfig, <<"mg_core_procreg_global">>) of
-    %%     <<"mg_core_procreg_global">> -> global
+    %% case ?C:conf([process_registry, module], YamlConfig, <<"mg_procreg_global">>) of
+    %%     <<"mg_procreg_global">> -> global
     %% end.
     global.
 
@@ -565,11 +565,14 @@ event_sink(kafka, Name, ESYamlConfig) ->
     }}.
 
 procreg(YamlConfig) ->
-    % Use process_registry if it's set up or gproc otherwise
+    %% Use process_registry if it's set up or gproc otherwise
+    %% TODO Add support for aliases for procreg modules. It's
+    %%      improper to expose internal module name in yaml
+    %%      configuration file.
     conf_with(
         [process_registry],
         YamlConfig,
-        mg_core_procreg_gproc,
+        mg_procreg_gproc,
         fun(ProcRegYamlConfig) -> ?C:atom(?C:conf([module], ProcRegYamlConfig)) end
     ).
 

@@ -106,11 +106,11 @@ execute(SchedulerID, #{task_handler := Handler} = Options, Task, SpanCtx) ->
 
 -spec self_ref(scheduler_id()) -> mg_utils:gen_ref().
 self_ref(ID) ->
-    mg_skd_procreg:ref(mg_skd_procreg_gproc, wrap_id(ID)).
+    mg_procreg:ref(mg_procreg_gproc, wrap_id(ID)).
 
 -spec self_reg_name(scheduler_id()) -> mg_utils:gen_reg_name().
 self_reg_name(ID) ->
-    mg_skd_procreg:reg_name(mg_skd_procreg_gproc, wrap_id(ID)).
+    mg_procreg:reg_name(mg_procreg_gproc, wrap_id(ID)).
 
 -spec wrap_id(scheduler_id()) -> term().
 wrap_id(ID) ->

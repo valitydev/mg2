@@ -149,7 +149,7 @@ event_sink_ns_options() ->
         namespace => ?ES_ID,
         storage => mg_core_storage_memory,
         worker => #{
-            registry => mg_core_procreg_global
+            registry => mg_procreg_global
         },
         pulse => ?MODULE,
         default_processing_timeout => 1000,

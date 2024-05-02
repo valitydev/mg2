@@ -231,7 +231,7 @@ stop_automaton(Pid) ->
 -spec events_machine_options(options()) -> mg_core_events_machine:options().
 events_machine_options(Options) ->
     NS = maps:get(namespace, Options),
-    Scheduler = #{registry => mg_core_procreg_global, interval => 100},
+    Scheduler = #{registry => mg_procreg_global, interval => 100},
     #{
         namespace => NS,
         processor => maps:get(processor, Options),
@@ -242,7 +242,7 @@ events_machine_options(Options) ->
                     existing_storage_name => ?MODULE
                 }},
             worker => #{
-                registry => mg_core_procreg_global
+                registry => mg_procreg_global
             },
             notification => #{
                 namespace => NS,

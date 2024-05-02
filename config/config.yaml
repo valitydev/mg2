@@ -136,9 +136,10 @@ cluster:
     # optional, default value 5000 ms
     reconnect_timeout: 5000
 
-# if undefined then 'mg_core_procreg_gproc' will be used
+# TODO Use aliases, not actual module names.
+# if undefined then 'mg_procreg_gproc' will be used
 process_registry:
-    module: mg_core_procreg_global
+    module: mg_procreg_global
 
 limits:
     process_heap: 2M # heap limit

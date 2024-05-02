@@ -201,7 +201,7 @@ automaton_options(NS, RetryPolicy) ->
         processor => ?MODULE,
         storage => mg_cth:build_storage(NS, mg_core_storage_memory),
         worker => #{
-            registry => mg_core_procreg_global
+            registry => mg_procreg_global
         },
         notification => #{
             namespace => NS,

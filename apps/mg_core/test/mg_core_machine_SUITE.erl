@@ -78,9 +78,9 @@ end_per_suite(C) ->
 
 -spec init_per_group(group_name(), config()) -> config().
 init_per_group(with_gproc, C) ->
-    [{registry, mg_core_procreg_gproc} | C];
+    [{registry, mg_procreg_gproc} | C];
 init_per_group(with_global, C) ->
-    [{registry, mg_core_procreg_global} | C];
+    [{registry, mg_procreg_global} | C];
 init_per_group(base, C) ->
     C.
 
