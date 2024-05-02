@@ -163,10 +163,10 @@
 %%        fixed for namespace and pulse, worker
 -type options() :: #{
     namespace := mg_core:ns(),
-    pulse := mg_core_pulse:handler(),
+    pulse := mpulse:handler(),
     storage => storage_options(),
     notification => mg_core_notification:options(),
-    processor => mg_core_utils:mod_opts(),
+    processor => mg_utils:mod_opts(),
     worker := mg_core_workers_manager:ns_options(),
     retries => retry_opt(),
     schedulers => schedulers_opt(),
@@ -176,7 +176,7 @@
 }.
 
 % like mg_core_storage:options() except `name`
--type storage_options() :: mg_core_utils:mod_opts(map()).
+-type storage_options() :: mg_utils:mod_opts(map()).
 
 -type thrown_error() ::
     {logic, logic_error()} | {transient, transient_error()} | {timeout, _Reason}.
@@ -266,11 +266,11 @@ child_spec(Options, ChildID) ->
         type => supervisor
     }.
 
--spec start_link(options()) -> mg_core_utils:gen_start_ret().
+-spec start_link(options()) -> mg_utils:gen_start_ret().
 start_link(Options = #{namespace := NS}) ->
     start_link(Options, {?MODULE, NS}).
 
--spec start_link(options(), _ChildID) -> mg_core_utils:gen_start_ret().
+-spec start_link(options(), _ChildID) -> mg_utils:gen_start_ret().
 start_link(Options, ChildID) ->
     genlib_adhoc_supervisor:start_link(
         #{strategy => one_for_one},
@@ -287,7 +287,7 @@ machine_sup_child_spec(Options, ChildID) ->
         start =>
             {genlib_adhoc_supervisor, start_link, [
                 #{strategy => rest_for_one},
-                mg_core_utils:lists_compact([
+                mg_utils:lists_compact([
                     mg_core_storage:child_spec(storage_options(Options), storage),
                     notification_child_spec(Options),
                     processor_child_spec(Options),
@@ -309,7 +309,7 @@ scheduler_sup_child_spec(Options, ChildID) ->
                     intensity => 10,
                     period => 30
                 },
-                mg_core_utils:lists_compact([
+                mg_utils:lists_compact([
                     scheduler_child_spec(timers, Options),
                     scheduler_child_spec(timers_retries, Options),
                     scheduler_child_spec(overseer, Options),
@@ -380,14 +380,14 @@ resume_interrupted(Options, ID, Deadline) ->
 fail(Options, ID, ReqCtx, Deadline) ->
     fail(Options, ID, {error, explicit_fail, []}, ReqCtx, Deadline).
 
--spec fail(options(), mg_core:id(), mg_core_utils:exception(), request_context(), deadline()) -> ok.
+-spec fail(options(), mg_core:id(), mg_utils:exception(), request_context(), deadline()) -> ok.
 fail(Options, ID, Exception, ReqCtx, Deadline) ->
     call_(Options, ID, {fail, Exception}, ReqCtx, Deadline).
 
 -spec get(options(), mg_core:id()) -> storage_machine() | throws().
 get(Options, ID) ->
     {_, StorageMachine} =
-        mg_core_utils:throw_if_undefined(
+        mg_utils:throw_if_undefined(
             get_storage_machine(Options, ID),
             {logic, machine_not_found}
         ),
@@ -465,7 +465,7 @@ all_statuses() ->
 
 -spec call_(options(), mg_core:id(), _, maybe(request_context()), deadline()) -> _ | no_return().
 call_(Options, ID, Call, ReqCtx, Deadline) ->
-    mg_core_utils:throw_if_error(
+    mg_utils:throw_if_error(
         mg_core_workers_manager:call(manager_options(Options), ID, Call, ReqCtx, Deadline)
     ).
 
@@ -963,7 +963,7 @@ handle_transient_exception(_Reason, State) ->
     State.
 
 -spec handle_exception(Exception, ReqCtx, Deadline, state()) -> state() when
-    Exception :: mg_core_utils:exception(),
+    Exception :: mg_utils:exception(),
     ReqCtx :: request_context(),
     Deadline :: deadline().
 handle_exception(Exception, ReqCtx, Deadline, State) ->
@@ -1067,7 +1067,7 @@ handle_notification_processed(NotificationID, State = #{notifications_processed 
 ) -> processor_result().
 call_processor(Impact, ProcessingCtx, ReqCtx, Deadline, State) ->
     #{options := Options, id := ID, storage_machine := #{state := MachineState}} = State,
-    mg_core_utils:apply_mod_opts(
+    mg_utils:apply_mod_opts(
         get_options(processor, Options),
         process_machine,
         [ID, Impact, ProcessingCtx, ReqCtx, Deadline, MachineState]
@@ -1081,7 +1081,7 @@ notification_child_spec(#{}) ->
 
 -spec processor_child_spec(options()) -> supervisor:child_spec().
 processor_child_spec(Options) ->
-    mg_core_utils:apply_mod_opts_if_defined(
+    mg_utils:apply_mod_opts_if_defined(
         get_options(processor, Options),
         processor_child_spec,
         undefined
@@ -1417,7 +1417,7 @@ manager_options(Options = #{namespace := NS, worker := ManagerOptions, pulse := 
 
 -spec storage_options(options()) -> mg_core_storage:options().
 storage_options(#{namespace := NS, storage := StorageOptions, pulse := Handler}) ->
-    {Mod, Options} = mg_core_utils:separate_mod_opts(StorageOptions, #{}),
+    {Mod, Options} = mg_utils:separate_mod_opts(StorageOptions, #{}),
     {Mod, Options#{name => {NS, ?MODULE, machines}, pulse => Handler}}.
 
 -spec notification_options(options()) -> mg_core_notification:options().
@@ -1585,6 +1585,6 @@ do_with_retry(Options = #{namespace := NS}, ID, Fun, RetryStrategy, ReqCtx, Beat
 %% logging
 %%
 
--spec emit_beat(options(), mg_core_pulse:beat()) -> ok.
+-spec emit_beat(options(), mpulse:beat()) -> ok.
 emit_beat(#{pulse := Handler}, Beat) ->
-    ok = mg_core_pulse:handle_beat(Handler, Beat).
+    ok = mpulse:handle_beat(Handler, Beat).

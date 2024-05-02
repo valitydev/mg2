@@ -4,7 +4,7 @@
 -include_lib("opentelemetry_api/include/opentelemetry.hrl").
 
 %% mg_pulse handler
--behaviour(mg_core_pulse).
+-behaviour(mpulse).
 
 -export([handle_beat/2]).
 
@@ -12,7 +12,8 @@
 -type options() :: map().
 
 -type beat() ::
-    mg_core_pulse:beat()
+    mg_core:beat()
+    | mg_skd:beat()
     | mg_skd_scanner:beat().
 
 -export_type([options/0]).

@@ -28,7 +28,7 @@
     name := atom(),
     topic := brod:topic(),
     client := brod:client(),
-    pulse := mg_core_pulse:handler(),
+    pulse := mpulse:handler(),
     encoder := encoder()
 }.
 
@@ -53,7 +53,7 @@ add_events(Options, NS, MachineID, Events, ReqCtx, Deadline) ->
     EncodeTimestamp = erlang:monotonic_time(),
     {ok, Partition, Offset} = produce(Client, Topic, event_key(NS, MachineID), Batch),
     FinishTimestamp = erlang:monotonic_time(),
-    ok = mg_core_pulse:handle_beat(Pulse, #mg_event_sink_kafka_sent{
+    ok = mpulse:handle_beat(Pulse, #mg_event_sink_kafka_sent{
         name = Name,
         namespace = NS,
         machine_id = MachineID,

@@ -38,7 +38,7 @@
     deadline => mg_core_deadline:deadline(),
     request_context := mg_core:request_context()
 }.
--type pulse() :: mg_core_pulse:handler().
+-type pulse() :: mpulse:handler().
 
 %%
 %% Woody
@@ -58,7 +58,7 @@ handle_error(Ctx, F, Pulse) ->
                 machine_id := ID,
                 request_context := ReqCtx
             } = Ctx,
-            ok = mg_core_pulse:handle_beat(Pulse, #woody_request_handle_error{
+            ok = mpulse:handle_beat(Pulse, #woody_request_handle_error{
                 namespace = NS,
                 machine_id = ID,
                 request_context = ReqCtx,

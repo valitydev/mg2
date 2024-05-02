@@ -35,7 +35,7 @@
 -type milliseconds() :: non_neg_integer().
 -type options() :: #{
     scheduler_id := mg_skd:id(),
-    pulse := mg_core_pulse:handler(),
+    pulse := mpulse:handler(),
     machine := mg_core_machine:options(),
     notification := mg_core_notification:options(),
     % how many seconds behind real time we are
@@ -209,7 +209,7 @@ get_reschedule_time(Options) ->
     options(),
     mg_core:id(),
     mg_core_notification:id(),
-    mg_core_utils:exception(),
+    mg_utils:exception(),
     fail_action()
 ) -> ok.
 emit_delivery_error_beat(Options, MachineID, NotificationID, Exception, Action) ->
@@ -233,6 +233,6 @@ emit_delivered_beat(Options, MachineID, NotificationID) ->
         notification_id = NotificationID
     }).
 
--spec emit_beat(options(), mg_core_pulse:beat()) -> ok.
+-spec emit_beat(options(), mpulse:beat()) -> ok.
 emit_beat(Options, Beat) ->
-    ok = mg_core_pulse:handle_beat(maps:get(pulse, Options, undefined), Beat).
+    ok = mpulse:handle_beat(maps:get(pulse, Options, undefined), Beat).

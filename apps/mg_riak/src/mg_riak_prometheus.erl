@@ -37,7 +37,7 @@ child_spec(_Options, Storage, ChildID) ->
 
 -spec init(mg_core_storage:options()) -> genlib_gen:supervisor_ret().
 init(Storage) ->
-    {mg_riak_storage, StorageOptions} = mg_core_utils:separate_mod_opts(Storage),
+    {mg_riak_storage, StorageOptions} = mg_utils:separate_mod_opts(Storage),
     true = gproc:add_local_property(?PROPNAME, StorageOptions),
     % NOTE
     % We only care about keeping gproc property live through this supervisor process.

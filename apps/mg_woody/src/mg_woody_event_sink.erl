@@ -110,6 +110,6 @@ check_event_sink(AvaliableEventSinks, EventSinkID) ->
             throw({logic, event_sink_not_found})
     end.
 
--spec pulse(mg_event_sink_machine:ns_options()) -> mg_core_pulse:handler().
+-spec pulse(mg_event_sink_machine:ns_options()) -> mpulse:handler().
 pulse(#{pulse := Pulse}) ->
     Pulse.

@@ -27,7 +27,7 @@
     machine_id :: mg_core:id(),
     request_context :: mg_core:request_context(),
     deadline :: mg_core_deadline:deadline(),
-    exception :: mg_core_utils:exception()
+    exception :: mg_utils:exception()
 }).
 
 %% Timer processing
@@ -57,7 +57,7 @@
 -record(mg_core_machine_process_transient_error, {
     namespace :: mg_core:ns(),
     machine_id :: mg_core:id(),
-    exception :: mg_core_utils:exception(),
+    exception :: mg_utils:exception(),
     request_context :: mg_core:request_context()
 }).
 
@@ -116,7 +116,7 @@
     machine_id :: mg_core:id(),
     request_context :: mg_core:request_context(),
     deadline :: mg_core_deadline:deadline(),
-    exception :: mg_core_utils:exception()
+    exception :: mg_utils:exception()
 }).
 
 -record(mg_core_machine_lifecycle_repaired, {
@@ -130,14 +130,14 @@
     namespace :: mg_core:ns(),
     machine_id :: mg_core:id(),
     request_context :: mg_core:request_context(),
-    exception :: mg_core_utils:exception()
+    exception :: mg_utils:exception()
 }).
 
 -record(mg_core_machine_lifecycle_transient_error, {
     context :: atom(),
     namespace :: mg_core:ns(),
     machine_id :: mg_core:id(),
-    exception :: mg_core_utils:exception(),
+    exception :: mg_utils:exception(),
     request_context :: mg_core:request_context(),
     retry_strategy :: genlib_retry:strategy(),
     retry_action :: {wait, timeout(), genlib_retry:strategy()} | finish
@@ -162,7 +162,7 @@
     namespace :: mg_core:ns(),
     machine_id :: mg_core:id(),
     notification_id :: mg_core:id(),
-    exception :: mg_core_utils:exception(),
+    exception :: mg_utils:exception(),
     action :: delete | {reschedule, genlib_time:ts()} | ignore
 }).
 

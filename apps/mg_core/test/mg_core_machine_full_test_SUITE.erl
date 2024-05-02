@@ -294,7 +294,7 @@ start() ->
 
 -spec start_automaton(mg_core_machine:options()) -> pid().
 start_automaton(Options) ->
-    mg_core_utils:throw_if_error(mg_core_machine:start_link(Options)).
+    mg_utils:throw_if_error(mg_core_machine:start_link(Options)).
 
 -spec stop_automaton(pid()) -> ok.
 stop_automaton(Pid) ->
@@ -324,7 +324,7 @@ automaton_options() ->
 lists_random(List) ->
     lists:nth(rand:uniform(length(List)), List).
 
--spec handle_beat(_, mg_core_pulse:beat()) -> ok.
+-spec handle_beat(_, mpulse:beat()) -> ok.
 handle_beat(Options, Beat) ->
     ok = mg_core_pulse_otel:handle_beat(Options, Beat),
     %% NOTE для отладки может понадобится

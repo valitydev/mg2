@@ -132,7 +132,7 @@ assert_wait_expected(Expected, Fun, Strategy) when is_function(Fun, 0) ->
             end
     end.
 
--spec build_storage(mg_core:ns(), mg_core_utils:mod_opts()) -> mg_core_utils:mod_opts().
+-spec build_storage(mg_core:ns(), mg_utils:mod_opts()) -> mg_utils:mod_opts().
 build_storage(NS, Module) when is_atom(Module) ->
     build_storage(NS, {Module, #{}});
 build_storage(NS, {Module, Options}) ->

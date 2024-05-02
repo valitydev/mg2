@@ -20,11 +20,11 @@
 -type name() :: term().
 -type name_pattern() :: ets:match_pattern().
 
--type ref() :: mg_core_utils:gen_ref().
--type reg_name() :: mg_core_utils:gen_reg_name().
+-type ref() :: mg_utils:gen_ref().
+-type reg_name() :: mg_utils:gen_reg_name().
 
 -type procreg_options() :: term().
--type options() :: mg_core_utils:mod_opts(procreg_options()).
+-type options() :: mg_utils:mod_opts(procreg_options()).
 
 -export_type([name/0]).
 -export_type([name_pattern/0]).
@@ -61,15 +61,15 @@
 
 -spec ref(options(), name()) -> ref().
 ref(Options, Name) ->
-    mg_core_utils:apply_mod_opts(Options, ref, [Name]).
+    mg_utils:apply_mod_opts(Options, ref, [Name]).
 
 -spec reg_name(options(), name()) -> reg_name().
 reg_name(Options, Name) ->
-    mg_core_utils:apply_mod_opts(Options, reg_name, [Name]).
+    mg_utils:apply_mod_opts(Options, reg_name, [Name]).
 
 -spec select(options(), name_pattern()) -> [{name(), pid()}].
 select(Options, NamePattern) ->
-    mg_core_utils:apply_mod_opts(Options, select, [NamePattern]).
+    mg_utils:apply_mod_opts(Options, select, [NamePattern]).
 
 -spec call(options(), name(), _Call) -> _Reply.
 call(Options, Name, Call) ->
@@ -77,11 +77,11 @@ call(Options, Name, Call) ->
 
 -spec call(options(), name(), _Call, timeout()) -> _Reply.
 call(Options, Name, Call, Timeout) ->
-    mg_core_utils:apply_mod_opts(Options, call, [ref(Options, Name), Call, Timeout]).
+    mg_utils:apply_mod_opts(Options, call, [ref(Options, Name), Call, Timeout]).
 
 -spec start_link(options(), name(), module(), _Args, list()) -> start_link_ret().
 start_link(Options, Name, Module, Args, Opts) ->
-    mg_core_utils:apply_mod_opts(
+    mg_utils:apply_mod_opts(
         Options,
         start_link,
         [reg_name(Options, Name), Module, Args, Opts]

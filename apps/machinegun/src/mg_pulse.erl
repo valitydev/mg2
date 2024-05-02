@@ -20,13 +20,13 @@
 -include_lib("mg_es_kafka/include/pulse.hrl").
 
 %% mg_pulse handler
--behaviour(mg_core_pulse).
+-behaviour(mpulse).
 
 -export([handle_beat/2]).
 
 %% pulse types
 -type beat() ::
-    mg_core_pulse:beat()
+    mpulse:beat()
     | mg_riak_pulse:beat()
     | mg_skd_scanner:beat()
     | #woody_event{}

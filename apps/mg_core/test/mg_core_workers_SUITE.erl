@@ -547,7 +547,7 @@ try_unlink(#{}) ->
 %%
 -spec start_workers(_Options) -> pid().
 start_workers(Options) ->
-    mg_core_utils:throw_if_error(mg_core_workers_manager:start_link(Options)).
+    mg_utils:throw_if_error(mg_core_workers_manager:start_link(Options)).
 
 -spec stop_workers(pid()) -> ok.
 stop_workers(Pid) ->

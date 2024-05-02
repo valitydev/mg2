@@ -29,7 +29,7 @@
 
 %% Types
 
--type handler(Options) :: mg_core_utils:mod_opts(Options).
+-type handler(Options) :: mg_utils:mod_opts(Options).
 -type handler() :: handler(handler_options()).
 
 -export_type([handler/1]).
@@ -48,4 +48,4 @@
 add_events(_Handler, _NS, _ID, [], _ReqCtx, _Deadline) ->
     ok;
 add_events(Handler, NS, ID, Events, ReqCtx, Deadline) ->
-    ok = mg_core_utils:apply_mod_opts(Handler, add_events, [NS, ID, Events, ReqCtx, Deadline]).
+    ok = mg_utils:apply_mod_opts(Handler, add_events, [NS, ID, Events, ReqCtx, Deadline]).

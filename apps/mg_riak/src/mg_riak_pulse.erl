@@ -2,6 +2,8 @@
 
 -include_lib("mg_riak/include/pulse.hrl").
 
+-behaviour(mpulse).
+
 %% API
 -export_type([beat/0]).
 -export([handle_beat/2]).
@@ -24,6 +26,6 @@
     | #mg_riak_connection_pool_connection_killed{}
     | #mg_riak_connection_pool_error{}.
 
--spec handle_beat(any(), beat() | _OtherBeat) -> ok.
+-spec handle_beat(any(), beat() | mpulse:beat()) -> ok.
 handle_beat(_Options, _Beat) ->
     ok.

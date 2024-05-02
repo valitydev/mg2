@@ -4,12 +4,12 @@
 
 -export([setup/0]).
 
-%% mg_pulse handler
--behaviour(mg_core_pulse).
+%% mpulse handler
+-behaviour(mpulse).
 -export([handle_beat/2]).
 
 %% internal types
--type beat() :: #mg_event_sink_kafka_sent{} | mg_core_pulse:beat().
+-type beat() :: #mg_event_sink_kafka_sent{} | mg_core:beat().
 -type options() :: #{}.
 -type metric_name() :: prometheus_metric:name().
 -type metric_label_value() :: term().

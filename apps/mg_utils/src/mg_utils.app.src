@@ -1,15 +1,11 @@
-{application, mg_scheduler, [
-    {description, "Machinegun scheduler"},
+{application, mg_utils, [
+    {description, "Machinegun utils library"},
     {vsn, "1"},
     {registered, []},
     {applications, [
         kernel,
         stdlib,
-        genlib,
-        gproc,
-        gen_squad,
-        mg_utils,
-        opentelemetry_api
+        genlib
     ]},
     {env, []},
     {modules, []},

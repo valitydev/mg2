@@ -46,12 +46,12 @@
 %%        fixed for name and pulse, registry and worker_options
 -type options() :: #{
     name := name(),
-    pulse := mg_core_pulse:handler(),
+    pulse := mpulse:handler(),
     registry := mg_core_procreg:options(),
     message_queue_len_limit => queue_limit(),
     % all but `registry`
     worker_options := mg_core_worker:options(),
-    sidecar => mg_core_utils:mod_opts()
+    sidecar => mg_utils:mod_opts()
 }.
 -type queue_limit() :: non_neg_integer().
 
@@ -60,14 +60,14 @@
     message_queue_len_limit => queue_limit(),
     % all but `registry`
     worker_options => mg_core_worker:options(),
-    sidecar => mg_core_utils:mod_opts()
+    sidecar => mg_utils:mod_opts()
 }.
 
 %% Internal types
 -type id() :: mg_core:id().
 -type name() :: mg_core:ns().
 -type req_ctx() :: mg_core:request_context().
--type gen_ref() :: mg_core_utils:gen_ref().
+-type gen_ref() :: mg_utils:gen_ref().
 -type maybe(T) :: T | undefined.
 -type deadline() :: mg_core_deadline:deadline().
 
@@ -87,11 +87,11 @@ child_spec(Options, ChildID) ->
         type => supervisor
     }.
 
--spec start_link(options()) -> mg_core_utils:gen_start_ret().
+-spec start_link(options()) -> mg_utils:gen_start_ret().
 start_link(Options) ->
     genlib_adhoc_supervisor:start_link(
         #{strategy => rest_for_one},
-        mg_core_utils:lists_compact([
+        mg_utils:lists_compact([
             manager_child_spec(Options),
             sidecar_child_spec(Options)
         ])
@@ -112,7 +112,7 @@ manager_child_spec(Options) ->
 
 -spec sidecar_child_spec(options()) -> supervisor:child_spec() | undefined.
 sidecar_child_spec(#{sidecar := Sidecar} = Options) ->
-    mg_core_utils:apply_mod_opts(Sidecar, child_spec, [Options, sidecar]);
+    mg_utils:apply_mod_opts(Sidecar, child_spec, [Options, sidecar]);
 sidecar_child_spec(#{}) ->
     undefined.
 
@@ -219,8 +219,8 @@ start_child(Options, ID, ReqCtx) ->
     SelfRef = self_ref(Options),
     #{name := Name, pulse := Pulse} = Options,
     MsgQueueLimit = message_queue_len_limit(Options),
-    MsgQueueLen = mg_core_utils:msg_queue_len(SelfRef),
-    ok = mg_core_pulse:handle_beat(Pulse, #mg_core_worker_start_attempt{
+    MsgQueueLen = mg_utils:msg_queue_len(SelfRef),
+    ok = mpulse:handle_beat(Pulse, #mg_core_worker_start_attempt{
         namespace = Name,
         machine_id = ID,
         request_context = ReqCtx,
@@ -251,7 +251,7 @@ message_queue_len_limit(Options) ->
 self_ref(Options) ->
     {via, gproc, gproc_key(Options)}.
 
--spec self_reg_name(options()) -> mg_core_utils:gen_reg_name().
+-spec self_reg_name(options()) -> mg_utils:gen_reg_name().
 self_reg_name(Options) ->
     {via, gproc, gproc_key(Options)}.
 

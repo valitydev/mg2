@@ -73,7 +73,7 @@
     port := inet:port_number(),
     bucket := bucket(),
     pool_options := pool_options(),
-    pulse := mg_core_pulse:handler(),
+    pulse := mpulse:handler(),
     resolve_timeout => timeout(),
     connect_timeout => timeout(),
     request_timeout => timeout(),
@@ -96,7 +96,7 @@
     {return_terms, boolean()}
     | {term_regex, binary()}.
 -type range_index_opts() :: [index_opt() | range_index_opt()].
--type client_ref() :: mg_core_utils:gen_ref().
+-type client_ref() :: mg_utils:gen_ref().
 
 %% See https://github.com/seth/pooler/blob/master/src/pooler_config.erl for pool option details
 -type pool_options() :: #{
@@ -111,7 +111,7 @@
 -type pool_name() :: atom().
 -type pulse_options() :: #{
     name := mg_core_storage:name(),
-    pulse := mg_core_pulse:handler()
+    pulse := mpulse:handler()
 }.
 
 %% Duration is measured in native units
@@ -146,12 +146,12 @@ pool_utilization(Options) ->
 %% internal API
 %%
 
--spec start_client(options()) -> mg_core_utils:gen_start_ret().
+-spec start_client(options()) -> mg_utils:gen_start_ret().
 start_client(#{port := Port} = Options) ->
     IP = get_riak_addr(Options),
     riakc_pb_socket:start_link(IP, Port, [{connect_timeout, get_option(connect_timeout, Options)}]).
 
--spec start_link(options()) -> mg_core_utils:gen_start_ret().
+-spec start_link(options()) -> mg_utils:gen_start_ret().
 start_link(Options) ->
     PoolName = construct_pool_name(Options),
     PoolConfig = pooler_config:list_to_pool(make_pool_config(PoolName, Options)),
@@ -597,7 +597,7 @@ pulse_options(PoolNameString) ->
 -spec update_or_create([binary()], number(), pooler_metric_type(), []) -> ok.
 update_or_create([<<"pooler">>, PoolNameString, <<"error_no_members_count">>], _, _Counter, []) ->
     #{name := Name, pulse := Handler} = pulse_options(PoolNameString),
-    mg_core_pulse:handle_beat(
+    mpulse:handle_beat(
         Handler,
         #mg_riak_connection_pool_state_reached{
             name = Name,
@@ -606,7 +606,7 @@ update_or_create([<<"pooler">>, PoolNameString, <<"error_no_members_count">>], _
     );
 update_or_create([<<"pooler">>, PoolNameString, <<"queue_max_reached">>], _, _Counter, []) ->
     #{name := Name, pulse := Handler} = pulse_options(PoolNameString),
-    mg_core_pulse:handle_beat(
+    mpulse:handle_beat(
         Handler,
         #mg_riak_connection_pool_state_reached{
             name = Name,
@@ -615,7 +615,7 @@ update_or_create([<<"pooler">>, PoolNameString, <<"queue_max_reached">>], _, _Co
     );
 update_or_create([<<"pooler">>, PoolNameString, <<"starting_member_timeout">>], _, _Counter, []) ->
     #{name := Name, pulse := Handler} = pulse_options(PoolNameString),
-    mg_core_pulse:handle_beat(
+    mpulse:handle_beat(
         Handler,
         #mg_riak_connection_pool_error{
             name = Name,
@@ -624,7 +624,7 @@ update_or_create([<<"pooler">>, PoolNameString, <<"starting_member_timeout">>], 
     );
 update_or_create([<<"pooler">>, PoolNameString, <<"killed_free_count">>], _, _Counter, []) ->
     #{name := Name, pulse := Handler} = pulse_options(PoolNameString),
-    mg_core_pulse:handle_beat(
+    mpulse:handle_beat(
         Handler,
         #mg_riak_connection_pool_connection_killed{
             name = Name,
@@ -633,7 +633,7 @@ update_or_create([<<"pooler">>, PoolNameString, <<"killed_free_count">>], _, _Co
     );
 update_or_create([<<"pooler">>, PoolNameString, <<"killed_in_use_count">>], _, _Counter, []) ->
     #{name := Name, pulse := Handler} = pulse_options(PoolNameString),
-    mg_core_pulse:handle_beat(
+    mpulse:handle_beat(
         Handler,
         #mg_riak_connection_pool_connection_killed{
             name = Name,
@@ -649,40 +649,40 @@ update_or_create(_MetricKey, _Value, _Type, []) ->
 
 -spec emit_beat_start(mg_core_storage:request(), options()) -> ok.
 emit_beat_start({get, _}, #{pulse := Handler, name := Name}) ->
-    ok = mg_core_pulse:handle_beat(Handler, #mg_riak_client_get_start{
+    ok = mpulse:handle_beat(Handler, #mg_riak_client_get_start{
         name = Name
     });
 emit_beat_start({put, _, _, _, _}, #{pulse := Handler, name := Name}) ->
-    ok = mg_core_pulse:handle_beat(Handler, #mg_riak_client_put_start{
+    ok = mpulse:handle_beat(Handler, #mg_riak_client_put_start{
         name = Name
     });
 emit_beat_start({search, _}, #{pulse := Handler, name := Name}) ->
-    ok = mg_core_pulse:handle_beat(Handler, #mg_riak_client_search_start{
+    ok = mpulse:handle_beat(Handler, #mg_riak_client_search_start{
         name = Name
     });
 emit_beat_start({delete, _, _}, #{pulse := Handler, name := Name}) ->
-    ok = mg_core_pulse:handle_beat(Handler, #mg_riak_client_delete_start{
+    ok = mpulse:handle_beat(Handler, #mg_riak_client_delete_start{
         name = Name
     }).
 
 -spec emit_beat_finish(mg_core_storage:request(), options(), duration()) -> ok.
 emit_beat_finish({get, _}, #{pulse := Handler, name := Name}, Duration) ->
-    ok = mg_core_pulse:handle_beat(Handler, #mg_riak_client_get_finish{
+    ok = mpulse:handle_beat(Handler, #mg_riak_client_get_finish{
         name = Name,
         duration = Duration
     });
 emit_beat_finish({put, _, _, _, _}, #{pulse := Handler, name := Name}, Duration) ->
-    ok = mg_core_pulse:handle_beat(Handler, #mg_riak_client_put_finish{
+    ok = mpulse:handle_beat(Handler, #mg_riak_client_put_finish{
         name = Name,
         duration = Duration
     });
 emit_beat_finish({search, _}, #{pulse := Handler, name := Name}, Duration) ->
-    ok = mg_core_pulse:handle_beat(Handler, #mg_riak_client_search_finish{
+    ok = mpulse:handle_beat(Handler, #mg_riak_client_search_finish{
         name = Name,
         duration = Duration
     });
 emit_beat_finish({delete, _, _}, #{pulse := Handler, name := Name}, Duration) ->
-    ok = mg_core_pulse:handle_beat(Handler, #mg_riak_client_delete_finish{
+    ok = mpulse:handle_beat(Handler, #mg_riak_client_delete_finish{
         name = Name,
         duration = Duration
     }).

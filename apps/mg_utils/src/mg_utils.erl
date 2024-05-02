@@ -1,5 +1,5 @@
 %%%
-%%% Copyright 2017 RBKmoney
+%%% Copyright 2024 Valitydev
 %%%
 %%% Licensed under the Apache License, Version 2.0 (the "License");
 %%% you may not use this file except in compliance with the License.
@@ -18,7 +18,7 @@
 %%% То, чего не хватает в OTP.
 %%% TODO перенести в genlib
 %%%
--module(mg_core_utils).
+-module(mg_utils).
 
 %% API
 %% OTP
@@ -75,23 +75,81 @@
 
 -export([take_defined/1]).
 
+%% FIXME Minor crutch for `concatenate_namespaces/2' and scheduler beats
+-type ns() :: binary().
+-export_type([ns/0]).
+
+-type id() :: binary().
+-export_type([id/0]).
+
+-export_type([opaque/0]).
+-type opaque() :: null | true | false | number() | binary() | [opaque()] | #{opaque() => opaque()}.
+
+-export_type([request_context/0]).
+-type request_context() :: opaque().
+
 %%
 %% API
 %% OTP
 %%
-%% TODO Refactor or move somewhere else.
--type reason() :: mg_skd_utils:reason().
--type gen_timeout() :: mg_skd_utils:gen_timeout().
--type gen_start_ret() :: mg_skd_utils:gen_start_ret().
--type gen_ref() :: mg_skd_utils:gen_ref().
--type gen_reg_name() :: mg_skd_utils:gen_reg_name().
--type gen_server_from() :: mg_skd_utils:gen_server_from().
--type gen_server_init_ret(State) :: mg_skd_utils:gen_server_init_ret(State).
--type gen_server_handle_call_ret(State) :: mg_skd_utils:gen_server_handle_call_ret(State).
--type gen_server_handle_cast_ret(State) :: mg_skd_utils:gen_server_handle_cast_ret(State).
--type gen_server_handle_info_ret(State) :: mg_skd_utils:gen_server_handle_info_ret(State).
--type gen_server_code_change_ret(State) :: mg_skd_utils:gen_server_code_change_ret(State).
--type supervisor_ret() :: mg_skd_utils:supervisor_ret().
+-type reason() ::
+    normal
+    | shutdown
+    | {shutdown, _}
+    | _.
+-type gen_timeout() ::
+    'hibernate'
+    | timeout().
+
+-type gen_start_ret() ::
+    {ok, pid()}
+    | ignore
+    | {error, _}.
+
+-type gen_ref() ::
+    atom()
+    | {atom(), node()}
+    | {global, atom()}
+    | {via, atom(), term()}
+    | pid().
+-type gen_reg_name() ::
+    {local, atom()}
+    | {global, term()}
+    | {via, module(), term()}.
+
+-type gen_server_from() :: {pid(), _}.
+
+-type gen_server_init_ret(State) ::
+    ignore
+    | {ok, State}
+    | {stop, reason()}
+    | {ok, State, gen_timeout()}.
+
+-type gen_server_handle_call_ret(State) ::
+    {noreply, State}
+    | {noreply, State, gen_timeout()}
+    | {reply, _Reply, State}
+    | {stop, reason(), State}
+    | {reply, _Reply, State, gen_timeout()}
+    | {stop, reason(), _Reply, State}.
+
+-type gen_server_handle_cast_ret(State) ::
+    {noreply, State}
+    | {noreply, State, gen_timeout()}
+    | {stop, reason(), State}.
+
+-type gen_server_handle_info_ret(State) ::
+    {noreply, State}
+    | {noreply, State, gen_timeout()}
+    | {stop, reason(), State}.
+
+-type gen_server_code_change_ret(State) ::
+    {ok, State}
+    | {error, _}.
+
+-type supervisor_ret() ::
+    ignore
+    | {ok, {supervisor:sup_flags(), [supervisor:child_spec()]}}.
 
 -spec gen_reg_name_to_ref(gen_reg_name()) -> gen_ref().
 gen_reg_name_to_ref({local, Name}) -> Name;
@@ -297,7 +355,7 @@ lists_compact(List) ->
         List
     ).
 
--spec concatenate_namespaces(mg_core:ns(), mg_core:ns()) -> mg_core:ns().
+-spec concatenate_namespaces(ns(), ns()) -> ns().
 concatenate_namespaces(NamespaceA, NamespaceB) ->
     <<NamespaceA/binary, "_", NamespaceB/binary>>.
 

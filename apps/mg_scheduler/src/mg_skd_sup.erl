@@ -31,9 +31,9 @@
     retry_scan_delay => mg_skd_scanner:scan_delay(),
     squad_opts => gen_squad:opts(),
     % workers
-    task_handler := mg_skd_utils:mod_opts(),
+    task_handler := mg_utils:mod_opts(),
     % common
-    pulse => mg_skd_pulse:handler()
+    pulse => mpulse:handler()
 }.
 
 -export_type([options/0]).
@@ -52,7 +52,7 @@ child_spec(ID, Options, ChildID) ->
         type => supervisor
     }.
 
--spec start_link(id(), options()) -> mg_skd_utils:gen_start_ret().
+-spec start_link(id(), options()) -> mg_utils:gen_start_ret().
 start_link(SchedulerID, Options) ->
     ManagerOptions = maps:with(
         [start_interval, capacity, quota_name, quota_share, pulse],
@@ -68,7 +68,7 @@ start_link(SchedulerID, Options) ->
     ),
     genlib_adhoc_supervisor:start_link(
         #{strategy => one_for_all},
-        mg_skd_utils:lists_compact([
+        mg_utils:lists_compact([
             mg_skd_scanner:child_spec(SchedulerID, ScannerOptions, queue),
             mg_skd_worker:child_spec(SchedulerID, WorkerOptions, tasks),
             mg_skd:child_spec(SchedulerID, ManagerOptions, manager)

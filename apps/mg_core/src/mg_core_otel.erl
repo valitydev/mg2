@@ -97,7 +97,7 @@ add_event(Name, Attributes) ->
     _ = otel_span:add_event(otel_tracer:current_span_ctx(), Name, Attributes),
     ok.
 
--spec record_exception(mg_core_utils:exception(), opentelemetry:attributes_map()) -> ok.
+-spec record_exception(mg_utils:exception(), opentelemetry:attributes_map()) -> ok.
 record_exception({Class, Reason, Stacktrace}, Attributes) ->
     _ = otel_span:record_exception(otel_tracer:current_span_ctx(), Class, Reason, Stacktrace, Attributes),
     ok.

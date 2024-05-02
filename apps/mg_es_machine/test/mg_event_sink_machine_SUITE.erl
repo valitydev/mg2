@@ -136,7 +136,7 @@ get_history(_C) ->
 
 -spec start_event_sink(mg_event_sink_machine:ns_options()) -> pid().
 start_event_sink(Options) ->
-    mg_core_utils:throw_if_error(
+    mg_utils:throw_if_error(
         genlib_adhoc_supervisor:start_link(
             #{strategy => one_for_all},
             [mg_event_sink_machine:child_spec(Options, event_sink)]
@@ -164,6 +164,6 @@ event_sink_options() ->
         machine_id => ?ES_ID
     }.
 
--spec handle_beat(_, mg_core_pulse:beat()) -> ok.
+-spec handle_beat(_, mpulse:beat()) -> ok.
 handle_beat(_, Beat) ->
     ct:pal("~p", [Beat]).

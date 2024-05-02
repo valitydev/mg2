@@ -49,7 +49,7 @@
     machine_id := mg_core:id(),
     storage := storage_options(),
     worker := mg_core_workers_manager:ns_options(),
-    pulse := mg_core_pulse:handler(),
+    pulse := mpulse:handler(),
     events_storage := mg_core_storage:options(),
     default_processing_timeout := timeout()
 }.
@@ -57,12 +57,12 @@
     namespace := mg_core:ns(),
     storage := storage_options(),
     worker := mg_core_workers_manager:ns_options(),
-    pulse := mg_core_pulse:handler(),
+    pulse := mpulse:handler(),
     events_storage := storage_options(),
     default_processing_timeout := timeout()
 }.
 % like mg_core_storage:options() except `name`
--type storage_options() :: mg_core_utils:mod_opts(map()).
+-type storage_options() :: mg_utils:mod_opts(map()).
 
 -spec child_spec(ns_options(), atom()) -> supervisor:child_spec().
 child_spec(Options, ChildID) ->
@@ -73,11 +73,11 @@ child_spec(Options, ChildID) ->
         type => supervisor
     }.
 
--spec start_link(ns_options()) -> mg_core_utils:gen_start_ret().
+-spec start_link(ns_options()) -> mg_utils:gen_start_ret().
 start_link(Options) ->
     genlib_adhoc_supervisor:start_link(
         #{strategy => one_for_all},
-        mg_core_utils:lists_compact([
+        mg_utils:lists_compact([
             mg_core_machine:child_spec(machine_options(Options), automaton),
             mg_core_storage:child_spec(events_storage_options(Options), events_storage)
         ])
@@ -226,7 +226,7 @@ machine_options(
     }
 ) ->
     #{
-        namespace => mg_core_utils:concatenate_namespaces(Namespace, <<"machines">>),
+        namespace => mg_utils:concatenate_namespaces(Namespace, <<"machines">>),
         processor => {?MODULE, Options},
         storage => Storage,
         worker => Worker,
@@ -235,7 +235,7 @@ machine_options(
 
 -spec events_storage_options(ns_options()) -> mg_core_storage:options().
 events_storage_options(#{namespace := NS, events_storage := StorageOptions, pulse := Handler}) ->
-    {Mod, Options} = mg_core_utils:separate_mod_opts(StorageOptions, #{}),
+    {Mod, Options} = mg_utils:separate_mod_opts(StorageOptions, #{}),
     {Mod, Options#{name => {NS, ?MODULE, events}, pulse => Handler}}.
 
 %%

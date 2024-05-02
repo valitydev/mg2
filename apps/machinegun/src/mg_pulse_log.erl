@@ -20,8 +20,8 @@
 -include_lib("mg_core/include/pulse.hrl").
 -include_lib("mg_woody/include/pulse.hrl").
 
-%% mg_pulse handler
--behaviour(mg_core_pulse).
+%% mpulse handler
+-behaviour(mpulse).
 
 -export([handle_beat/2]).
 

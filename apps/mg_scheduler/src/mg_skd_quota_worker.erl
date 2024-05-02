@@ -86,7 +86,7 @@ child_spec(Options, ChildID) ->
         shutdown => 5000
     }.
 
--spec start_link(options()) -> mg_skd_utils:gen_start_ret().
+-spec start_link(options()) -> mg_utils:gen_start_ret().
 start_link(#{name := Name} = Options) ->
     gen_server:start_link(self_reg_name(Name), ?MODULE, Options, []).
 
@@ -99,7 +99,7 @@ reserve(ClientOptions, Usage, Expectation, Name) ->
 
 %% gen_server callbacks
 
--spec init(options()) -> mg_skd_utils:gen_server_init_ret(state()).
+-spec init(options()) -> mg_utils:gen_server_init_ret(state()).
 init(Options) ->
     #{limit := Limit} = Options,
     Interval = maps:get(update_interval, Options, ?DEFAULT_UPDATE_INTERVAL),
@@ -112,8 +112,8 @@ init(Options) ->
         timer = erlang:send_after(Interval, self(), ?UPDATE_MESSAGE)
     }}.
 
--spec handle_call(Call :: any(), mg_skd_utils:gen_server_from(), state()) ->
-    mg_skd_utils:gen_server_handle_call_ret(state()).
+-spec handle_call(Call :: any(), mg_utils:gen_server_from(), state()) ->
+    mg_utils:gen_server_handle_call_ret(state()).
 handle_call({reserve, ClientOptions, Usage, Expectation}, {Pid, _Tag}, State0) ->
     State1 = ensure_is_registered(ClientOptions, Pid, State0),
     {ok, NewReserved, NewQuota} = mg_skd_quota:reserve(
@@ -127,12 +127,12 @@ handle_call(Call, From, State) ->
     ok = logger:error("unexpected gen_server call received: ~p from ~p", [Call, From]),
     {noreply, State}.
 
--spec handle_cast(Cast :: any(), state()) -> mg_skd_utils:gen_server_handle_cast_ret(state()).
+-spec handle_cast(Cast :: any(), state()) -> mg_utils:gen_server_handle_cast_ret(state()).
 handle_cast(Cast, State) ->
     ok = logger:error("unexpected gen_server cast received: ~p", [Cast]),
     {noreply, State}.
 
--spec handle_info(Info :: any(), state()) -> mg_skd_utils:gen_server_handle_info_ret(state()).
+-spec handle_info(Info :: any(), state()) -> mg_utils:gen_server_handle_info_ret(state()).
 handle_info(?UPDATE_MESSAGE, State) ->
     {ok, NewQuota} = mg_skd_quota:recalculate_targets(State#state.quota),
     {noreply, restart_timer(?UPDATE_MESSAGE, State#state{quota = NewQuota})};
@@ -143,7 +143,7 @@ handle_info(Info, State) ->
     {noreply, State}.
 
 -spec code_change(OldVsn :: any(), state(), Extra :: any()) ->
-    mg_skd_utils:gen_server_code_change_ret(state()).
+    mg_utils:gen_server_code_change_ret(state()).
 code_change(_OldVsn, State, _Extra) ->
     {ok, State}.
 
@@ -187,11 +187,11 @@ forget_about_client(Monitor, State) ->
 
 % Worker registration
 
--spec self_ref(name()) -> mg_skd_utils:gen_ref().
+-spec self_ref(name()) -> mg_utils:gen_ref().
 self_ref(ID) ->
     {via, gproc, {n, l, wrap_id(ID)}}.
 
--spec self_reg_name(name()) -> mg_skd_utils:gen_reg_name().
+-spec self_reg_name(name()) -> mg_utils:gen_reg_name().
 self_reg_name(ID) ->
     {via, gproc, {n, l, wrap_id(ID)}}.
 

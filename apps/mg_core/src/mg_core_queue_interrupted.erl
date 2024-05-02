@@ -27,7 +27,7 @@
 
 -type milliseconds() :: non_neg_integer().
 -type options() :: #{
-    pulse := mg_core_pulse:handler(),
+    pulse := mpulse:handler(),
     machine := mg_core_machine:options(),
     min_scan_delay => milliseconds(),
     rescan_delay => milliseconds(),

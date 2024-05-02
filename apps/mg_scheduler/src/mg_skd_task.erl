@@ -24,7 +24,7 @@
 -type task(TaskID, TaskPayload) :: #{
     id := TaskID,
     target_time := target_time(),
-    machine_id := mg_skd_utils:id(),
+    machine_id := mg_utils:id(),
     payload => TaskPayload
 }.
 

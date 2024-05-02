@@ -398,7 +398,7 @@ start_automaton(ProcessorOptions, NS) ->
 -spec start_automaton(mg_core_events_machine:options()) ->
     {pid(), mg_core_events_machine:options()}.
 start_automaton(Options) ->
-    {mg_core_utils:throw_if_error(mg_core_events_machine:start_link(Options)), Options}.
+    {mg_utils:throw_if_error(mg_core_events_machine:start_link(Options)), Options}.
 
 -spec stop_automaton(pid()) -> ok.
 stop_automaton(Pid) ->
@@ -570,7 +570,7 @@ decode(Value) ->
 
 -include("pulse.hrl").
 
--spec handle_beat(_, mg_core_pulse:beat()) -> ok.
+-spec handle_beat(_, mpulse:beat()) -> ok.
 handle_beat(_, Beat = #mg_core_machine_lifecycle_failed{}) ->
     ct:pal("~p", [Beat]);
 handle_beat(_, Beat = #mg_core_machine_lifecycle_transient_error{}) ->

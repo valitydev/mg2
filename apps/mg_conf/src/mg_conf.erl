@@ -44,7 +44,7 @@
 
 -type processor() :: mg_woody_processor:options().
 
--type pulse() :: mg_core_pulse:handler().
+-type pulse() :: mpulse:handler().
 
 -spec construct_child_specs(config(), [woody_server_thrift_http_handler:route(any())]) -> [supervisor:child_spec()].
 construct_child_specs(
@@ -214,13 +214,13 @@ worker_manager_options(Config) ->
         maps:get(worker, Config, #{})
     ).
 
--spec processor(processor(), pulse()) -> mg_core_utils:mod_opts().
+-spec processor(processor(), pulse()) -> mg_utils:mod_opts().
 processor(Processor, Pulse) ->
     {mg_woody_processor, Processor#{event_handler => {mg_woody_event_handler, Pulse}}}.
 
 -spec sub_storage_options(mg_core:ns(), mg_core_machine:storage_options()) -> mg_core_machine:storage_options().
 sub_storage_options(SubNS, Storage0) ->
-    Storage1 = mg_core_utils:separate_mod_opts(Storage0, #{}),
+    Storage1 = mg_utils:separate_mod_opts(Storage0, #{}),
     Storage2 = add_bucket_postfix(SubNS, Storage1),
     Storage2.
 
@@ -228,7 +228,7 @@ sub_storage_options(SubNS, Storage0) ->
 add_bucket_postfix(_, {mg_core_storage_memory, _} = Storage) ->
     Storage;
 add_bucket_postfix(SubNS, {mg_riak_storage, #{bucket := Bucket} = Options}) ->
-    {mg_riak_storage, Options#{bucket := mg_core_utils:concatenate_namespaces(Bucket, SubNS)}}.
+    {mg_riak_storage, Options#{bucket := mg_utils:concatenate_namespaces(Bucket, SubNS)}}.
 
 -spec modernizer_options(modernizer() | undefined, pulse()) -> #{modernizer => mg_core_events_modernizer:options()}.
 modernizer_options(#{current_format_version := CurrentFormatVersion, handler := WoodyClient}, Pulse) ->

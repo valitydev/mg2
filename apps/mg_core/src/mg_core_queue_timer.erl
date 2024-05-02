@@ -30,7 +30,7 @@
 -type seconds() :: non_neg_integer().
 -type milliseconds() :: non_neg_integer().
 -type options() :: #{
-    pulse := mg_core_pulse:handler(),
+    pulse := mpulse:handler(),
     machine := mg_core_machine:options(),
     timer_queue := waiting | retrying,
     lookahead => seconds(),

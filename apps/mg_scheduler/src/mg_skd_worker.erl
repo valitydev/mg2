@@ -35,8 +35,8 @@
 -type maybe_span() :: opentelemetry:span_ctx() | undefined.
 
 -type options() :: #{
-    task_handler := mg_skd_utils:mod_opts(),
-    pulse => mg_skd_pulse:handler()
+    task_handler := mg_utils:mod_opts(),
+    pulse => mpulse:handler()
 }.
 
 -type monitor() :: reference().
@@ -54,7 +54,7 @@ child_spec(SchedulerID, Options, ChildID) ->
         type => supervisor
     }.
 
--spec start_link(scheduler_id(), options()) -> mg_skd_utils:gen_start_ret().
+-spec start_link(scheduler_id(), options()) -> mg_utils:gen_start_ret().
 start_link(SchedulerID, Options) ->
     genlib_adhoc_supervisor:start_link(
         self_reg_name(SchedulerID),
@@ -78,7 +78,7 @@ start_task(SchedulerID, Task, SpanCtx) ->
             Error
     end.
 
--spec do_start_task(scheduler_id(), options(), task(), maybe_span()) -> mg_skd_utils:gen_start_ret().
+-spec do_start_task(scheduler_id(), options(), task(), maybe_span()) -> mg_utils:gen_start_ret().
 do_start_task(SchedulerID, Options, Task, SpanCtx) ->
     proc_lib:start_link(?MODULE, execute, [SchedulerID, Options, Task, SpanCtx]).
 
@@ -91,7 +91,7 @@ execute(SchedulerID, #{task_handler := Handler} = Options, Task, SpanCtx) ->
     ok = emit_start_beat(Task, SchedulerID, Options),
     ok =
         try
-            ok = mg_skd_utils:apply_mod_opts(Handler, execute_task, [Task]),
+            ok = mg_utils:apply_mod_opts(Handler, execute_task, [Task]),
             End = erlang:monotonic_time(),
             ok = emit_finish_beat(Task, Start, End, SchedulerID, Options)
         catch
@@ -104,11 +104,11 @@ execute(SchedulerID, #{task_handler := Handler} = Options, Task, SpanCtx) ->
 
 % Process registration
 
--spec self_ref(scheduler_id()) -> mg_skd_utils:gen_ref().
+-spec self_ref(scheduler_id()) -> mg_utils:gen_ref().
 self_ref(ID) ->
     mg_skd_procreg:ref(mg_skd_procreg_gproc, wrap_id(ID)).
 
--spec self_reg_name(scheduler_id()) -> mg_skd_utils:gen_reg_name().
+-spec self_reg_name(scheduler_id()) -> mg_utils:gen_reg_name().
 self_reg_name(ID) ->
     mg_skd_procreg:reg_name(mg_skd_procreg_gproc, wrap_id(ID)).
 
@@ -118,9 +118,9 @@ wrap_id(ID) ->
 
 %% logging
 
--spec emit_beat(options(), mg_skd_pulse:beat()) -> ok.
+-spec emit_beat(options(), mpulse:beat()) -> ok.
 emit_beat(Options, Beat) ->
-    ok = mg_skd_pulse:handle_beat(maps:get(pulse, Options, undefined), Beat).
+    ok = mpulse:handle_beat(maps:get(pulse, Options, undefined), Beat).
 
 -spec get_delay(task()) -> timeout().
 get_delay(#{target_time := Target}) ->
@@ -147,7 +147,7 @@ emit_finish_beat(Task, StartedAt, FinishedAt, {Name, NS}, Options) ->
         process_duration = FinishedAt - StartedAt
     }).
 
--spec emit_error_beat(task(), mg_skd_utils:exception(), scheduler_id(), options()) -> ok.
+-spec emit_error_beat(task(), mg_utils:exception(), scheduler_id(), options()) -> ok.
 emit_error_beat(Task, Exception, {Name, NS}, Options) ->
     emit_beat(Options, #mg_skd_task_error{
         namespace = NS,

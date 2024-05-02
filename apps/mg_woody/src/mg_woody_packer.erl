@@ -356,7 +356,7 @@ unpack(state_change, MachineStateChange) ->
     } = MachineStateChange,
     {
         unpack(aux_state, AuxState),
-        unpack({list, event_body}, mg_core_utils:take_defined([EventBodies, []]))
+        unpack({list, event_body}, mg_utils:take_defined([EventBodies, []]))
     };
 unpack(signal, {timeout, #mg_stateproc_TimeoutSignal{}}) ->
     timeout;

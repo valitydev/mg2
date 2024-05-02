@@ -19,6 +19,8 @@
 -include_lib("mg_riak/include/pulse.hrl").
 
 -export([setup/0]).
+
+-behaviour(mpulse).
 -export([handle_beat/2]).
 
 %% internal types
@@ -31,7 +33,7 @@
 %% mg_pulse handler
 %%
 
--spec handle_beat(options(), beat() | _OtherBeat) -> ok.
+-spec handle_beat(options(), beat() | mpulse:beat()) -> ok.
 handle_beat(_Options, Beat) ->
     ok = dispatch_metrics(Beat).
 

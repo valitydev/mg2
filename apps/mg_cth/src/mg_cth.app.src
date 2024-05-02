@@ -6,6 +6,7 @@
         kernel,
         stdlib,
         genlib,
+        mg_utils,
         mg_core,
         mg_es_machine,
         mg_es_kafka,

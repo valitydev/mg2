@@ -27,6 +27,7 @@
         msgpack,
         snowflake,
         mg_scheduler,
+        mg_utils,
         opentelemetry_api
     ]},
     {env, []},

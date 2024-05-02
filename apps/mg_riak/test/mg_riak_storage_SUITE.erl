@@ -497,7 +497,7 @@ riak_options(Namespace, PoolOptions) ->
 
 -spec start_storage(mg_core_storage:options()) -> pid().
 start_storage(Options) ->
-    mg_core_utils:throw_if_error(
+    mg_utils:throw_if_error(
         genlib_adhoc_supervisor:start_link(
             #{strategy => one_for_all},
             [mg_core_storage:child_spec(Options, storage)]
@@ -509,6 +509,6 @@ stop_storage(Pid) ->
     ok = proc_lib:stop(Pid, normal, 5000),
     ok.
 
--spec handle_beat(_, mg_core_pulse:beat()) -> ok.
+-spec handle_beat(_, mpulse:beat()) -> ok.
 handle_beat(_, Beat) ->
     ct:pal("~p", [Beat]).

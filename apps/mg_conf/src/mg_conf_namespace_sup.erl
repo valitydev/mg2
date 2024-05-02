@@ -34,7 +34,7 @@ child_spec(Namespaces, ChildID) ->
         type => supervisor
     }.
 
--spec start_link(namespaces(), _ChildID) -> mg_core_utils:gen_start_ret().
+-spec start_link(namespaces(), _ChildID) -> mg_utils:gen_start_ret().
 start_link(Namespaces, ChildID) ->
     {ok, SupPid} = genlib_adhoc_supervisor:start_link(
         #{strategy => simple_one_for_one},
@@ -49,7 +49,7 @@ start_link(Namespaces, ChildID) ->
     ),
     start_namespace_children(SupPid, Namespaces).
 
--spec start_namespace_children(pid(), namespaces()) -> mg_core_utils:gen_start_ret().
+-spec start_namespace_children(pid(), namespaces()) -> mg_utils:gen_start_ret().
 start_namespace_children(SupPid, []) ->
     {ok, SupPid};
 start_namespace_children(SupPid, [Namespace | Rest]) ->
