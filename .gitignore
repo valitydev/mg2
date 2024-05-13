@@ -18,3 +18,4 @@ _checkouts/
 # make stuff
 /.image.*
 Makefile.env
+/compile_commands.json

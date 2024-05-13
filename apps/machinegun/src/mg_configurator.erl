@@ -12,7 +12,9 @@
     modernizer => modernizer(),
     % all but `worker_options.worker` option
     worker => mg_core_workers_manager:options(),
-    storage := mg_core_machine:storage_options(),
+    machines_storage := mg_core_machine_storage:options(),
+    events_storage := mg_core_events_storage:options(),
+    notifications_storage := mg_core_notification_storage:options(),
     event_sinks => [mg_core_events_sink:handler()],
     retries := mg_core_machine:retry_opt(),
     schedulers := mg_core_machine:schedulers_opt(),
@@ -109,14 +111,14 @@ events_machines_child_specs(NSs, Pulse) ->
 -spec events_machine_options(mg_core:ns(), namespaces(), pulse()) -> mg_core_events_machine:options().
 events_machine_options(NS, NSs, Pulse) ->
     NSConfigs = maps:get(NS, NSs),
-    #{processor := ProcessorConfig, storage := Storage} = NSConfigs,
+    #{processor := ProcessorConfig, events_storage := EventsStorage0} = NSConfigs,
     EventSinks = [event_sink_options(SinkConfig, Pulse) || SinkConfig <- maps:get(event_sinks, NSConfigs, [])],
-    EventsStorage = sub_storage_options(<<"events">>, Storage),
+    EventsStorage1 = sub_storage_options(<<"events">>, EventsStorage0),
     #{
         namespace => NS,
         processor => processor(ProcessorConfig, Pulse),
         machines => machine_options(NS, NSConfigs, Pulse),
-        events_storage => EventsStorage,
+        events_storage => EventsStorage1,
         event_sinks => EventSinks,
         pulse => Pulse,
         default_processing_timeout => maps:get(default_processing_timeout, NSConfigs),
@@ -125,7 +127,7 @@ events_machine_options(NS, NSs, Pulse) ->
 
 -spec machine_options(mg_core:ns(), events_machines(), pulse()) -> mg_core_machine:options().
 machine_options(NS, Config, Pulse) ->
-    #{storage := Storage} = Config,
+    #{machines_storage := MachinesStorage0, notifications_storage := NotificationsStorage0} = Config,
     Options = maps:with(
         [
             retries,
@@ -133,16 +135,12 @@ machine_options(NS, Config, Pulse) ->
         ],
         Config
     ),
-    MachinesStorage = sub_storage_options(<<"machines">>, Storage),
-    NotificationStorage = sub_storage_options(<<"notifications">>, Storage),
+    MachinesStorage1 = sub_storage_options(<<"machines">>, MachinesStorage0),
+    NotificationsStorage1 = sub_storage_options(<<"notifications">>, NotificationsStorage0),
     Options#{
         namespace => NS,
-        storage => MachinesStorage,
-        notification => #{
-            namespace => NS,
-            pulse => Pulse,
-            storage => NotificationStorage
-        },
+        storage => MachinesStorage1,
+        notification => NotificationsStorage1,
         worker => worker_manager_options(Config),
         schedulers => maps:get(schedulers, Config, #{}),
         pulse => Pulse,
@@ -194,10 +192,12 @@ sub_storage_options(SubNS, Storage0) ->
     Storage2.
 
 -spec add_bucket_postfix(mg_core:ns(), mg_core_storage:options()) -> mg_core_storage:options().
-add_bucket_postfix(_, {mg_core_storage_memory, _} = Storage) ->
-    Storage;
-add_bucket_postfix(SubNS, {mg_core_storage_riak, #{bucket := Bucket} = Options}) ->
-    {mg_core_storage_riak, Options#{bucket := mg_core_utils:concatenate_namespaces(Bucket, SubNS)}}.
+add_bucket_postfix(SubNS, {KVSMod, #{kvs := {mg_core_storage_riak, #{bucket := Bucket} = Options}} = KVSOpts}) ->
+    {KVSMod, KVSOpts#{
+        kvs := {mg_core_storage_riak, Options#{bucket := mg_core_utils:concatenate_namespaces(Bucket, SubNS)}}
+    }};
+add_bucket_postfix(_, Storage) ->
+    Storage.
 
 -spec modernizer_options(modernizer() | undefined, pulse()) -> #{modernizer => mg_core_events_modernizer:options()}.
 modernizer_options(#{current_format_version := CurrentFormatVersion, handler := WoodyClient}, Pulse) ->

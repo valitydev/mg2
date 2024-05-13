@@ -26,17 +26,30 @@
 
 %% tests descriptions
 -export([all/0]).
+-export([groups/0]).
 -export([init_per_suite/1]).
 -export([end_per_suite/1]).
+-export([init_per_group/2]).
+-export([end_per_group/2]).
 
 %% tests
 -export([full_test/1]).
 
 %% mg_core_machine
 -behaviour(mg_core_machine).
--export([pool_child_spec/2, process_machine/7]).
+-export([process_machine/7]).
 
--export([start/0]).
+%% mg_core_machine_storage_kvs
+-behaviour(mg_core_machine_storage_kvs).
+-export([state_to_opaque/1]).
+-export([opaque_to_state/1]).
+
+%% mg_core_machine_storage_cql
+-behaviour(mg_core_machine_storage_cql).
+-export([prepare_get_query/2]).
+-export([prepare_update_query/4]).
+-export([read_machine_state/2]).
+-export([bootstrap/2]).
 
 %% Pulse
 -export([handle_beat/2]).
@@ -45,21 +58,34 @@
 %% tests descriptions
 %%
 -type test_name() :: atom().
+-type group_name() :: atom().
 -type config() :: [{atom(), _}].
 
--spec all() -> [test_name()].
+-spec all() -> [test_name() | {group, group_name()}].
 all() ->
     [
-        full_test
+        {group, with_memory},
+        {group, with_cql}
+    ].
+
+-spec groups() -> [{group_name(), list(), [test_name()]}].
+groups() ->
+    [
+        {with_memory, [], [full_test]},
+        {with_cql, [], [full_test]}
     ].
 
 %%
 %% starting/stopping
 %%
+-define(NAMESPACE, <<?MODULE_STRING>>).
+
 -spec init_per_suite(config()) -> config().
 init_per_suite(C) ->
     % dbg:tracer(), dbg:p(all, c),
     % dbg:tpl({mg_core_machine, '_', '_'}, x),
+    % dbg:tpl({?MODULE, 'state_to_opaque', '_'}, x),
+    % dbg:tpl({?MODULE, 'opaque_to_state', '_'}, x),
 
     %% NOTE Since opentelemetry exporter uses batch processor by
     %% default, it may happen that not all spans shall be exported in
@@ -82,12 +108,24 @@ init_per_suite(C) ->
 end_per_suite(C) ->
     mg_cth:stop_applications(?config(apps, C)).
 
+-spec init_per_group(group_name(), config()) -> config().
+init_per_group(with_memory, C) ->
+    Storage = mg_cth:bootstrap_machine_storage(memory, ?NAMESPACE, ?MODULE, ?MODULE),
+    [{storage, Storage} | C];
+init_per_group(with_cql, C) ->
+    Storage = mg_cth:bootstrap_machine_storage(cql, ?NAMESPACE, ?MODULE, ?MODULE),
+    [{storage, Storage} | C].
+
+-spec end_per_group(group_name(), config()) -> _.
+end_per_group(_Name, _C) ->
+    ok.
+
 %%
 %% tests
 %%
 -spec full_test(config()) -> _.
-full_test(_) ->
-    Options = automaton_options(),
+full_test(C) ->
+    Options = automaton_options(C),
     AutomatonPid = start_automaton(Options),
     ReportTo = self(),
     % TODO убрать константы
@@ -253,12 +291,7 @@ next_state(State, Action, Result) ->
 %%
 %% processor
 %%
--spec pool_child_spec(_Options, atom()) -> supervisor:child_spec().
-pool_child_spec(_Options, Name) ->
-    #{
-        id => Name,
-        start => {?MODULE, start, []}
-    }.
+-type machine_state() :: undefined.
 
 -spec process_machine(
     _Options,
@@ -267,7 +300,7 @@ pool_child_spec(_Options, Name) ->
     _,
     _,
     _,
-    mg_core_machine:machine_state()
+    machine_state()
 ) -> mg_core_machine:processor_result() | no_return().
 process_machine(_, _, {init, FlowAction}, _, ReqCtx, _Deadline, AS) ->
     {{reply, ok}, map_flow_action(FlowAction, ReqCtx), AS};
@@ -286,12 +319,42 @@ map_flow_action(remove, _) -> remove;
 map_flow_action(fail, _) -> exit(fail).
 
 %%
+%% mg_core_machine_storage_kvs
+%%
+-spec state_to_opaque(machine_state()) -> mg_core_storage:opaque().
+state_to_opaque(undefined) ->
+    null.
+
+-spec opaque_to_state(mg_core_storage:opaque()) -> machine_state().
+opaque_to_state(null) ->
+    undefined.
+
+%%
+%% mg_core_machine_storage_cql
+%%
+-type query_get() :: mg_core_machine_storage_cql:query_get().
+-type query_update() :: mg_core_machine_storage_cql:query_update().
+
+-spec prepare_get_query(_, query_get()) -> query_get().
+prepare_get_query(_, Query) ->
+    Query.
+
+-spec prepare_update_query(_, machine_state(), machine_state() | undefined, query_update()) ->
+    query_update().
+prepare_update_query(_, _State, _Prev, Query) ->
+    Query.
+
+-spec read_machine_state(_, mg_core_machine_storage_cql:record()) -> machine_state().
+read_machine_state(_, #{}) ->
+    undefined.
+
+-spec bootstrap(_, mg_core:ns()) -> ok.
+bootstrap(_Options, _NS) ->
+    ok.
+
+%%
 %% utils
 %%
--spec start() -> ignore.
-start() ->
-    ignore.
-
 -spec start_automaton(mg_core_machine:options()) -> pid().
 start_automaton(Options) ->
     mg_core_utils:throw_if_error(mg_core_machine:start_link(Options)).
@@ -301,22 +364,13 @@ stop_automaton(Pid) ->
     ok = proc_lib:stop(Pid, normal, 5000),
     ok.
 
--spec automaton_options() -> mg_core_machine:options().
-automaton_options() ->
-    NS = <<"test">>,
+-spec automaton_options(config()) -> mg_core_machine:options().
+automaton_options(C) ->
     #{
-        namespace => NS,
+        namespace => ?NAMESPACE,
         processor => ?MODULE,
-        storage => mg_core_storage_memory,
-        worker => #{
-            %% Use 'global' process registry
-            registry => mg_core_procreg_global
-        },
-        notification => #{
-            namespace => NS,
-            pulse => ?MODULE,
-            storage => mg_core_storage_memory
-        },
+        storage => ?config(storage, C),
+        worker => #{registry => mg_core_procreg_global},
         pulse => ?MODULE
     }.
 

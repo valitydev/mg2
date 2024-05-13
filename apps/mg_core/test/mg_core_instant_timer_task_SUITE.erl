@@ -28,10 +28,12 @@
 
 %% mg_core_machine
 -behaviour(mg_core_machine).
--export([pool_child_spec/2]).
 -export([process_machine/7]).
 
--export([start/0]).
+%% mg_core_machine_storage_kvs
+-behaviour(mg_core_machine_storage_kvs).
+-export([opaque_to_state/1]).
+-export([state_to_opaque/1]).
 
 %% Pulse
 -export([handle_beat/2]).
@@ -119,13 +121,6 @@ without_shedulers_test(_C) ->
         machine_state()
     }.
 
--spec pool_child_spec(_Options, atom()) -> supervisor:child_spec().
-pool_child_spec(_Options, Name) ->
-    #{
-        id => Name,
-        start => {?MODULE, start, []}
-    }.
-
 -spec process_machine(Options, ID, Impact, PCtx, ReqCtx, Deadline, MachineState) -> Result when
     Options :: any(),
     ID :: mg_core:id(),
@@ -164,7 +159,7 @@ encode_state(#machine_state{counter = Counter, timer = undefined}) ->
     [Counter].
 
 -spec decode_state(mg_core_machine:machine_state()) -> machine_state().
-decode_state(null) ->
+decode_state(undefined) ->
     #machine_state{};
 decode_state([Counter, TimerTarget, ReqCtx]) ->
     #machine_state{counter = Counter, timer = {TimerTarget, ReqCtx}};
@@ -179,12 +174,19 @@ try_set_timer(#machine_state{timer = undefined}, Action) ->
     Action.
 
 %%
+%% KVS serializer
+%%
+-spec state_to_opaque(mg_core_machine:machine_state()) -> mg_core_storage:opaque().
+state_to_opaque(State) ->
+    State.
+
+-spec opaque_to_state(mg_core_storage:opaque()) -> mg_core_machine:machine_state().
+opaque_to_state(State) ->
+    State.
+
+%%
 %% utils
 %%
--spec start() -> ignore.
-start() ->
-    ignore.
-
 -spec start_automaton(mg_core_machine:options()) -> pid().
 start_automaton(Options) ->
     mg_core_utils:throw_if_error(mg_core_machine:start_link(Options)).
@@ -202,15 +204,11 @@ automaton_options(NS) ->
     #{
         namespace => NS,
         processor => ?MODULE,
-        storage => mg_cth:build_storage(NS, mg_core_storage_memory),
+        storage => mg_cth:bootstrap_machine_storage(memory, NS, ?MODULE, ?MODULE),
         worker => #{
             registry => mg_core_procreg_global
         },
-        notification => #{
-            namespace => NS,
-            pulse => ?MODULE,
-            storage => mg_core_storage_memory
-        },
+        notification => mg_cth:bootstrap_notification_storage(memory, NS, ?MODULE),
         pulse => ?MODULE,
         schedulers => #{
             timers => Scheduler,
@@ -224,15 +222,11 @@ automaton_options_wo_shedulers(NS) ->
     #{
         namespace => NS,
         processor => ?MODULE,
-        storage => mg_cth:build_storage(NS, mg_core_storage_memory),
+        storage => mg_cth:bootstrap_machine_storage(memory, NS, ?MODULE, ?MODULE),
         worker => #{
             registry => mg_core_procreg_global
         },
-        notification => #{
-            namespace => NS,
-            pulse => ?MODULE,
-            storage => mg_core_storage_memory
-        },
+        notification => mg_cth:bootstrap_notification_storage(memory, NS, ?MODULE),
         pulse => ?MODULE,
         schedulers => #{
             % none

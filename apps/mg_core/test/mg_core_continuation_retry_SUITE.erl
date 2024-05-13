@@ -30,6 +30,11 @@
 -behaviour(mg_core_machine).
 -export([process_machine/7]).
 
+%% mg_core_machine_storage_kvs
+-behaviour(mg_core_machine_storage_kvs).
+-export([opaque_to_state/1]).
+-export([state_to_opaque/1]).
+
 %% Pulse
 -export([handle_beat/2]).
 
@@ -93,7 +98,7 @@ continuation_delayed_retries_test(_C) ->
     _,
     mg_core_machine:machine_state()
 ) -> mg_core_machine:processor_result() | no_return().
-process_machine(_, _, {init, InitState}, _, ?REQ_CTX, _, null) ->
+process_machine(_, _, {init, InitState}, _, ?REQ_CTX, _, undefined) ->
     _ = ets:new(?ETS_NS, [set, named_table, public]),
     {{reply, ok}, sleep, InitState};
 process_machine(_, _, {call, test}, _, ?REQ_CTX, _, State) ->
@@ -102,6 +107,18 @@ process_machine(_, _, {call, test}, _, ?REQ_CTX, _, State) ->
 process_machine(_, _, continuation, _, ?REQ_CTX, _, _State) ->
     ok = increment_fail_count(),
     throw({transient, not_yet}).
+
+%%
+%% KVS serializer
+%%
+
+-spec state_to_opaque(mg_core_machine:machine_state()) -> mg_core_storage:opaque().
+state_to_opaque(State) ->
+    State.
+
+-spec opaque_to_state(mg_core_storage:opaque()) -> mg_core_machine:machine_state().
+opaque_to_state(State) ->
+    State.
 
 %%
 %% utils
@@ -131,14 +148,16 @@ automaton_options() ->
     #{
         namespace => ?MH_NS,
         processor => ?MODULE,
-        storage => mg_core_storage_memory,
+        storage =>
+            {mg_core_machine_storage_kvs, #{
+                kvs => mg_core_storage_memory,
+                processor => ?MODULE,
+                pulse => ?MODULE,
+                name => {?MH_NS, mg_core_machine, machines}
+            }},
         worker => #{registry => mg_core_procreg_global},
         pulse => ?MODULE,
-        notification => #{
-            namespace => ?MH_NS,
-            pulse => ?MODULE,
-            storage => mg_core_storage_memory
-        },
+        notification => mg_cth:bootstrap_notification_storage(memory, ?MH_NS, ?MODULE),
         retries => #{
             continuation => {intervals, ?TEST_INTERVALS}
         }

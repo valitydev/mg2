@@ -220,6 +220,19 @@ snowflake_machine_id: 1
 # memory storage backend
 # storage:
 #     type: memory
+# cassandra storage backend
+# storage:
+#     type: cassandra
+#     host: scylla0
+#     port: 9042
+#     # TODO
+#     # ssl: {}
+#     keyspace: mg
+#     consistency:
+#         read: quorum
+#         write: quorum
+#     pool:
+#         size: 100
 # riak storage backend
 storage:
     type: riak

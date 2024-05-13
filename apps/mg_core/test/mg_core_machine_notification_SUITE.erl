@@ -37,9 +37,12 @@
 
 %% mg_core_machine
 -behaviour(mg_core_machine).
--export([pool_child_spec/2, process_machine/7]).
+-export([process_machine/7]).
 
--export([start/0]).
+%% mg_core_machine_storage_kvs
+-behaviour(mg_core_machine_storage_kvs).
+-export([state_to_opaque/1]).
+-export([opaque_to_state/1]).
 
 %% Pulse
 -export([handle_beat/2]).
@@ -202,12 +205,7 @@ timeout_test(C) ->
 %%
 %% processor
 %%
--spec pool_child_spec(_Options, atom()) -> supervisor:child_spec().
-pool_child_spec(_Options, Name) ->
-    #{
-        id => Name,
-        start => {?MODULE, start, []}
-    }.
+-type machine_state() :: integer().
 
 -spec process_machine(
     _Options,
@@ -216,9 +214,9 @@ pool_child_spec(_Options, Name) ->
     _,
     _,
     _,
-    mg_core_machine:machine_state()
+    machine_state() | undefined
 ) -> mg_core_machine:processor_result() | no_return().
-process_machine(_, _, {init, TestValue}, _, ?REQ_CTX, _, null) ->
+process_machine(_, _, {init, TestValue}, _, ?REQ_CTX, _, undefined) ->
     {{reply, ok}, sleep, TestValue};
 process_machine(_, _, {call, get}, _, ?REQ_CTX, _, TestValue) ->
     {{reply, TestValue}, sleep, TestValue};
@@ -246,16 +244,29 @@ process_machine(_, _, {repair, repair_arg}, _, ?REQ_CTX, _, TestValue) ->
     {{reply, repaired}, sleep, TestValue}.
 
 %%
+%% mg_core_machine_storage_kvs
+%%
+-spec state_to_opaque(machine_state()) -> mg_core_storage:opaque().
+state_to_opaque(State) ->
+    State.
+
+-spec opaque_to_state(mg_core_storage:opaque()) -> machine_state().
+opaque_to_state(State) ->
+    State.
+
+%%
 %% utils
 %%
 
+-define(NS, <<"test">>).
+
 -spec search_notifications_for_machine(binary()) -> list().
 search_notifications_for_machine(MachineID) ->
-    Options = notification_options(),
-    Found = mg_core_notification:search(Options, 1, genlib_time:unow(), inf),
+    Options = mg_cth:bootstrap_notification_storage(memory, ?NS, ?MODULE),
+    {Found, _Continuation} = mg_core_notification_storage:search(Options, ?NS, {1, genlib_time:unow()}, 999),
     lists:filter(
         fun({_, NID}) ->
-            {ok, _, #{machine_id := FoundMachineID}} = mg_core_notification:get(Options, NID),
+            {_, #{machine_id := FoundMachineID}} = mg_core_notification_storage:get(Options, ?NS, NID),
             MachineID =:= FoundMachineID
         end,
         Found
@@ -273,10 +284,6 @@ await_notification_deleted(ID, Timeout) ->
             await_notification_deleted(ID, Timeout - 100)
     end.
 
--spec start() -> ignore.
-start() ->
-    ignore.
-
 -spec start_automaton(mg_core_machine:options()) -> pid().
 start_automaton(Options) ->
     mg_core_utils:throw_if_error(mg_core_machine:start_link(Options)).
@@ -286,19 +293,17 @@ stop_automaton(Pid) ->
     ok = proc_lib:stop(Pid, normal, 5000),
     ok.
 
--define(NS, <<"test">>).
-
 -spec automaton_options(config()) -> mg_core_machine:options().
 automaton_options(_C) ->
     Scheduler = #{},
     #{
         namespace => ?NS,
         processor => ?MODULE,
-        storage => mg_core_storage_memory,
+        storage => {mg_core_machine_storage_kvs, #{kvs => mg_core_storage_memory}},
         worker => #{
             registry => mg_core_procreg_global
         },
-        notification => notification_options(),
+        notification => mg_cth:bootstrap_notification_storage(memory, ?NS, ?MODULE),
         notification_processing_timeout => 500,
         pulse => ?MODULE,
         schedulers => #{
@@ -310,14 +315,6 @@ automaton_options(_C) ->
                 reschedule_time => 2
             }
         }
-    }.
-
--spec notification_options() -> mg_core_notification:options().
-notification_options() ->
-    #{
-        namespace => ?NS,
-        pulse => ?MODULE,
-        storage => mg_core_storage_memory
     }.
 
 -spec handle_beat(_, mg_core_pulse:beat()) -> ok.

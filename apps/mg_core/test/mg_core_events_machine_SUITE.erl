@@ -95,7 +95,7 @@ end_per_suite(C) ->
 
 -spec get_events_test(config()) -> any().
 get_events_test(_C) ->
-    NS = <<"events">>,
+    NS = ?FUNCTION_NAME_STRING,
     ProcessorOpts = #{
         signal_handler => fun({init, <<>>}, AuxState, []) ->
             {AuxState, [], #{}}
@@ -207,7 +207,7 @@ t_direction() ->
 
 -spec continuation_repair_test(config()) -> any().
 continuation_repair_test(_C) ->
-    NS = <<"test">>,
+    NS = ?FUNCTION_NAME_STRING,
     MachineID = <<"machine">>,
     TestRunner = self(),
     ProcessorOptions = #{
@@ -233,7 +233,7 @@ continuation_repair_test(_C) ->
 
 -spec get_corrupted_machine_fails(config()) -> any().
 get_corrupted_machine_fails(_C) ->
-    NS = <<"corruption">>,
+    NS = ?FUNCTION_NAME_STRING,
     MachineID = genlib:to_binary(?FUNCTION_NAME),
     LoseEvery = 4,
     ProcessorOpts = #{
@@ -258,7 +258,7 @@ get_corrupted_machine_fails(_C) ->
             lossfun => fun(I) -> (I rem LoseEvery) == 0 end,
             storage => {mg_core_storage_memory, #{}}
         }},
-    EventsStorage = mg_cth:build_storage(<<NS/binary, "_events">>, LossyStorage),
+    EventsStorage = mg_cth:bootstrap_events_storage(kvs, NS, ?MODULE, LossyStorage),
     {Pid, Options} = start_automaton(BaseOptions#{events_storage => EventsStorage}),
     ok = start(Options, MachineID, <<>>),
     _ = ?assertEqual([], get_history(Options, MachineID)),
@@ -286,7 +286,7 @@ post_events_with_notification_test(_C) ->
         NS
     ),
     LossyStorage = mg_core_storage_memory,
-    EventsStorage = mg_cth:build_storage(<<NS/binary, "_events">>, LossyStorage),
+    EventsStorage = mg_cth:bootstrap_events_storage(kvs, NS, ?MODULE, LossyStorage),
     {Pid, Options} = start_automaton(BaseOptions#{events_storage => EventsStorage}),
     ok = start(Options, MachineID, <<>>),
     _ = ?assertEqual([], get_history(Options, MachineID)),
@@ -437,15 +437,11 @@ events_machine_options(Base, StorageOptions, ProcessorOptions, NS) ->
         processor => {?MODULE, ProcessorOptions},
         machines => #{
             namespace => NS,
-            storage => mg_cth:build_storage(NS, Storage),
+            storage => mg_cth:bootstrap_machine_storage(cql, NS, ?MODULE, mg_core_events_machine),
             worker => #{
                 registry => mg_core_procreg_global
             },
-            notification => #{
-                namespace => NS,
-                pulse => ?MODULE,
-                storage => mg_core_storage_memory
-            },
+            notification => {mg_core_notification_storage_kvs, #{kvs => mg_core_storage_memory}},
             pulse => Pulse,
             schedulers => #{
                 timers => Scheduler,
@@ -456,7 +452,7 @@ events_machine_options(Base, StorageOptions, ProcessorOptions, NS) ->
                 }
             }
         },
-        events_storage => mg_cth:build_storage(<<NS/binary, "_events">>, Storage)
+        events_storage => mg_cth:bootstrap_events_storage(kvs, NS, Pulse, Storage)
     }.
 
 -spec start(mg_core_events_machine:options(), mg_core:id(), term()) -> ok.

@@ -14,7 +14,7 @@
 %%% limitations under the License.
 %%%
 
--module(mg_core_notification_SUITE).
+-module(mg_core_notification_storage_SUITE).
 -include_lib("common_test/include/ct.hrl").
 -include_lib("stdlib/include/assert.hrl").
 
@@ -38,9 +38,9 @@
 
 %%
 
+-define(NS, <<"my_ns">>).
 -define(ID, <<"my_notification">>).
 -define(TS, 100).
--define(MACHINE_NS, <<"my_ns">>).
 -define(MACHINE_ID, <<"my_machine">>).
 -define(STORAGE_NAME, {?MACHINE_ID, mg_core_notification, notifications}).
 
@@ -94,7 +94,7 @@ notification_put_ok_test(C) ->
         machine_id => ?MACHINE_ID,
         args => [<<"a">>, <<"b">>, 0]
     },
-    Context = mg_core_notification:put(notification_options(C), ?ID, Data, Timestamp, undefined),
+    Context = mg_core_notification_storage:put(storage_options(C), ?NS, ?ID, Data, Timestamp, undefined),
     save_cfg([{context, Context}]).
 
 -spec notification_update_test(config()) -> _.
@@ -105,47 +105,50 @@ notification_update_test(C) ->
         machine_id => ?MACHINE_ID,
         args => [<<"a">>, <<"b">>, <<"c">>]
     },
-    NewContext = mg_core_notification:put(notification_options(C), ?ID, Data, Timestamp, Context),
+    NewContext = mg_core_notification_storage:put(storage_options(C), ?NS, ?ID, Data, Timestamp, Context),
     save_cfg([{context, NewContext}]).
 
 -spec notification_get_ok_test(config()) -> _.
 notification_get_ok_test(C) ->
     ?assertMatch(
-        {ok, _, #{
-            machine_id := ?MACHINE_ID,
-            args := [<<"a">>, <<"b">>, <<"c">>]
-        }},
-        mg_core_notification:get(notification_options(C), ?ID)
+        {
+            _Context,
+            #{
+                machine_id := ?MACHINE_ID,
+                args := [<<"a">>, <<"b">>, <<"c">>]
+            }
+        },
+        mg_core_notification_storage:get(storage_options(C), ?NS, ?ID)
     ),
     pass_saved_cfg(C).
 
 -spec notification_search_ok_test(config()) -> _.
 notification_search_ok_test(C) ->
     ?assertMatch(
-        [{_, ?ID}],
-        mg_core_notification:search(notification_options(C), ?TS - 10, ?TS + 10, inf)
+        {[{_, ?ID}], _Continuation = undefined},
+        mg_core_notification_storage:search(storage_options(C), ?NS, {?TS - 10, ?TS + 10}, 999)
     ),
     pass_saved_cfg(C).
 
 -spec notification_delete_ok_test(config()) -> _.
 notification_delete_ok_test(C) ->
     Context = get_saved_cfg(context, C),
-    ?assertEqual(ok, mg_core_notification:delete(notification_options(C), ?ID, Context)),
+    ?assertEqual(ok, mg_core_notification_storage:delete(storage_options(C), ?NS, ?ID, Context)),
     pass_saved_cfg(C).
 
 -spec notification_get_not_found_test(config()) -> _.
 notification_get_not_found_test(C) ->
     ?assertMatch(
-        {error, not_found},
-        mg_core_notification:get(notification_options(C), ?ID)
+        undefined,
+        mg_core_notification_storage:get(storage_options(C), ?NS, ?ID)
     ),
     pass_saved_cfg(C).
 
 -spec notification_search_not_found_test(config()) -> _.
 notification_search_not_found_test(C) ->
     ?assertMatch(
-        [],
-        mg_core_notification:search(notification_options(C), ?TS - 10, ?TS + 10, inf)
+        {[], _Continuation = undefined},
+        mg_core_notification_storage:search(storage_options(C), ?NS, {?TS - 10, ?TS + 10}, 999)
     ),
     pass_saved_cfg(C).
 
@@ -154,22 +157,18 @@ notification_double_delete_test(C) ->
     Context = get_saved_cfg(context, C),
     ?assertEqual(
         ok,
-        mg_core_notification:delete(notification_options(C), ?ID, Context)
+        mg_core_notification_storage:delete(storage_options(C), ?NS, ?ID, Context)
     ).
 
 %%
 
--spec notification_options(config()) -> mg_core_notification:options().
-notification_options(_C) ->
-    #{
-        namespace => ?MACHINE_NS,
+-spec storage_options(config()) -> mg_core_notification_storage:options().
+storage_options(_C) ->
+    {mg_core_notification_storage_kvs, #{
+        name => ?MODULE,
         pulse => ?MODULE,
-        storage =>
-            {mg_core_storage_memory, #{
-                pulse => ?MODULE,
-                existing_storage_name => ?STORAGE_NAME
-            }}
-    }.
+        kvs => {mg_core_storage_memory, #{existing_storage_name => ?STORAGE_NAME}}
+    }}.
 
 %%
 
