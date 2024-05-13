@@ -71,7 +71,7 @@ sys_config(YamlConfig) ->
         {snowflake, snowflake(YamlConfig)},
         {brod, brod(YamlConfig)},
         {hackney, hackney(YamlConfig)},
-        {mg, machinegun(YamlConfig)}
+        {machinegun, machinegun(YamlConfig)}
     ].
 
 os_mon(_YamlConfig) ->
@@ -84,7 +84,7 @@ logger_level(YamlConfig) ->
     ?C:log_level(?C:conf([logging, level], YamlConfig, <<"info">>)).
 
 logger(YamlConfig) ->
-    Root = ?C:conf([logging, root], YamlConfig, <<"/var/log/mg">>),
+    Root = ?C:conf([logging, root], YamlConfig, <<"/var/log/machinegun">>),
     LogfileName = ?C:conf([logging, json_log], YamlConfig, <<"log.json">>),
     FullLogname = filename:join(Root, LogfileName),
     OutType = ?C:atom(?C:conf([logging, out_type], YamlConfig, <<"file">>)),
@@ -206,7 +206,9 @@ brod_client_sasl(SaslConfig) ->
     end.
 
 hackney(_YamlConfig) ->
-    [].
+    [
+        {mod_metrics, woody_hackney_prometheus}
+    ].
 
 machinegun(YamlConfig) ->
     [

@@ -14,7 +14,7 @@
 %%% limitations under the License.
 %%%
 
-{application, mg, [
+{application, machinegun, [
     {description, "Machinegun FSM processor"},
     {vsn, "1"},
     {registered, []},
@@ -34,7 +34,7 @@
     ]},
     {env, []},
     {modules, []},
-    {mod, {mg, []}},
+    {mod, {machinegun, []}},
     {licenses, []},
     {links, []}
 ]}.
