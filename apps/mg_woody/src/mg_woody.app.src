@@ -26,7 +26,6 @@
         woody,
         mg_utils,
         mg_core,
-        mg_es_machine,
         opentelemetry_api
     ]},
     {env, []},

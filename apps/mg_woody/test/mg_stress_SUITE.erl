@@ -26,7 +26,6 @@
 -export([stress_test/1]).
 
 -define(NS, <<"NS">>).
--define(ES_ID, <<"test_event_sink">>).
 
 -type test_name() :: atom().
 -type config() :: [{atom(), _}].
@@ -41,6 +40,7 @@ all() ->
 init_per_suite(C) ->
     Config = mg_woody_config(C),
     Apps = mg_cth:start_applications([
+        brod,
         {hackney, [{use_default_pool, false}]},
         mg_woody,
         opentelemetry_exporter,
@@ -83,7 +83,6 @@ init_per_suite(C) ->
             ns => ?NS,
             retry_strategy => genlib_retry:new_strategy({exponential, 5, 2, 1000})
         }},
-        {event_sink_options, "http://localhost:8022"},
         {processor_pid, ProcessorPid}
         | C
     ].
@@ -123,7 +122,11 @@ mg_woody_config(_C) ->
                 },
                 retries => #{},
                 event_sinks => [
-                    {mg_event_sink_machine, #{name => default, machine_id => ?ES_ID}}
+                    {mg_event_sink_kafka, #{
+                        name => kafka,
+                        topic => <<"mg_core_event_sink">>,
+                        client => mg_cth:config(kafka_client_name)
+                    }}
                 ],
                 event_stash_size => 10,
                 worker => #{
@@ -131,10 +134,6 @@ mg_woody_config(_C) ->
                     sidecar => mg_cth_worker
                 }
             }
-        },
-        event_sink_ns => #{
-            storage => mg_core_storage_memory,
-            default_processing_timeout => 5000
         }
     }.
 

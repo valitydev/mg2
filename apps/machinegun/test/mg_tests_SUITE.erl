@@ -247,10 +247,6 @@ mg_config(#{endpoint := {IP, Port}}, C) ->
                 % сейчас же можно иногда включать и смотреть
                 % suicide_probability => 0.1,
                 event_sinks => [
-                    {mg_event_sink_machine, #{
-                        name => machine,
-                        machine_id => ?ES_ID
-                    }},
                     {mg_event_sink_kafka, #{
                         name => kafka,
                         topic => ?ES_ID,
@@ -258,10 +254,6 @@ mg_config(#{endpoint := {IP, Port}}, C) ->
                     }}
                 ]
             }
-        }},
-        {event_sink_ns, #{
-            storage => mg_core_storage_memory,
-            default_processing_timeout => 5000
         }},
         {pulse, {mg_pulse, #{}}}
     ].

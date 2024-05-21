@@ -548,10 +548,6 @@ mg_config() ->
     [
         {woody_server, #{ip => {0, 0, 0, 0}, port => 8022}},
         {namespaces, #{}},
-        {event_sink_ns, #{
-            storage => mg_core_storage_memory,
-            registry => mg_procreg_global
-        }},
         {pulse, {mg_pulse, #{}}}
     ].
 

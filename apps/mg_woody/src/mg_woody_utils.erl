@@ -88,7 +88,6 @@ handle_logic_error(machine_already_exist) -> #mg_stateproc_MachineAlreadyExists{
 handle_logic_error(machine_failed) -> #mg_stateproc_MachineFailed{};
 handle_logic_error(machine_already_working) -> #mg_stateproc_MachineAlreadyWorking{};
 handle_logic_error(namespace_not_found) -> #mg_stateproc_NamespaceNotFound{};
-handle_logic_error(event_sink_not_found) -> #mg_stateproc_EventSinkNotFound{};
 % TODO обработать случай создания машины c некорректным ID в рамках thrift
 handle_logic_error({invalid_machine_id, _}) -> #mg_stateproc_MachineNotFound{}.
 

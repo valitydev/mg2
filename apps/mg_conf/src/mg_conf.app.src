@@ -10,7 +10,6 @@
         mg_core,
         mg_riak,
         mg_es_kafka,
-        mg_es_machine,
         mg_woody
     ]},
     {env, []},
