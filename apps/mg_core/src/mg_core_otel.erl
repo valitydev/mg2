@@ -47,7 +47,7 @@ pack_otel_stub(Ctx) ->
 -spec restore_otel_stub(otel_ctx:t(), packed_otel_stub()) -> otel_ctx:t().
 restore_otel_stub(Ctx, [TraceID, SpanID, TraceFlags]) ->
     SpanCtx = otel_tracer:from_remote_span(binary_to_id(TraceID), binary_to_id(SpanID), TraceFlags),
-    %% NOTE Thus resored span context is considered being not recording and remote.
+    %% NOTE Thus restored span context is considered being remote and not recording.
     otel_tracer:set_current_span(Ctx, SpanCtx);
 restore_otel_stub(Ctx, _Other) ->
     Ctx.
