@@ -515,6 +515,14 @@ handle_load(ID, Options, ReqCtx) ->
 handle_call(Call, CallContext, ReqCtx, Deadline, S) ->
     %% FIXME Consider adding new pulse beats to wrap 'processing calls' here.
     ok = attach_otel_ctx(ReqCtx),
+    %% TODO Review call span recording. Somehow 'empty' span 'internal
+    %% Machine:call' happens after 'impact=timeout' calls.
+    %%
+    %% 'timeout' calls use their own otel context from saved request
+    %% context. Because of that in regular case according 'timeout'
+    %% span attaches to same parent as call-wrapping span, but
+    %% 'internal Machine:call' is left 'empty' and without child
+    %% spans.
     ?with_span(?SPAN_NAME(call), ?SPAN_OPTS, fun(_SpanCtx) ->
         do_handle_call(Call, CallContext, ReqCtx, Deadline, S)
     end).

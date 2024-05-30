@@ -51,6 +51,8 @@ handle_beat(_Options, #mg_core_timer_lifecycle_removed{machine_id = ID, namespac
 %% Timer handling
 %% Wraps `Module:process_machine/7` when processor impact is 'timeout'.
 handle_beat(_Options, #mg_core_timer_process_started{machine_id = ID, namespace = NS, queue = Queue}) ->
+    %% TODO Review tracing with 'impact=timeout'. Somehow it ends up
+    %% with duplicates of nested 'internal EventMachine:timout' spans.
     mg_core_otel:span_start({process, Queue}, mk_machine_span_name(timeout), #{
         kind => ?SPAN_KIND_INTERNAL,
         attributes => machine_tags(NS, ID, #{<<"queue">> => atom_to_binary(Queue)})
