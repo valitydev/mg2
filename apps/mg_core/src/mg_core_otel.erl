@@ -12,6 +12,8 @@
 -export([add_event/2]).
 -export([record_exception/2]).
 
+-export([current_span_id/1]).
+
 -type packed_otel_stub() :: [mg_core_storage:opaque()].
 
 -export_type([packed_otel_stub/0]).
@@ -102,7 +104,17 @@ record_exception({Class, Reason, Stacktrace}, Attributes) ->
     _ = otel_span:record_exception(otel_tracer:current_span_ctx(), Class, Reason, Stacktrace, Attributes),
     ok.
 
+-spec current_span_id(otel_ctx:t()) -> opentelemetry:span_id().
+current_span_id(Ctx) ->
+    span_id(otel_tracer:current_span_ctx(Ctx)).
+
 %%
+
+-spec span_id(opentelemetry:span_ctx()) -> opentelemetry:span_id() | undefined.
+span_id(#span_ctx{span_id = SpanID}) ->
+    SpanID;
+span_id(_) ->
+    undefined.
 
 -spec trace_id_to_binary(opentelemetry:trace_id()) -> binary().
 trace_id_to_binary(TraceID) ->
