@@ -144,22 +144,22 @@ handle_beat(_Options, #mg_core_worker_start_attempt{machine_id = ID, namespace =
 %% NOTE It is expected that machine process executes storage calls strictly sequentially
 %% Get
 handle_beat(_Options, #mg_core_storage_get_start{name = Name}) ->
-    mg_core_otel:span_start(Name, mk_storge_span_name(Name, get), #{kind => ?SPAN_KIND_INTERNAL});
+    mg_core_otel:span_start(Name, mk_storge_span_name(Name, get), storage_span_opts(Name));
 handle_beat(_Options, #mg_core_storage_get_finish{name = Name}) ->
     mg_core_otel:span_end(Name);
 %% Put
 handle_beat(_Options, #mg_core_storage_put_start{name = Name}) ->
-    mg_core_otel:span_start(Name, mk_storge_span_name(Name, put), #{kind => ?SPAN_KIND_INTERNAL});
+    mg_core_otel:span_start(Name, mk_storge_span_name(Name, put), storage_span_opts(Name));
 handle_beat(_Options, #mg_core_storage_put_finish{name = Name}) ->
     mg_core_otel:span_end(Name);
 %% Search
 handle_beat(_Options, #mg_core_storage_search_start{name = Name}) ->
-    mg_core_otel:span_start(Name, mk_storge_span_name(Name, search), #{kind => ?SPAN_KIND_INTERNAL});
+    mg_core_otel:span_start(Name, mk_storge_span_name(Name, search), storage_span_opts(Name));
 handle_beat(_Options, #mg_core_storage_search_finish{name = Name}) ->
     mg_core_otel:span_end(Name);
 %% Delete
 handle_beat(_Options, #mg_core_storage_delete_start{name = Name}) ->
-    mg_core_otel:span_start(Name, mk_storge_span_name(Name, delete), #{kind => ?SPAN_KIND_INTERNAL});
+    mg_core_otel:span_start(Name, mk_storge_span_name(Name, delete), storage_span_opts(Name));
 handle_beat(_Options, #mg_core_storage_delete_finish{name = Name}) ->
     mg_core_otel:span_end(Name);
 %% Disregard any other
@@ -179,17 +179,27 @@ to_event_machine_activity(ProcessorImpact) when is_tuple(ProcessorImpact) ->
 to_event_machine_activity(ProcessorImpact) when is_atom(ProcessorImpact) ->
     atom_to_binary(ProcessorImpact).
 
--spec machine_tags(mg_core:ns(), mg_core:id()) -> map().
+-spec machine_tags(mg_core:ns(), mg_core:id() | undefined) -> map().
 machine_tags(Namespace, ID) ->
     machine_tags(Namespace, ID, #{}).
 
--spec machine_tags(mg_core:ns(), mg_core:id(), map()) -> map().
+-spec machine_tags(mg_core:ns(), mg_core:id() | undefined, map()) -> map().
 machine_tags(Namespace, ID, OtherTags) ->
-    maps:merge(OtherTags, #{
-        <<"machine.ns">> => Namespace,
-        <<"machine.id">> => ID
-    }).
+    genlib_map:compact(
+        maps:merge(OtherTags, #{
+            <<"machine.ns">> => Namespace,
+            <<"machine.id">> => ID
+        })
+    ).
 
 -spec mk_storge_span_name(mg_core_storage:name(), atom()) -> binary().
+mk_storge_span_name({_NS, _Mod, Type}, OperationType) when is_atom(Type) ->
+    iolist_to_binary(io_lib:format("internal ~sStorage:~s", [string:titlecase(atom_to_list(Type)), OperationType]));
 mk_storge_span_name(StorageName, OperationType) ->
     iolist_to_binary(io_lib:format("internal ~p:~s", [StorageName, OperationType])).
+
+-spec storage_span_opts(Name :: {mg_core:ns(), module(), atom()} | term()) -> otel_span:start_opts().
+storage_span_opts({NS, _Mod, _Type}) ->
+    #{kind => ?SPAN_KIND_INTERNAL, attributes => machine_tags(NS, undefined)};
+storage_span_opts(_Name) ->
+    #{kind => ?SPAN_KIND_INTERNAL}.
