@@ -50,15 +50,19 @@ handle_beat(_Options, #mg_core_timer_lifecycle_removed{machine_id = ID, namespac
 %% TODO Handle and trace events for 'mg_core_scheduler_*' beats
 %% Timer handling
 %% Wraps `Module:process_machine/7` when processor impact is 'timeout'.
-handle_beat(_Options, #mg_core_timer_process_started{machine_id = ID, namespace = NS, queue = Queue}) ->
-    %% TODO Review tracing with 'impact=timeout'. Somehow it ends up
-    %% with duplicates of nested 'internal EventMachine:timout' spans.
-    mg_core_otel:span_start({process, Queue}, mk_machine_span_name(timeout), #{
-        kind => ?SPAN_KIND_INTERNAL,
-        attributes => machine_tags(NS, ID, #{<<"queue">> => atom_to_binary(Queue)})
-    });
-handle_beat(_Options, #mg_core_timer_process_finished{queue = Queue}) ->
-    mg_core_otel:span_end({process, Queue});
+handle_beat(_Options, #mg_core_timer_process_started{machine_id = _ID, namespace = _NS, queue = _Queue}) ->
+    %% NOTE Don't record span for timer process, since it's already
+    %% wrapped by span started by `mg_core_machine_process_started'
+    %% beat handling.
+    %% mg_core_otel:span_start({process, Queue}, mk_machine_span_name(timeout), #{
+    %%     kind => ?SPAN_KIND_INTERNAL,
+    %%     attributes => machine_tags(NS, ID, #{<<"queue">> => atom_to_binary(Queue)})
+    %% });
+    ok;
+handle_beat(_Options, #mg_core_timer_process_finished{queue = _Queue}) ->
+    %% NOTE See `mg_core_timer_process_started' handling
+    %% mg_core_otel:span_end({process, Queue});
+    ok;
 %% Machine process state
 %% Machine created and loaded
 %% Mind that loading of machine state happens in its worker' process context
