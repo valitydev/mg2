@@ -106,6 +106,9 @@ handle_beat(_Options, #mg_core_machine_lifecycle_loading_error{
 handle_beat(_Options, #mg_core_machine_lifecycle_transient_error{
     exception = Exception, machine_id = ID, namespace = NS
 }) ->
+    %% TODO Discriminate transient error exception and failed state
+    %% transition. Transient lifecycle error for now only happen on
+    %% transient storage exceptions.
     mg_core_otel:record_exception(Exception, machine_tags(NS, ID));
 %% Machine call handling
 %% Wraps core machine call `Module:process_machine/7`.
@@ -123,6 +126,10 @@ handle_beat(_Options, #mg_core_machine_process_finished{processor_impact = Proce
 handle_beat(_Options, #mg_core_machine_process_transient_error{
     exception = Exception, machine_id = ID, namespace = NS
 }) ->
+    %% TODO End current span if it is started by
+    %% 'mg_core_machine_process_started' beat, since it wont end
+    %% normally because 'mg_core_machine_process_finished' beat will
+    %% never be emitted.
     mg_core_otel:record_exception(Exception, machine_tags(NS, ID));
 %% Machine notification
 handle_beat(_Options, #mg_core_machine_notification_created{machine_id = ID, namespace = NS}) ->
