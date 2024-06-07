@@ -24,6 +24,8 @@
 -module(mg_core_events_machine).
 
 -include_lib("mg_core/include/pulse.hrl").
+-include_lib("opentelemetry_api/include/otel_tracer.hrl").
+-include_lib("opentelemetry_api/include/opentelemetry.hrl").
 
 %% API
 -export_type([id/0]).
@@ -260,24 +262,26 @@ processor_child_spec(Options) ->
     PackedState :: mg_core_machine:machine_state(),
     Result :: mg_core_machine:processor_result().
 process_machine(Options, ID, Impact, PCtx, ReqCtx, Deadline, PackedState) ->
-    {ReplyAction, ProcessingFlowAction, NewState} =
-        try
-            process_machine_(
-                Options,
-                ID,
-                Impact,
-                PCtx,
-                ReqCtx,
-                Deadline,
-                opaque_to_state(PackedState)
-            )
-        catch
-            throw:{transient, Reason}:ST ->
-                erlang:raise(throw, {transient, Reason}, ST);
-            throw:Reason ->
-                erlang:throw({transient, {processor_unavailable, Reason}})
-        end,
-    {ReplyAction, ProcessingFlowAction, state_to_opaque(NewState)}.
+    ?with_span(<<"processing event machine">>, #{kind => ?SPAN_KIND_INTERNAL}, fun(_SpanCtx) ->
+        {ReplyAction, ProcessingFlowAction, NewState} =
+            try
+                process_machine_(
+                    Options,
+                    ID,
+                    Impact,
+                    PCtx,
+                    ReqCtx,
+                    Deadline,
+                    opaque_to_state(PackedState)
+                )
+            catch
+                throw:{transient, Reason}:ST ->
+                    erlang:raise(throw, {transient, Reason}, ST);
+                throw:Reason ->
+                    erlang:throw({transient, {processor_unavailable, Reason}})
+            end,
+        {ReplyAction, ProcessingFlowAction, state_to_opaque(NewState)}
+    end).
 
 %%
 

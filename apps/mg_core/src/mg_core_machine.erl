@@ -507,7 +507,7 @@ handle_load(ID, Options, ReqCtx) ->
     ),
     load_storage_machine(ReqCtx, State2).
 
--define(SPAN_NAME(Call), <<"internal Machine:", (atom_to_binary(Call))/binary>>).
+-define(SPAN_NAME(Call), <<"running machine '", (atom_to_binary(Call))/binary, "'">>).
 -define(SPAN_OPTS, #{kind => ?SPAN_KIND_INTERNAL}).
 
 -spec handle_call(_Call, mg_core_worker:call_context(), maybe(request_context()), deadline(), state()) ->
@@ -861,13 +861,18 @@ emit_repaired_beat(ReqCtx, Deadline, State) ->
     state().
 process(Impact, ProcessingCtx, ReqCtx, Deadline, State) ->
     RetryStrategy = get_impact_retry_strategy(Impact, Deadline, State),
-    try
-        process_with_retry(Impact, ProcessingCtx, ReqCtx, Deadline, State, RetryStrategy)
-    catch
-        Class:Reason:ST ->
-            ok = do_reply_action({reply, {error, {logic, machine_failed}}}, ProcessingCtx),
-            handle_exception({Class, Reason, ST}, ReqCtx, Deadline, State)
-    end.
+    #{id := ID, namespace := NS} = State,
+    SpanOpts = (?SPAN_OPTS)#{attributes => mg_core_otel:machine_tags(NS, ID)},
+    SpanName = <<"processing machine '", (mg_core_otel:impact_to_machine_activity(Impact))/binary, "'">>,
+    ?with_span(SpanName, SpanOpts, fun(_SpanCtx) ->
+        try
+            process_with_retry(Impact, ProcessingCtx, ReqCtx, Deadline, State, RetryStrategy)
+        catch
+            Class:Reason:ST ->
+                ok = do_reply_action({reply, {error, {logic, machine_failed}}}, ProcessingCtx),
+                handle_exception({Class, Reason, ST}, ReqCtx, Deadline, State)
+        end
+    end).
 
 %% 😠
 -spec process_notification(NotificationID, Args, ProcessingCtx, ReqCtx, Deadline, State) -> State when
