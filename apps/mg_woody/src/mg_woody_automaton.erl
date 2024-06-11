@@ -184,12 +184,13 @@ handle_function('Modernize', {MachineDesc}, WoodyContext, Options) ->
     mg_woody_utils:handle_error(
         #{namespace => NS, machine_id => ID, request_context => ReqCtx},
         fun() ->
-            mg_core_events_modernizer:modernize_machine(
-                get_machine_options(NS, Options),
-                WoodyContext,
-                ID,
-                Range
-            )
+            {ok,
+                mg_core_events_modernizer:modernize_machine(
+                    get_machine_options(NS, Options),
+                    WoodyContext,
+                    ID,
+                    Range
+                )}
         end,
         pulse(NS, Options)
     );
