@@ -12,6 +12,11 @@
 -export([add_event/2]).
 -export([record_exception/2]).
 
+-export([current_span_id/1]).
+
+-export([impact_to_machine_activity/1]).
+-export([machine_tags/2]).
+
 -type packed_otel_stub() :: [mg_core_storage:opaque()].
 
 -export_type([packed_otel_stub/0]).
@@ -102,7 +107,36 @@ record_exception({Class, Reason, Stacktrace}, Attributes) ->
     _ = otel_span:record_exception(otel_tracer:current_span_ctx(), Class, Reason, Stacktrace, Attributes),
     ok.
 
+-spec current_span_id(otel_ctx:t()) -> opentelemetry:span_id().
+current_span_id(Ctx) ->
+    span_id(otel_tracer:current_span_ctx(Ctx)).
+
+-spec impact_to_machine_activity(mg_core_machine:processor_impact()) -> binary().
+impact_to_machine_activity(ProcessorImpact) when is_tuple(ProcessorImpact) ->
+    atom_to_binary(element(1, ProcessorImpact));
+impact_to_machine_activity(ProcessorImpact) when is_atom(ProcessorImpact) ->
+    atom_to_binary(ProcessorImpact).
+
+-spec machine_tags(mg_core:ns(), mg_core:id() | undefined) -> map().
+machine_tags(Namespace, ID) ->
+    machine_tags(Namespace, ID, #{}).
+
+-spec machine_tags(mg_core:ns(), mg_core:id() | undefined, map()) -> map().
+machine_tags(Namespace, ID, OtherTags) ->
+    genlib_map:compact(
+        maps:merge(OtherTags, #{
+            <<"machine.ns">> => Namespace,
+            <<"machine.id">> => ID
+        })
+    ).
+
 %%
+
+-spec span_id(opentelemetry:span_ctx()) -> opentelemetry:span_id() | undefined.
+span_id(#span_ctx{span_id = SpanID}) ->
+    SpanID;
+span_id(_) ->
+    undefined.
 
 -spec trace_id_to_binary(opentelemetry:trace_id()) -> binary().
 trace_id_to_binary(TraceID) ->

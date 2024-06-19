@@ -507,7 +507,7 @@ handle_load(ID, Options, ReqCtx) ->
     ),
     load_storage_machine(ReqCtx, State2).
 
--define(SPAN_NAME(Call), <<"internal Machine:", (atom_to_binary(Call))/binary>>).
+-define(SPAN_NAME(Call), <<"running machine '", (atom_to_binary(Call))/binary, "'">>).
 -define(SPAN_OPTS, #{kind => ?SPAN_KIND_INTERNAL}).
 
 -spec handle_call(_Call, mg_core_worker:call_context(), maybe(request_context()), deadline(), state()) ->
@@ -515,8 +515,9 @@ handle_load(ID, Options, ReqCtx) ->
 handle_call(Call, CallContext, ReqCtx, Deadline, S) ->
     %% FIXME Consider adding new pulse beats to wrap 'processing calls' here.
     ok = attach_otel_ctx(ReqCtx),
-    ?with_span(?SPAN_NAME(call), ?SPAN_OPTS, fun(_SpanCtx) ->
-        do_handle_call(Call, CallContext, ReqCtx, Deadline, S)
+    ParentSpanId = mg_core_otel:current_span_id(otel_ctx:get_current()),
+    ?with_span(?SPAN_NAME(call), ?SPAN_OPTS, fun(SpanCtx) ->
+        do_handle_call(Call, CallContext, ReqCtx, Deadline, ParentSpanId, SpanCtx, S)
     end).
 
 -define(NOREPLY(State), {noreply, State}).
@@ -526,9 +527,30 @@ handle_call(Call, CallContext, ReqCtx, Deadline, S) ->
     {{reply, {error, Error}}, State}
 end).
 
--spec do_handle_call(_Call, mg_core_worker:call_context(), maybe(request_context()), deadline(), state()) ->
+-define(with_parent_span_linked(ReqOtelCtx, ParentSpanId, SpanCtx, SpanName, ProcessFun),
+    case mg_core_otel:current_span_id(ReqOtelCtx) =:= ParentSpanId of
+        %% Update span name and go with it
+        true ->
+            _ = ?update_name(SpanName),
+            ProcessFun(SpanCtx);
+        %% Link spans
+        false ->
+            SpanOpts = ?SPAN_OPTS#{links => [opentelemetry:link(SpanCtx)]},
+            otel_tracer:with_span(ReqOtelCtx, ?current_tracer, SpanName, SpanOpts, ProcessFun)
+    end
+).
+
+-spec do_handle_call(
+    _Call,
+    mg_core_worker:call_context(),
+    maybe(request_context()),
+    deadline(),
+    opentelemetry:span_id(),
+    opentelemetry:span_ctx(),
+    state()
+) ->
     {{reply, _Resp} | noreply, state()}.
-do_handle_call(Call, CallContext, ReqCtx, Deadline, S = #{storage_machine := StorageMachine}) ->
+do_handle_call(Call, CallContext, ReqCtx, Deadline, ParentSpanId, SpanCtx, S = #{storage_machine := StorageMachine}) ->
     PCtx = new_processing_context(CallContext),
 
     % довольно сложное место, тут определяется приоритет реакции на внешние раздражители, нужно
@@ -564,8 +586,8 @@ do_handle_call(Call, CallContext, ReqCtx, Deadline, S = #{storage_machine := Sto
             % обработка машин в стейте processing идёт без дедлайна
             % машина должна либо упасть, либо перейти в другое состояние
             %% NOTE Use _possibly_ different OTEL context for 'continuation' span
-            OtelCtx = request_context_to_otel_context(ProcessingReqCtx),
-            S1 = otel_tracer:with_span(OtelCtx, ?current_tracer, ?SPAN_NAME(continuation), ?SPAN_OPTS, fun(_) ->
+            ReqOtelCtx = request_context_to_otel_context(ProcessingReqCtx),
+            S1 = ?with_parent_span_linked(ReqOtelCtx, ParentSpanId, SpanCtx, ?SPAN_NAME(continuation), fun(_) ->
                 process(continuation, undefined, ProcessingReqCtx, undefined, S)
             end),
             handle_call(Call, CallContext, ReqCtx, Deadline, S1);
@@ -602,17 +624,17 @@ do_handle_call(Call, CallContext, ReqCtx, Deadline, S = #{storage_machine := Sto
         %% 'timeout' (from timers and retry_timers queues)
         {{timeout, Ts0}, #{status := {waiting, Ts1, InitialReqCtx, _}}} when Ts0 =:= Ts1 ->
             %% NOTE Use _possibly_ different OTEL context for 'timeout' signal span
-            OtelCtx = request_context_to_otel_context(InitialReqCtx),
+            ReqOtelCtx = request_context_to_otel_context(InitialReqCtx),
             ?NOREPLY(
-                otel_tracer:with_span(OtelCtx, ?current_tracer, ?SPAN_NAME(timeout), ?SPAN_OPTS, fun(_) ->
+                ?with_parent_span_linked(ReqOtelCtx, ParentSpanId, SpanCtx, ?SPAN_NAME(timeout), fun(_) ->
                     process(timeout, PCtx, InitialReqCtx, Deadline, S)
                 end)
             );
         {{timeout, Ts0}, #{status := {retrying, Ts1, _, _, InitialReqCtx}}} when Ts0 =:= Ts1 ->
-            %% NOTE Use _possibly_ different OTEL context for retry 'timeout' signal span
-            OtelCtx = request_context_to_otel_context(InitialReqCtx),
+            %% NOTE Use _possibly_ different OTEL context for retry 'timeout' signal spa
+            ReqOtelCtx = request_context_to_otel_context(InitialReqCtx),
             ?NOREPLY(
-                otel_tracer:with_span(OtelCtx, ?current_tracer, ?SPAN_NAME(timeout), ?SPAN_OPTS, fun(_) ->
+                ?with_parent_span_linked(ReqOtelCtx, ParentSpanId, SpanCtx, ?SPAN_NAME(timeout), fun(_) ->
                     process(timeout, PCtx, InitialReqCtx, Deadline, S)
                 end)
             );
@@ -839,13 +861,18 @@ emit_repaired_beat(ReqCtx, Deadline, State) ->
     state().
 process(Impact, ProcessingCtx, ReqCtx, Deadline, State) ->
     RetryStrategy = get_impact_retry_strategy(Impact, Deadline, State),
-    try
-        process_with_retry(Impact, ProcessingCtx, ReqCtx, Deadline, State, RetryStrategy)
-    catch
-        Class:Reason:ST ->
-            ok = do_reply_action({reply, {error, {logic, machine_failed}}}, ProcessingCtx),
-            handle_exception({Class, Reason, ST}, ReqCtx, Deadline, State)
-    end.
+    #{id := ID, namespace := NS} = State,
+    SpanOpts = (?SPAN_OPTS)#{attributes => mg_core_otel:machine_tags(NS, ID)},
+    SpanName = <<"processing machine '", (mg_core_otel:impact_to_machine_activity(Impact))/binary, "'">>,
+    ?with_span(SpanName, SpanOpts, fun(_SpanCtx) ->
+        try
+            process_with_retry(Impact, ProcessingCtx, ReqCtx, Deadline, State, RetryStrategy)
+        catch
+            Class:Reason:ST ->
+                ok = do_reply_action({reply, {error, {logic, machine_failed}}}, ProcessingCtx),
+                handle_exception({Class, Reason, ST}, ReqCtx, Deadline, State)
+        end
+    end).
 
 %% 😠
 -spec process_notification(NotificationID, Args, ProcessingCtx, ReqCtx, Deadline, State) -> State when
