@@ -21,10 +21,17 @@
     event_stash_size := non_neg_integer()
 }.
 
+-type event_sink_ns() :: #{
+    default_processing_timeout := timeout(),
+    storage => mg_core_storage:options(),
+    worker => mg_core_worker:options()
+}.
+
 -type namespaces() :: #{mg_core:ns() => events_machines()}.
 
 -type config() :: #{
     woody_server := mg_woody:woody_server(),
+    event_sink_ns := event_sink_ns(),
     namespaces := namespaces(),
     pulse := pulse(),
     quotas => [mg_core_quota_worker:options()],
@@ -39,6 +46,7 @@
 construct_child_specs(
     #{
         woody_server := WoodyServer,
+        event_sink_ns := EventSinkNS,
         namespaces := Namespaces,
         pulse := Pulse
     } = Config
@@ -48,12 +56,14 @@ construct_child_specs(
     ClusterOpts = maps:get(cluster, Config, #{}),
 
     QuotasChildSpec = quotas_child_specs(Quotas, quota),
-    EventMachinesChildSpec = events_machines_child_specs(Namespaces, Pulse),
+    EventSinkChildSpec = event_sink_ns_child_spec(EventSinkNS, event_sink, Pulse),
+    EventMachinesChildSpec = events_machines_child_specs(Namespaces, EventSinkNS, Pulse),
     WoodyServerChildSpec = mg_woody:child_spec(
         woody_server,
         #{
             pulse => Pulse,
-            automaton => api_automaton_options(Namespaces, Pulse),
+            automaton => api_automaton_options(Namespaces, EventSinkNS, Pulse),
+            event_sink => api_event_sink_options(Namespaces, EventSinkNS, Pulse),
             woody_server => WoodyServer,
             additional_routes => [
                 get_startup_route(),
@@ -66,6 +76,7 @@ construct_child_specs(
 
     lists:flatten([
         QuotasChildSpec,
+        EventSinkChildSpec,
         EventMachinesChildSpec,
         ClusterSpec,
         WoodyServerChildSpec
@@ -101,16 +112,22 @@ quotas_child_specs(Quotas, ChildID) ->
      || Options <- Quotas
     ].
 
--spec events_machines_child_specs(namespaces(), pulse()) -> supervisor:child_spec().
-events_machines_child_specs(NSs, Pulse) ->
-    NsOptions = [events_machine_options(NS, NSs, Pulse) || NS <- maps:keys(NSs)],
+-spec events_machines_child_specs(namespaces(), event_sink_ns(), pulse()) -> supervisor:child_spec().
+events_machines_child_specs(NSs, EventSinkNS, Pulse) ->
+    NsOptions = [
+        events_machine_options(NS, NSs, EventSinkNS, Pulse)
+     || NS <- maps:keys(NSs)
+    ],
     mg_namespace_sup:child_spec(NsOptions, namespaces_sup).
 
--spec events_machine_options(mg_core:ns(), namespaces(), pulse()) -> mg_core_events_machine:options().
-events_machine_options(NS, NSs, Pulse) ->
+-spec events_machine_options(mg_core:ns(), namespaces(), event_sink_ns(), pulse()) -> mg_core_events_machine:options().
+events_machine_options(NS, NSs, EventSinkNS, Pulse) ->
     NSConfigs = maps:get(NS, NSs),
     #{processor := ProcessorConfig, storage := Storage} = NSConfigs,
-    EventSinks = [event_sink_options(SinkConfig, Pulse) || SinkConfig <- maps:get(event_sinks, NSConfigs, [])],
+    EventSinks = [
+        event_sink_options(SinkConfig, EventSinkNS, Pulse)
+     || SinkConfig <- maps:get(event_sinks, NSConfigs, [])
+    ],
     EventsStorage = sub_storage_options(<<"events">>, Storage),
     #{
         namespace => NS,
@@ -150,14 +167,14 @@ machine_options(NS, Config, Pulse) ->
         suicide_probability => maps:get(suicide_probability, Config, undefined)
     }.
 
--spec api_automaton_options(namespaces(), pulse()) -> mg_woody_automaton:options().
-api_automaton_options(NSs, Pulse) ->
+-spec api_automaton_options(namespaces(), event_sink_ns(), pulse()) -> mg_woody_automaton:options().
+api_automaton_options(NSs, EventSinkNS, Pulse) ->
     maps:fold(
         fun(NS, ConfigNS, Options) ->
             Options#{
                 NS => maps:merge(
                     #{
-                        machine => events_machine_options(NS, NSs, Pulse)
+                        machine => events_machine_options(NS, NSs, EventSinkNS, Pulse)
                     },
                     modernizer_options(maps:get(modernizer, ConfigNS, undefined), Pulse)
                 )
@@ -167,12 +184,46 @@ api_automaton_options(NSs, Pulse) ->
         NSs
     ).
 
--spec event_sink_options(mg_core_events_sink:handler(), pulse()) -> mg_core_events_sink:handler().
-event_sink_options({mg_core_events_sink_kafka, EventSinkConfig}, Pulse) ->
+-spec event_sink_options(mg_core_events_sink:handler(), event_sink_ns(), pulse()) -> mg_core_events_sink:handler().
+event_sink_options({mg_core_events_sink_machine, EventSinkConfig}, EvSinks, Pulse) ->
+    EventSinkNS = event_sink_namespace_options(EvSinks, Pulse),
+    {mg_core_events_sink_machine, maps:merge(EventSinkNS, EventSinkConfig)};
+event_sink_options({mg_core_events_sink_kafka, EventSinkConfig}, _Config, Pulse) ->
     {mg_core_events_sink_kafka, EventSinkConfig#{
         pulse => Pulse,
         encoder => fun mg_woody_event_sink:serialize/3
     }}.
+
+-spec event_sink_ns_child_spec(event_sink_ns(), atom(), pulse()) -> supervisor:child_spec().
+event_sink_ns_child_spec(EventSinkNS, ChildID, Pulse) ->
+    mg_core_events_sink_machine:child_spec(event_sink_namespace_options(EventSinkNS, Pulse), ChildID).
+
+-spec api_event_sink_options(namespaces(), event_sink_ns(), pulse()) -> mg_woody_event_sink:options().
+api_event_sink_options(NSs, EventSinkNS, Pulse) ->
+    EventSinkMachines = collect_event_sink_machines(NSs),
+    {EventSinkMachines, event_sink_namespace_options(EventSinkNS, Pulse)}.
+
+-spec collect_event_sink_machines(namespaces()) -> [mg_core:id()].
+collect_event_sink_machines(NSs) ->
+    NSConfigs = maps:values(NSs),
+    EventSinks = ordsets:from_list([
+        maps:get(machine_id, SinkConfig)
+     || NSConfig <- NSConfigs, {mg_core_events_sink_machine, SinkConfig} <- maps:get(event_sinks, NSConfig, [])
+    ]),
+    ordsets:to_list(EventSinks).
+
+-spec event_sink_namespace_options(event_sink_ns(), pulse()) -> mg_core_events_sink_machine:ns_options().
+event_sink_namespace_options(#{storage := Storage} = EventSinkNS, Pulse) ->
+    NS = <<"_event_sinks">>,
+    MachinesStorage = sub_storage_options(<<"machines">>, Storage),
+    EventsStorage = sub_storage_options(<<"events">>, Storage),
+    EventSinkNS#{
+        namespace => NS,
+        pulse => Pulse,
+        storage => MachinesStorage,
+        events_storage => EventsStorage,
+        worker => worker_manager_options(EventSinkNS)
+    }.
 
 -spec worker_manager_options(map()) -> mg_core_workers_manager:ns_options().
 worker_manager_options(Config) ->

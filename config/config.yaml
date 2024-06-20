@@ -175,6 +175,9 @@ namespaces:
         # only for testing, default 0
         # suicide_probability: 0.1
         event_sinks:
+            machine:
+                type: machine
+                machine_id: main_event_sink
             kafka:
                 type: kafka
                 client: default_kafka_client
