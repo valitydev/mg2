@@ -31,13 +31,13 @@ handle_beat(_Options, Beat) ->
 setup() ->
     %% Event sink / kafka
     true = prometheus_counter:declare([
-        {name, mg_event_sink_produced_total},
+        {name, mg_events_sink_produced_total},
         {registry, registry()},
         {labels, [namespace, name]},
         {help, "Total number of Machinegun event sink events."}
     ]),
     true = prometheus_histogram:declare([
-        {name, mg_event_sink_kafka_produced_duration_seconds},
+        {name, mg_events_sink_kafka_produced_duration_seconds},
         {registry, registry()},
         {labels, [namespace, name, action]},
         {buckets, duration_buckets()},
@@ -56,9 +56,9 @@ dispatch_metrics(#mg_event_sink_kafka_sent{
     encode_duration = EncodeDuration,
     send_duration = SendDuration
 }) ->
-    ok = inc(mg_event_sink_produced_total, [NS, Name]),
-    ok = observe(mg_event_sink_kafka_produced_duration_seconds, [NS, Name, encode], EncodeDuration),
-    ok = observe(mg_event_sink_kafka_produced_duration_seconds, [NS, Name, send], SendDuration);
+    ok = inc(mg_events_sink_produced_total, [NS, Name]),
+    ok = observe(mg_events_sink_kafka_produced_duration_seconds, [NS, Name, encode], EncodeDuration),
+    ok = observe(mg_events_sink_kafka_produced_duration_seconds, [NS, Name, send], SendDuration);
 % Unknown
 dispatch_metrics(_Beat) ->
     ok.

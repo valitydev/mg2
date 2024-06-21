@@ -78,11 +78,11 @@ event_sink_kafka_sent_test(_C) ->
                 partition = 0,
                 offset = 0
             }),
-            ?assertEqual(prometheus_counter:value(mg_event_sink_produced_total, [?NS, Name]), Counter),
+            ?assertEqual(prometheus_counter:value(mg_events_sink_produced_total, [?NS, Name]), Counter),
             {BucketsHits, _} =
-                prometheus_histogram:value(mg_event_sink_kafka_produced_duration_seconds, [?NS, Name, encode]),
+                prometheus_histogram:value(mg_events_sink_kafka_produced_duration_seconds, [?NS, Name, encode]),
             {BucketsHits, _} =
-                prometheus_histogram:value(mg_event_sink_kafka_produced_duration_seconds, [?NS, Name, send]),
+                prometheus_histogram:value(mg_events_sink_kafka_produced_duration_seconds, [?NS, Name, send]),
             BucketHit = lists:nth(BucketIdx, BucketsHits),
             %% Check that bucket under index BucketIdx received one hit
             ?assertEqual(maps:get(BucketIdx, BucketAcc, 0) + 1, BucketHit),
