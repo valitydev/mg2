@@ -1,3 +1,0 @@
--module(mg_riak).
-
-%%
