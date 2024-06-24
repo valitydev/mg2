@@ -17,7 +17,7 @@
 -type context() :: mg_core_storage:context().
 -type options() :: #{
     namespace := mg_core:ns(),
-    pulse := mg_core_pulse:handler(),
+    pulse := mpulse:handler(),
     storage := storage_options()
 }.
 
@@ -29,7 +29,7 @@
 %% Internal types
 
 % FIXME like mg_core_storage:options() except `name`
--type storage_options() :: mg_core_utils:mod_opts(map()).
+-type storage_options() :: mg_utils:mod_opts(map()).
 -type ts() :: genlib_time:ts().
 
 %%
@@ -43,7 +43,7 @@ child_spec(Options, ChildID) ->
         start =>
             {genlib_adhoc_supervisor, start_link, [
                 #{strategy => rest_for_one},
-                mg_core_utils:lists_compact([
+                mg_utils:lists_compact([
                     mg_core_storage:child_spec(storage_options(Options), storage)
                 ])
             ]},
@@ -124,5 +124,5 @@ data_to_opaque(#{
 
 -spec storage_options(options()) -> mg_core_storage:options().
 storage_options(#{namespace := NS, storage := StorageOptions, pulse := Handler}) ->
-    {Mod, Options} = mg_core_utils:separate_mod_opts(StorageOptions, #{}),
+    {Mod, Options} = mg_utils:separate_mod_opts(StorageOptions, #{}),
     {Mod, Options#{name => {NS, ?MODULE, notifications}, pulse => Handler}}.

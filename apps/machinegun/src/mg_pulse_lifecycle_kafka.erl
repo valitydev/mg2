@@ -18,8 +18,8 @@
 
 -include_lib("mg_core/include/pulse.hrl").
 
-%% mg_pulse handler
--behaviour(mg_core_pulse).
+%% mpulse handler
+-behaviour(mpulse).
 
 -type options() :: #{
     topic := brod:topic(),

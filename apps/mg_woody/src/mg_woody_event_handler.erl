@@ -29,9 +29,9 @@
     Event :: woody_event_handler:event(),
     RpcID :: woody:rpc_id(),
     EventMeta :: woody_event_handler:event_meta(),
-    PulseHandler :: mg_core_pulse:handler().
+    PulseHandler :: mpulse:handler().
 handle_event(Event, RpcID, EventMeta, PulseHandler) ->
-    mg_core_pulse:handle_beat(PulseHandler, #woody_event{
+    mpulse:handle_beat(PulseHandler, #woody_event{
         event = Event,
         rpc_id = RpcID,
         event_meta = EventMeta

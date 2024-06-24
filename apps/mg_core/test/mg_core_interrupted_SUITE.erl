@@ -147,7 +147,7 @@ process_machine(_, _, {call, answer}, _, ?REQ_CTX, _, State) ->
 %%
 -spec start_automaton(mg_core_machine:options()) -> pid().
 start_automaton(Options) ->
-    mg_core_utils:throw_if_error(mg_core_machine:start_link(Options)).
+    mg_utils:throw_if_error(mg_core_machine:start_link(Options)).
 
 -spec stop_automaton(pid()) -> ok.
 stop_automaton(Pid) ->
@@ -169,7 +169,7 @@ automaton_options(NS, StorageName) ->
             }}
         ),
         worker => #{
-            registry => mg_core_procreg_global
+            registry => mg_procreg_global
         },
         notification => #{
             namespace => NS,
@@ -182,7 +182,7 @@ automaton_options(NS, StorageName) ->
         }
     }.
 
--spec handle_beat(_, mg_core_pulse:beat()) -> ok.
+-spec handle_beat(_, mpulse:beat()) -> ok.
 handle_beat(_, {squad, _}) ->
     ok;
 handle_beat(_, Beat) ->

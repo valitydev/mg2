@@ -1,0 +1,17 @@
+{application, mg_procreg, [
+    {description, "Machinegun process registry lib"},
+    {vsn, "1"},
+    {registered, []},
+    {applications, [
+        kernel,
+        stdlib,
+        genlib,
+        gproc,
+        mg_utils
+    ]},
+    {env, []},
+    {modules, []},
+    {maintainers, []},
+    {licenses, []},
+    {links, []}
+]}.
