@@ -63,8 +63,19 @@ defmodule LoadProcessor do
     end
 
     @impl true
-    def process_call(%CallArgs{arg: _arg, machine: _machine}, _ctx, _hdlops) do
-      throw(:not_implemented)
+    def process_call(%CallArgs{arg: args, machine: machine}, _ctx, _hdlops) do
+      args = Utils.unpack(args)
+      Logger.info("Calling machine #{machine.id} of #{machine.ns} with #{inspect(args)}")
+
+      change =
+        %MachineStateChange{}
+        |> put_events([{:call_processed, args}])
+
+      action =
+        %ComplexAction{}
+        |> set_timer(0)
+
+      %CallResult{response: Utils.pack("result"), change: change, action: action}
     end
 
     @impl true
@@ -78,7 +89,7 @@ defmodule LoadProcessor do
       change =
         %MachineStateChange{}
         |> put_aux_state(%{"arbitrary" => "arbitrary aux state data", "counter" => 0})
-        |> put_events([:counter_incremented])
+        |> put_events([:counter_created])
 
       action =
         %ComplexAction{}
@@ -90,12 +101,17 @@ defmodule LoadProcessor do
     defp process_timeout(%Machine{id: id, ns: ns} = machine) do
       Logger.info("Timeouting machine #{id} of #{ns}")
 
-      aux_state = get_aux_state(machine)
+      aux_state =
+        machine
+        |> get_aux_state()
+        |> Map.update!("counter", &(&1 + 1))
+
+      Logger.info("New aux state #{inspect(aux_state)}")
 
       change =
         %MachineStateChange{}
-        |> put_aux_state(%{aux_state | "counter" => aux_state["counter"] + 1})
-        |> put_events([])
+        |> put_aux_state(aux_state)
+        |> put_events([:counter_incremented])
 
       action =
         %ComplexAction{}
@@ -175,16 +191,19 @@ defmodule LoadProcessor do
     alias LoadProcessor.Machinery
 
     def init(req, state) do
-      result =
+      {:ok, machine} =
         Machinery.new("http://machinegun:8022/v1/automaton")
         |> Machinery.start("load-test", random_id(), "start please")
 
-      IO.inspect(result)
+      req =
+        :cowboy_req.reply(
+          200,
+          %{"content-type" => "text/plain"},
+          "Starting machine now\n#{inspect(machine)}\n",
+          req
+        )
 
-      res =
-        :cowboy_req.reply(200, %{"content-type" => "text/plain"}, "Starting machine now\n", req)
-
-      {:ok, res, state}
+      {:ok, req, state}
     end
 
     def terminate(_, _, _) do
