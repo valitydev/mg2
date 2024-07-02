@@ -21,7 +21,6 @@ services:
         condition: service_healthy
     working_dir: $PWD
     command: /usr/local/bin/iex
-    # command: /usr/local/bin/elixir ./load_processor.exs
 
   machinegun:
     build:

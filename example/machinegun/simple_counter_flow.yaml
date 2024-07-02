@@ -1,0 +1,10 @@
+
+version: 1
+
+storage: ~
+cluster: ~
+process_registry: ~
+limits: ~
+logging: ~
+erlang: ~
+kafka: ~
