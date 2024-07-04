@@ -7,23 +7,23 @@
 
 ``` elixir
 # Alias machinery helper for convinence
-alias LoadProcessor.Machinery, as: M
+alias LoadProcessor.Machine
 
-# Create automaton client
-automaton = M.new("http://machinegun:8022/v1/automaton")
+# Create machine client
+machine = Machine.new("http://machinegun:8022/v1/automaton", "load-test", "my-machine")
 
 # Start machine
-automaton |> M.start("load-test", "my-machine", "start payload")
+machine |> Machine.start("start payload")
 
-# Call machine
-automaton |> M.call("load-test", "my-machine", "call payload")
+# Call machine (returns call result, not machine client)
+machine |> Machine.call("call payload")
 
 # Repair machine
-automaton |> M.simple_repair("load-test", "my-machine")
+machine |> Machine.simple_repair()
 
 # Get machine
-automaton |> M.get("load-test", "my-machine")
+machine |> Machine.get()
 
 # Get machine status
-automaton |> M.get("load-test", "my-machine") |> elem(1) |> Map.get(:status)
+machine |> Machine.get() |> Map.get(:status)
 ```

@@ -5,12 +5,12 @@ defmodule LoadProcessor.ProcessorHandler do
 
   require Logger
 
-  alias LoadProcessor.Utils
+  alias LoadProcessor.Machine.Utils
   alias MachinegunProto.StateProcessing.{SignalArgs, CallArgs, RepairArgs}
   alias MachinegunProto.StateProcessing.{Signal, InitSignal, TimeoutSignal, NotificationSignal}
-  alias MachinegunProto.StateProcessing.{SignalResult, CallResult, RepairResult, RepairFailed}
-  alias MachinegunProto.StateProcessing.{Content, HistoryRange, Direction}
-  alias MachinegunProto.StateProcessing.{Machine, MachineStatus, MachineStateChange}
+  alias MachinegunProto.StateProcessing.{SignalResult, CallResult}
+  alias MachinegunProto.StateProcessing.{HistoryRange, Direction}
+  alias MachinegunProto.StateProcessing.{Machine, MachineStateChange}
   alias MachinegunProto.StateProcessing.{ComplexAction, TimerAction, SetTimerAction}
   alias MachinegunProto.Base.Timer
 
@@ -20,19 +20,19 @@ defmodule LoadProcessor.ProcessorHandler do
 
   @impl true
   def process_signal(%SignalArgs{signal: signal, machine: machine}, _ctx, _hdlops) do
-      case signal do
-        %Signal{init: %InitSignal{arg: args}} ->
-          process_init(machine, args)
+    case signal do
+      %Signal{init: %InitSignal{arg: args}} ->
+        process_init(machine, args)
 
-        %Signal{timeout: %TimeoutSignal{}} ->
-          process_timeout(machine)
+      %Signal{timeout: %TimeoutSignal{}} ->
+        process_timeout(machine)
 
-        %Signal{notification: %NotificationSignal{arg: args}} ->
-          process_notification(machine, args)
+      %Signal{notification: %NotificationSignal{arg: args}} ->
+        process_notification(machine, args)
 
-        _uknown_signal ->
-          throw(:not_implemented)
-      end
+      _uknown_signal ->
+        throw(:not_implemented)
+    end
   end
 
   @impl true
@@ -98,40 +98,31 @@ defmodule LoadProcessor.ProcessorHandler do
     throw(:not_implemented)
   end
 
-  defp get_aux_state(%Machine{aux_state: %Content{format_version: 1, data: data}}) do
-    Utils.unpack(data)
+  defp get_aux_state(%Machine{aux_state: aux_state}) do
+    Utils.marshal(:aux_state, aux_state)
   end
 
-  defp get_aux_state(_machine) do
-    nil
-  end
-
-  defp put_aux_state(change, data, format_version \\ 1) do
+  defp put_aux_state(change, data) do
     # Optional 'aux_state' technically can be 'nil' but this will
     # break machine, because it is not interpreted as msg_pack's 'nil'
-    # but actually erlang's 'undefined'.
-    # In another words, default 'nil' value of 'aux_state' does not
-    # leaves previous value unchanged but always expects it to be
-    # explicitly set.
-    %MachineStateChange{change | aux_state: to_content(data, format_version)}
+    # but actually erlang's 'undefined'. In another words, default
+    # 'nil' value of 'aux_state' does not leave previous value
+    # unchanged but always expects it to be explicitly set.
+    %MachineStateChange{change | aux_state: Utils.unmarshal(:aux_state, data)}
   end
 
-  defp put_events(change, events, format_version \\ 1) do
+  defp put_events(change, events) do
     wrapped_events =
       events
-      |> Enum.map(&to_content(&1, format_version))
+      |> Enum.map(&Utils.unmarshal(:content, &1))
 
     %MachineStateChange{change | events: wrapped_events}
-  end
-
-  defp to_content(data, format_version) do
-    %Content{format_version: format_version, data: Utils.pack(data)}
   end
 
   defp set_timer(action, timeout, deadline \\ nil, range \\ nil) do
     timer = %SetTimerAction{
       timer: %Timer{timeout: timeout, deadline: deadline},
-      range: maybe_last_n_range(range, 5),
+      range: maybe_last_n_range(range, 10),
       timeout: nil
     }
 

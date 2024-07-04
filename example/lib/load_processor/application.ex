@@ -8,22 +8,13 @@ defmodule LoadProcessor.Application do
   require Logger
 
   alias Woody.Server.Http, as: Server
+  alias LoadProcessor.StfuWoodyHandler, as: WoodyHandler
+  alias LoadProcessor.ProcessorHandler
 
   @impl true
   def start(_type, _args) do
-    endpoint =
-      Server.Endpoint.any(:inet)
-      |> Map.put(:port, 8022)
-
-    handlers = [
-      {"/", LoadProcessor.WebHandler, []},
-      LoadProcessor.ProcessorHandler.new("/v1/stateproc",
-        event_handler: LoadProcessor.StfuWoodyHandler
-      )
-    ]
-
     children = [
-      Server.child_spec(LoadProcessor, endpoint, handlers)
+      server_spec([{"/", LoadProcessor.WebHandler, []}])
     ]
 
     # See https://hexdocs.pm/elixir/Supervisor.html
@@ -32,11 +23,25 @@ defmodule LoadProcessor.Application do
 
     case Supervisor.start_link(children, opts) do
       {:ok, pid} ->
-        Logger.info("Woody server now running on #{Server.endpoint(LoadProcessor)}")
+        Logger.info("Woody server pnow running on #{server_endpoint()}")
         {:ok, pid}
 
       bad_ret ->
         bad_ret
     end
+  end
+
+  defp server_spec(additional_handlers) do
+    endpoint =
+      Server.Endpoint.any(:inet)
+      |> Map.put(:port, 8022)
+
+    Server.child_spec(LoadProcessor, endpoint, [
+      ProcessorHandler.new("/v1/stateproc", event_handler: WoodyHandler) | additional_handlers
+    ])
+  end
+
+  defp server_endpoint() do
+    Server.endpoint(LoadProcessor)
   end
 end
