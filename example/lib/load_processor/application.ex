@@ -23,7 +23,7 @@ defmodule LoadProcessor.Application do
 
     case Supervisor.start_link(children, opts) do
       {:ok, pid} ->
-        Logger.info("Woody server pnow running on #{server_endpoint()}")
+        Logger.info("Woody server now running on #{server_endpoint()}")
         {:ok, pid}
 
       bad_ret ->
