@@ -76,7 +76,7 @@ services:
         condition: on-failure
 
   riakdb: &member-node
-    image: riak-valitydev:latest
+    image: docker.io/basho/riak-kv:ubuntu-2.2.3
     environment:
       - CLUSTER_NAME=riakkv
       - COORDINATOR_NODE=riakdb

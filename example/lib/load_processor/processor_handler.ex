@@ -67,31 +67,44 @@ defmodule LoadProcessor.ProcessorHandler do
 
     action =
       %ComplexAction{}
-      |> set_timer(1)
+      |> set_timer(get_rand_sleep_time([3, 2, 1]))
 
     {:ok, %SignalResult{change: change, action: action}}
   end
 
+  defp get_rand_sleep_time(seed) do
+    # 0s 1s 2s etc occurrences in seed
+    seed |> Enum.with_index() |> Enum.map(fn {occ, i} -> List.duplicate(i, occ) end) |> List.flatten() |> Enum.random()
+  end
+
   defp process_timeout(%Machine{id: id, ns: ns} = machine) do
     Logger.debug("Timeouting machine #{id} of #{ns}")
+    aux_state = get_aux_state(machine)
 
-    aux_state =
-      machine
-      |> get_aux_state()
-      |> Map.update!("counter", &(&1 + 1))
+    case aux_state do
+      %{"counter" => counter} when counter < 100 ->
+        aux_state = Map.update!(aux_state, "counter", &(&1 + 1))
+        Logger.debug("New aux state #{inspect(aux_state)}")
 
-    Logger.debug("New aux state #{inspect(aux_state)}")
+        change =
+          %MachineStateChange{}
+          |> put_aux_state(aux_state)
+          |> put_events([:counter_incremented])
 
-    change =
-      %MachineStateChange{}
-      |> put_aux_state(aux_state)
-      |> put_events([:counter_incremented])
+        action =
+          %ComplexAction{}
+          |> set_timer(get_rand_sleep_time([3, 2, 1]))
 
-    action =
-      %ComplexAction{}
-      |> set_timer(1)
+        {:ok, %SignalResult{change: change, action: action}}
 
-    {:ok, %SignalResult{change: change, action: action}}
+      _ ->
+        change =
+          %MachineStateChange{}
+          |> put_aux_state(aux_state)
+          |> put_events([:counter_stopped])
+
+        {:ok, %SignalResult{change: change, action: %ComplexAction{}}}
+    end
   end
 
   defp process_notification(_machine, _args) do

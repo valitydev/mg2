@@ -10,7 +10,7 @@
 alias LoadProcessor.Machine
 
 # Create machine client
-machine = Machine.new("http://machinegun:8022/v1/automaton", "load-test", "my-machine")
+machine = Machine.new("load-test")
 
 # Start machine
 machine |> Machine.start("start payload")

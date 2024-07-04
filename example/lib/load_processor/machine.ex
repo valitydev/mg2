@@ -17,13 +17,20 @@ defmodule LoadProcessor.Machine do
             history: nil,
             aux_state: nil
 
-  def new(automaton_url, ns, id) do
-    new(Woody.Context.new(), automaton_url, nil, ns, id)
+  @automaton_url Application.compile_env!(:load_processor, [:automaton, :url])
+  @automaton_opts List.wrap(Application.compile_env!(:load_processor, [:automaton, :options]))
+
+  def new(ns, id) do
+    new(Woody.Context.new(), ns, id)
   end
 
-  def new(woody_ctx, automaton_url, automaton_opts, ns, id) do
+  def new(ns) do
+    new(ns, random_id())
+  end
+
+  def new(woody_ctx, ns, id) do
     %__MODULE__{
-      client: Client.new(woody_ctx, automaton_url, List.wrap(automaton_opts)),
+      client: Client.new(woody_ctx, @automaton_url, @automaton_opts),
       ns: ns,
       id: id
     }
@@ -65,5 +72,10 @@ defmodule LoadProcessor.Machine do
 
   defp make_ref(id) do
     %Reference{id: id}
+  end
+
+  defp random_id() do
+    <<id::64>> = :snowflake.new()
+    :genlib_format.format_int_base(id, 62)
   end
 end

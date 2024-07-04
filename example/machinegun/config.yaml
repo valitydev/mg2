@@ -42,7 +42,7 @@ cluster:
   reconnect_timeout: 5000
 
 process_registry:
-  module: mg_core_procreg_global
+  module: mg_procreg_global
 
 limits:
   process_heap: 2M
