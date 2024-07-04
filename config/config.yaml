@@ -100,22 +100,6 @@ erlang:
     ipv6: true
     disable_dns_cache: false
 
-# TODO Retire this option, rely upon OTEL env variables
-#      https://empayre.youtrack.cloud/issue/TD-838
-# Opentelemetry settings
-# By default opentelemetry is disabled which is equivalent to
-# "opentelemetry: disabled"
-opentelemetry:
-    # TODO Describe sampling
-    # Name of the service to use in recording machinegun's spans
-    service_name: machinegun
-    # For now spans processed always in batches.
-    # We support only "otlp" traces exporter
-    exporter:
-        # Supports only "http/protobuf" or "grpc"
-        protocol: http/protobuf
-        endpoint: http://jaeger:4318
-
 # API server options.
 woody_server:
     ip: "::"
@@ -136,9 +120,10 @@ cluster:
     # optional, default value 5000 ms
     reconnect_timeout: 5000
 
-# if undefined then 'mg_core_procreg_gproc' will be used
+# TODO Use aliases, not actual module names.
+# if undefined then 'mg_procreg_gproc' will be used
 process_registry:
-    module: mg_core_procreg_global
+    module: mg_procreg_global
 
 limits:
     process_heap: 2M # heap limit

@@ -269,8 +269,8 @@ health_check(YamlConfig) ->
 
 health_check_fun(_YamlConfig) ->
     %% TODO Review necessity of that configuration handle
-    %% case ?C:conf([process_registry, module], YamlConfig, <<"mg_core_procreg_global">>) of
-    %%     <<"mg_core_procreg_global">> -> global
+    %% case ?C:conf([process_registry, module], YamlConfig, <<"mg_procreg_global">>) of
+    %%     <<"mg_procreg_global">> -> global
     %% end.
     global.
 
@@ -322,7 +322,7 @@ storage(NS, YamlConfig) ->
             mg_core_storage_memory;
         <<"riak">> ->
             PoolSize = ?C:conf([storage, pool, size], YamlConfig, 100),
-            {mg_core_storage_riak, #{
+            {mg_riak_storage, #{
                 host => ?C:conf([storage, host], YamlConfig),
                 port => ?C:conf([storage, port], YamlConfig),
                 bucket => NS,
@@ -504,7 +504,7 @@ modernizer(Name, ModernizerYamlConfig) ->
         }
     }.
 
--spec scheduler(mg_core_quota:share(), ?C:yaml_config()) -> mg_core_machine:scheduler_opt().
+-spec scheduler(mg_skd_quota:share(), ?C:yaml_config()) -> mg_core_machine:scheduler_opt().
 scheduler(Share, Config) ->
     #{
         max_scan_limit => ?C:conf([scan_limit], Config, 5000),
@@ -543,18 +543,21 @@ event_sink({Name, ESYamlConfig}) ->
     event_sink(?C:atom(?C:conf([type], ESYamlConfig)), Name, ESYamlConfig).
 
 event_sink(kafka, Name, ESYamlConfig) ->
-    {mg_core_events_sink_kafka, #{
+    {mg_event_sink_kafka, #{
         name => ?C:atom(Name),
         client => ?C:atom(?C:conf([client], ESYamlConfig)),
         topic => ?C:conf([topic], ESYamlConfig)
     }}.
 
 procreg(YamlConfig) ->
-    % Use process_registry if it's set up or gproc otherwise
+    %% Use process_registry if it's set up or gproc otherwise
+    %% TODO Add support for aliases for procreg modules. It's
+    %%      improper to expose internal module name in yaml
+    %%      configuration file.
     conf_with(
         [process_registry],
         YamlConfig,
-        mg_core_procreg_gproc,
+        mg_procreg_gproc,
         fun(ProcRegYamlConfig) -> ?C:atom(?C:conf([module], ProcRegYamlConfig)) end
     ).
 

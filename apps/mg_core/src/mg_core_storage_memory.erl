@@ -36,7 +36,7 @@
 %%
 %% internal API
 %%
--spec start_link(options()) -> mg_core_utils:gen_start_ret().
+-spec start_link(options()) -> mg_utils:gen_start_ret().
 start_link(Options) ->
     gen_server:start_link(reg_name(get_name(Options)), ?MODULE, Options, []).
 
@@ -48,7 +48,7 @@ start_link(Options) ->
     undefined
     | #{
         name := name(),
-        pulse := mg_core_pulse:handler(),
+        pulse := mpulse:handler(),
         existing_storage_name => name(),
         random_transient_fail => random_fail_policy()
     }.
@@ -92,7 +92,7 @@ get_name(#{name := Name}) ->
 -type search_result() ::
     [{mg_core_storage:index_value(), mg_core_storage:key()}] | [mg_core_storage:key()].
 
--spec init(options()) -> mg_core_utils:gen_server_init_ret(state()).
+-spec init(options()) -> mg_utils:gen_server_init_ret(state()).
 init(Options) ->
     {ok, #{
         options => Options,
@@ -100,8 +100,8 @@ init(Options) ->
         indexes => #{}
     }}.
 
--spec handle_call(_Call, mg_core_utils:gen_server_from(), state()) ->
-    mg_core_utils:gen_server_handle_call_ret(state()) | no_return().
+-spec handle_call(_Call, mg_utils:gen_server_from(), state()) ->
+    mg_utils:gen_server_handle_call_ret(state()) | no_return().
 handle_call({put, Key, Context, Value, IndexesUpdates}, _From, State) ->
     {Resp, NewState} = do_put(Key, Context, Value, IndexesUpdates, State),
     {reply, Resp, NewState};
@@ -131,7 +131,7 @@ handle_info(Info, State) ->
     _ = erlang:exit({'unexpected info received', Info}),
     {noreply, State}.
 
--spec code_change(_, state(), _) -> mg_core_utils:gen_server_code_change_ret(state()).
+-spec code_change(_, state(), _) -> mg_utils:gen_server_code_change_ret(state()).
 code_change(_, State, _) ->
     {ok, State}.
 
@@ -380,11 +380,11 @@ start_from_elem(Item, [_ | Tail]) ->
 
 %% Registry utils
 
--spec ref(name()) -> mg_core_utils:gen_ref().
+-spec ref(name()) -> mg_utils:gen_ref().
 ref(Name) ->
     {via, gproc, gproc_key(Name)}.
 
--spec reg_name(name()) -> mg_core_utils:gen_reg_name().
+-spec reg_name(name()) -> mg_utils:gen_reg_name().
 reg_name(Name) ->
     {via, gproc, gproc_key(Name)}.
 

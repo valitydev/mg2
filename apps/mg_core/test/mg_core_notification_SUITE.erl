@@ -191,6 +191,6 @@ pass_saved_cfg(C) ->
 get_cfg(Key, C) ->
     test_server:lookup_config(Key, C).
 
--spec handle_beat(_, mg_core_pulse:beat()) -> ok.
+-spec handle_beat(_, mpulse:beat()) -> ok.
 handle_beat(_, Beat) ->
     ct:pal("~p", [Beat]).

@@ -26,11 +26,15 @@
         erl_health,
         prometheus,
         prometheus_cowboy,
+        mg_utils,
         mg_core,
+        mg_riak,
+        mg_es_kafka,
         mg_woody,
         opentelemetry_api,
         opentelemetry_exporter,
-        opentelemetry
+        opentelemetry,
+        mg_conf
     ]},
     {env, []},
     {modules, []},

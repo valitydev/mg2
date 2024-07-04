@@ -1,5 +1,5 @@
 %%%
-%%% Copyright 2020 RBKmoney
+%%% Copyright 2024 Valitydev
 %%%
 %%% Licensed under the Apache License, Version 2.0 (the "License");
 %%% you may not use this file except in compliance with the License.
@@ -18,8 +18,9 @@
 
 -include_lib("common_test/include/ct.hrl").
 -include_lib("stdlib/include/assert.hrl").
+-include_lib("mg_scheduler/include/pulse.hrl").
 -include_lib("mg_core/include/pulse.hrl").
--include_lib("prometheus/include/prometheus_model.hrl").
+-include_lib("mg_es_kafka/include/pulse.hrl").
 
 %% tests descriptions
 -export([all/0]).
@@ -62,22 +63,6 @@
 -export([storage_search_finish_test/1]).
 -export([storage_delete_start_test/1]).
 -export([storage_delete_finish_test/1]).
--export([riak_client_get_start_test/1]).
--export([riak_client_get_finish_test/1]).
--export([riak_client_put_start_test/1]).
--export([riak_client_put_finish_test/1]).
--export([riak_client_search_start_test/1]).
--export([riak_client_search_finish_test/1]).
--export([riak_client_delete_start_test/1]).
--export([riak_client_delete_finish_test/1]).
--export([riak_pool_no_free_connection_errors_test/1]).
--export([riak_pool_queue_limit_reached_errors_test/1]).
--export([riak_pool_killed_free_connections_test/1]).
--export([riak_pool_killed_in_use_connections_test/1]).
--export([riak_pool_connect_timeout_errors_test/1]).
--export([events_sink_kafka_sent_test/1]).
-
--export([riak_pool_collector_test/1]).
 
 -define(NS, <<"NS">>).
 
@@ -91,8 +76,7 @@
 -spec all() -> [test_name() | {group, group_name()}].
 all() ->
     [
-        {group, beats},
-        {group, collectors}
+        {group, beats}
     ].
 
 -spec groups() -> [{group_name(), list(_), [test_name()]}].
@@ -131,24 +115,7 @@ groups() ->
             storage_search_start_test,
             storage_search_finish_test,
             storage_delete_start_test,
-            storage_delete_finish_test,
-            riak_client_get_start_test,
-            riak_client_get_finish_test,
-            riak_client_put_start_test,
-            riak_client_put_finish_test,
-            riak_client_search_start_test,
-            riak_client_search_finish_test,
-            riak_client_delete_start_test,
-            riak_client_delete_finish_test,
-            riak_pool_no_free_connection_errors_test,
-            riak_pool_queue_limit_reached_errors_test,
-            riak_pool_killed_free_connections_test,
-            riak_pool_killed_in_use_connections_test,
-            riak_pool_connect_timeout_errors_test,
-            events_sink_kafka_sent_test
-        ]},
-        {collectors, [], [
-            riak_pool_collector_test
+            storage_delete_finish_test
         ]}
     ].
 
@@ -360,7 +327,7 @@ scheduler_search_success_test(_C) ->
     Buckets = test_millisecond_buckets(),
     _ = maps:fold(
         fun(DurationMs, BucketIdx, Acc) ->
-            ok = test_beat(#mg_core_scheduler_search_success{
+            ok = test_beat(#mg_skd_search_success{
                 namespace = ?NS,
                 scheduler_name = name,
                 delay = 0,
@@ -381,7 +348,7 @@ scheduler_search_success_test(_C) ->
 
 -spec scheduler_search_error_test(config()) -> _.
 scheduler_search_error_test(_C) ->
-    ok = test_beat(#mg_core_scheduler_search_error{
+    ok = test_beat(#mg_skd_search_error{
         namespace = ?NS,
         scheduler_name = name,
         exception = {throw, thrown, []}
@@ -389,7 +356,7 @@ scheduler_search_error_test(_C) ->
 
 -spec scheduler_task_error_test(config()) -> _.
 scheduler_task_error_test(_C) ->
-    ok = test_beat(#mg_core_scheduler_task_error{
+    ok = test_beat(#mg_skd_task_error{
         namespace = ?NS,
         machine_id = <<"ID">>,
         scheduler_name = name,
@@ -398,7 +365,7 @@ scheduler_task_error_test(_C) ->
 
 -spec scheduler_new_tasks_test(config()) -> _.
 scheduler_new_tasks_test(_C) ->
-    ok = test_beat(#mg_core_scheduler_new_tasks{
+    ok = test_beat(#mg_skd_new_tasks{
         namespace = ?NS,
         scheduler_name = name,
         new_tasks_count = 0
@@ -406,7 +373,7 @@ scheduler_new_tasks_test(_C) ->
 
 -spec scheduler_task_started_test(config()) -> _.
 scheduler_task_started_test(_C) ->
-    ok = test_beat(#mg_core_scheduler_task_started{
+    ok = test_beat(#mg_skd_task_started{
         namespace = ?NS,
         scheduler_name = name,
         machine_id = <<"ID">>,
@@ -418,7 +385,7 @@ scheduler_task_finished_test(_C) ->
     Buckets = test_millisecond_buckets(),
     _ = maps:fold(
         fun(DurationMs, BucketIdx, Acc) ->
-            ok = test_beat(#mg_core_scheduler_task_finished{
+            ok = test_beat(#mg_skd_task_finished{
                 namespace = ?NS,
                 scheduler_name = name,
                 machine_id = <<"ID">>,
@@ -438,7 +405,7 @@ scheduler_task_finished_test(_C) ->
 
 -spec scheduler_quota_reserved_test(config()) -> _.
 scheduler_quota_reserved_test(_C) ->
-    ok = test_beat(#mg_core_scheduler_quota_reserved{
+    ok = test_beat(#mg_skd_quota_reserved{
         namespace = ?NS,
         scheduler_name = name,
         active_tasks = 0,
@@ -569,264 +536,6 @@ storage_delete_finish_test(_C) ->
         #{},
         Buckets
     ).
-
--spec riak_client_get_start_test(config()) -> _.
-riak_client_get_start_test(_C) ->
-    ok = test_beat(#mg_core_riak_client_get_start{
-        name = {?NS, caller, type}
-    }).
-
--spec riak_client_get_finish_test(config()) -> _.
-riak_client_get_finish_test(_C) ->
-    Buckets = test_millisecond_buckets(),
-    _ = maps:fold(
-        fun(DurationMs, BucketIdx, Acc) ->
-            ok = test_beat(#mg_core_riak_client_get_finish{
-                name = {?NS, caller, type},
-                duration = erlang:convert_time_unit(DurationMs, millisecond, native)
-            }),
-            {BucketsHits, _} =
-                prometheus_histogram:value(mg_riak_client_operation_duration_seconds, [?NS, type, get]),
-            BucketHit = lists:nth(BucketIdx, BucketsHits),
-            %% Check that bucket under index BucketIdx received one hit
-            ?assertEqual(maps:get(BucketIdx, Acc, 0) + 1, BucketHit),
-            Acc#{BucketIdx => BucketHit}
-        end,
-        #{},
-        Buckets
-    ).
-
--spec riak_client_put_start_test(config()) -> _.
-riak_client_put_start_test(_C) ->
-    ok = test_beat(#mg_core_riak_client_put_start{
-        name = {?NS, caller, type}
-    }).
-
--spec riak_client_put_finish_test(config()) -> _.
-riak_client_put_finish_test(_C) ->
-    Buckets = test_millisecond_buckets(),
-    _ = maps:fold(
-        fun(DurationMs, BucketIdx, Acc) ->
-            ok = test_beat(#mg_core_riak_client_put_finish{
-                name = {?NS, caller, type},
-                duration = erlang:convert_time_unit(DurationMs, millisecond, native)
-            }),
-            {BucketsHits, _} =
-                prometheus_histogram:value(mg_riak_client_operation_duration_seconds, [?NS, type, put]),
-            BucketHit = lists:nth(BucketIdx, BucketsHits),
-            %% Check that bucket under index BucketIdx received one hit
-            ?assertEqual(maps:get(BucketIdx, Acc, 0) + 1, BucketHit),
-            Acc#{BucketIdx => BucketHit}
-        end,
-        #{},
-        Buckets
-    ).
-
--spec riak_client_search_start_test(config()) -> _.
-riak_client_search_start_test(_C) ->
-    ok = test_beat(#mg_core_riak_client_search_start{
-        name = {?NS, caller, type}
-    }).
-
--spec riak_client_search_finish_test(config()) -> _.
-riak_client_search_finish_test(_C) ->
-    Buckets = test_millisecond_buckets(),
-    _ = maps:fold(
-        fun(DurationMs, BucketIdx, Acc) ->
-            ok = test_beat(#mg_core_riak_client_search_finish{
-                name = {?NS, caller, type},
-                duration = erlang:convert_time_unit(DurationMs, millisecond, native)
-            }),
-            {BucketsHits, _} =
-                prometheus_histogram:value(mg_riak_client_operation_duration_seconds, [?NS, type, search]),
-            BucketHit = lists:nth(BucketIdx, BucketsHits),
-            %% Check that bucket under index BucketIdx received one hit
-            ?assertEqual(maps:get(BucketIdx, Acc, 0) + 1, BucketHit),
-            Acc#{BucketIdx => BucketHit}
-        end,
-        #{},
-        Buckets
-    ).
-
--spec riak_client_delete_start_test(config()) -> _.
-riak_client_delete_start_test(_C) ->
-    ok = test_beat(#mg_core_riak_client_delete_start{
-        name = {?NS, caller, type}
-    }).
-
--spec riak_client_delete_finish_test(config()) -> _.
-riak_client_delete_finish_test(_C) ->
-    Buckets = test_millisecond_buckets(),
-    _ = maps:fold(
-        fun(DurationMs, BucketIdx, Acc) ->
-            ok = test_beat(#mg_core_riak_client_delete_finish{
-                name = {?NS, caller, type},
-                duration = erlang:convert_time_unit(DurationMs, millisecond, native)
-            }),
-            {BucketsHits, _} =
-                prometheus_histogram:value(mg_riak_client_operation_duration_seconds, [?NS, type, delete]),
-            BucketHit = lists:nth(BucketIdx, BucketsHits),
-            %% Check that bucket under index BucketIdx received one hit
-            ?assertEqual(maps:get(BucketIdx, Acc, 0) + 1, BucketHit),
-            Acc#{BucketIdx => BucketHit}
-        end,
-        #{},
-        Buckets
-    ).
-
--spec riak_pool_no_free_connection_errors_test(config()) -> _.
-riak_pool_no_free_connection_errors_test(_C) ->
-    ok = test_beat(#mg_core_riak_connection_pool_state_reached{
-        name = {?NS, caller, type},
-        state = no_free_connections
-    }),
-    ?assertEqual(
-        1,
-        prometheus_counter:value(mg_riak_pool_no_free_connection_errors_total, [?NS, type])
-    ).
-
--spec riak_pool_queue_limit_reached_errors_test(config()) -> _.
-riak_pool_queue_limit_reached_errors_test(_C) ->
-    ok = test_beat(#mg_core_riak_connection_pool_state_reached{
-        name = {?NS, caller, type},
-        state = queue_limit_reached
-    }),
-    ?assertEqual(
-        1,
-        prometheus_counter:value(mg_riak_pool_queue_limit_reached_errors_total, [?NS, type])
-    ).
-
--spec riak_pool_killed_free_connections_test(config()) -> _.
-riak_pool_killed_free_connections_test(_C) ->
-    ok = test_beat(#mg_core_riak_connection_pool_connection_killed{
-        name = {?NS, caller, type},
-        state = free
-    }),
-    ?assertEqual(
-        1,
-        prometheus_counter:value(mg_riak_pool_killed_free_connections_total, [?NS, type])
-    ).
-
--spec riak_pool_killed_in_use_connections_test(config()) -> _.
-riak_pool_killed_in_use_connections_test(_C) ->
-    ok = test_beat(#mg_core_riak_connection_pool_connection_killed{
-        name = {?NS, caller, type},
-        state = in_use
-    }),
-    ?assertEqual(
-        1,
-        prometheus_counter:value(mg_riak_pool_killed_in_use_connections_total, [?NS, type])
-    ).
-
--spec riak_pool_connect_timeout_errors_test(config()) -> _.
-riak_pool_connect_timeout_errors_test(_C) ->
-    ok = test_beat(#mg_core_riak_connection_pool_error{
-        name = {?NS, caller, type},
-        reason = connect_timeout
-    }),
-    ?assertEqual(
-        1,
-        prometheus_counter:value(mg_riak_pool_connect_timeout_errors_total, [?NS, type])
-    ).
-
--spec events_sink_kafka_sent_test(config()) -> _.
-events_sink_kafka_sent_test(_C) ->
-    Buckets = test_millisecond_buckets(),
-    Name = kafka,
-    _ = maps:fold(
-        fun(DurationMs, BucketIdx, {Counter, BucketAcc}) ->
-            ok = test_beat(#mg_core_events_sink_kafka_sent{
-                name = Name,
-                namespace = ?NS,
-                machine_id = <<"ID">>,
-                request_context = null,
-                deadline = undefined,
-                encode_duration = erlang:convert_time_unit(DurationMs, millisecond, native),
-                send_duration = erlang:convert_time_unit(DurationMs, millisecond, native),
-                data_size = 0,
-                partition = 0,
-                offset = 0
-            }),
-            ?assertEqual(prometheus_counter:value(mg_events_sink_produced_total, [?NS, Name]), Counter),
-            {BucketsHits, _} =
-                prometheus_histogram:value(mg_events_sink_kafka_produced_duration_seconds, [?NS, Name, encode]),
-            {BucketsHits, _} =
-                prometheus_histogram:value(mg_events_sink_kafka_produced_duration_seconds, [?NS, Name, send]),
-            BucketHit = lists:nth(BucketIdx, BucketsHits),
-            %% Check that bucket under index BucketIdx received one hit
-            ?assertEqual(maps:get(BucketIdx, BucketAcc, 0) + 1, BucketHit),
-            {Counter + 1, BucketAcc#{BucketIdx => BucketHit}}
-        end,
-        {1, #{}},
-        Buckets
-    ).
-
-%%
-
--spec riak_pool_collector_test(config()) -> _.
-riak_pool_collector_test(_C) ->
-    ok = mg_cth:await_ready(fun mg_cth:riak_ready/0),
-    Storage =
-        {mg_core_storage_riak, #{
-            name => {?NS, caller, type},
-            host => "riakdb",
-            port => 8087,
-            bucket => ?NS,
-            pool_options => #{
-                init_count => 0,
-                max_count => 10,
-                queue_max => 100
-            },
-            pulse => undefined,
-            sidecar => {mg_riak_prometheus, #{}}
-        }},
-
-    {ok, Pid} = genlib_adhoc_supervisor:start_link(
-        #{strategy => one_for_all},
-        [mg_core_storage:child_spec(Storage, storage)]
-    ),
-
-    Collectors = prometheus_registry:collectors(default),
-    ?assert(lists:member(mg_riak_prometheus_collector, Collectors)),
-
-    Self = self(),
-    ok = prometheus_collector:collect_mf(
-        default,
-        mg_riak_prometheus_collector,
-        fun(MF) -> Self ! MF end
-    ),
-    MFs = mg_cth:flush(),
-    MLabels = [
-        #'LabelPair'{name = <<"namespace">>, value = <<"NS">>},
-        #'LabelPair'{name = <<"name">>, value = <<"type">>}
-    ],
-    ?assertMatch(
-        [
-            #'MetricFamily'{
-                name = <<"mg_riak_pool_connections_free">>,
-                metric = [#'Metric'{label = MLabels, gauge = #'Gauge'{value = 0}}]
-            },
-            #'MetricFamily'{
-                name = <<"mg_riak_pool_connections_in_use">>,
-                metric = [#'Metric'{label = MLabels, gauge = #'Gauge'{value = 0}}]
-            },
-            #'MetricFamily'{
-                name = <<"mg_riak_pool_connections_limit">>,
-                metric = [#'Metric'{label = MLabels, gauge = #'Gauge'{value = 10}}]
-            },
-            #'MetricFamily'{
-                name = <<"mg_riak_pool_queued_requests">>,
-                metric = [#'Metric'{label = MLabels, gauge = #'Gauge'{value = 0}}]
-            },
-            #'MetricFamily'{
-                name = <<"mg_riak_pool_queued_requests_limit">>,
-                metric = [#'Metric'{label = MLabels, gauge = #'Gauge'{value = 100}}]
-            }
-        ],
-        lists:sort(MFs)
-    ),
-
-    ok = proc_lib:stop(Pid, normal, 5000).
 
 %% Metrics utils
 

@@ -237,7 +237,7 @@ get_ns_options(Namespace, Options) ->
             throw({logic, namespace_not_found})
     end.
 
--spec pulse(mg_core:ns(), options()) -> mg_core_pulse:handler().
+-spec pulse(mg_core:ns(), options()) -> mpulse:handler().
 pulse(Namespace, Options) ->
     try get_machine_options(Namespace, Options) of
         #{machines := #{pulse := Pulse}} ->
@@ -265,7 +265,7 @@ default_processing_timeout(Namespace, Options) ->
 simplify_core_machine(Machine = #{status := Status}) ->
     Machine#{status => simplify_machine_status(Status)}.
 
--spec exception_to_string(mg_core_utils:exception()) -> binary().
+-spec exception_to_string(mg_utils:exception()) -> binary().
 exception_to_string(Exception) ->
     iolist_to_binary(genlib_format:format_exception(Exception)).
 

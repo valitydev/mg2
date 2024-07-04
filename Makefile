@@ -107,9 +107,4 @@ cover-report:
 	$(REBAR) cover
 
 test-configurator:
-	$(MAKE) $(FILE_PERMISSIONS)
 	ERL_LIBS=_build/default/lib ./rel_scripts/configurator.escript config/config.yaml config
-
-FILE_PERMISSIONS = $(patsubst %,%.target,$(wildcard config/*._perms))
-$(FILE_PERMISSIONS): config/%._perms.target: config/%._perms
-	chmod $$(cat $^) config/$*

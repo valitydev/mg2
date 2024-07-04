@@ -78,9 +78,9 @@ end_per_suite(C) ->
 
 -spec init_per_group(group_name(), config()) -> config().
 init_per_group(with_gproc, C) ->
-    [{registry, mg_core_procreg_gproc} | C];
+    [{registry, mg_procreg_gproc} | C];
 init_per_group(with_global, C) ->
-    [{registry, mg_core_procreg_global} | C];
+    [{registry, mg_procreg_global} | C];
 init_per_group(base, C) ->
     C.
 
@@ -218,7 +218,7 @@ start() ->
 
 -spec start_automaton(mg_core_machine:options()) -> pid().
 start_automaton(Options) ->
-    mg_core_utils:throw_if_error(mg_core_machine:start_link(Options)).
+    mg_utils:throw_if_error(mg_core_machine:start_link(Options)).
 
 -spec stop_automaton(pid()) -> ok.
 stop_automaton(Pid) ->
@@ -249,6 +249,6 @@ automaton_options(C) ->
         }
     }.
 
--spec handle_beat(_, mg_core_pulse:beat()) -> ok.
+-spec handle_beat(_, mpulse:beat()) -> ok.
 handle_beat(_, Beat) ->
     ct:pal("~p", [Beat]).

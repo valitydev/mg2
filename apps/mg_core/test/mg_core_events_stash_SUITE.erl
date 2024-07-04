@@ -16,8 +16,8 @@
 -behaviour(mg_core_events_machine).
 -export([process_signal/4, process_call/4, process_repair/4]).
 
-%% mg_core_events_sink handler
--behaviour(mg_core_events_sink).
+%% mg_core_event_sink handler
+-behaviour(mg_core_event_sink).
 -export([add_events/6]).
 
 %% Pulse
@@ -211,7 +211,7 @@ dummy_sink_handler(_Events) ->
 
 %% Pulse handler
 
--spec handle_beat(_, mg_core_pulse:beat()) -> ok.
+-spec handle_beat(_, mpulse:beat()) -> ok.
 handle_beat(_, Beat) ->
     ct:pal("~p", [Beat]).
 
@@ -219,7 +219,7 @@ handle_beat(_, Beat) ->
 
 -spec start_automaton(options()) -> pid().
 start_automaton(Options) ->
-    mg_core_utils:throw_if_error(
+    mg_utils:throw_if_error(
         mg_core_events_machine:start_link(events_machine_options(Options))
     ).
 
@@ -231,7 +231,7 @@ stop_automaton(Pid) ->
 -spec events_machine_options(options()) -> mg_core_events_machine:options().
 events_machine_options(Options) ->
     NS = maps:get(namespace, Options),
-    Scheduler = #{registry => mg_core_procreg_global, interval => 100},
+    Scheduler = #{registry => mg_procreg_global, interval => 100},
     #{
         namespace => NS,
         processor => maps:get(processor, Options),
@@ -242,7 +242,7 @@ events_machine_options(Options) ->
                     existing_storage_name => ?MODULE
                 }},
             worker => #{
-                registry => mg_core_procreg_global
+                registry => mg_procreg_global
             },
             notification => #{
                 namespace => NS,
