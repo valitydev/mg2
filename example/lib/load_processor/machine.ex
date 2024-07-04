@@ -5,6 +5,7 @@ defmodule LoadProcessor.Machine do
   alias MachinegunProto.StateProcessing.{MachineDescriptor, Reference, HistoryRange, Direction}
   alias LoadProcessor.Machine.{History, Utils}
 
+  require OpenTelemetry.Tracer, as: Tracer
   require Direction
 
   @default_range %HistoryRange{limit: 10, direction: Direction.backward()}
@@ -40,30 +41,46 @@ defmodule LoadProcessor.Machine do
   def loaded?(%__MODULE__{status: _}), do: true
 
   def start(%__MODULE__{client: client, ns: ns, id: id} = machine, args) do
-    _ = Client.start!(client, ns, id, Utils.pack(args))
+    Tracer.with_span "starting machine" do
+      _ = Client.start!(client, ns, id, Utils.pack(args))
+    end
+
     get(machine)
   end
 
   def get(%__MODULE__{client: client, ns: ns, id: id} = machine) do
-    machine_state = Client.get_machine!(client, make_descr(ns, id, nil))
+    Tracer.with_span "getting machine" do
+      machine_state = Client.get_machine!(client, make_descr(ns, id, nil))
 
-    %{
-      machine
-      | history: History.from_machine_state(machine_state),
-        status: machine_state.status,
-        aux_state: Utils.marshal(:aux_state, machine_state.aux_state)
-    }
+      %{
+        machine
+        | history: History.from_machine_state(machine_state),
+          status: machine_state.status,
+          aux_state: Utils.marshal(:aux_state, machine_state.aux_state)
+      }
+    end
   end
 
   def call(%__MODULE__{client: client, ns: ns, id: id}, args) do
-    client
-    |> Client.call!(make_descr(ns, id, nil), Utils.pack(args))
-    |> Utils.unpack()
+    Tracer.with_span "calling machine" do
+      client
+      |> Client.call!(make_descr(ns, id, nil), Utils.pack(args))
+      |> Utils.unpack()
+    end
+  end
+
+  def notify(%__MODULE__{client: client, ns: ns, id: id}, args) do
+    Tracer.with_span "sending notification to machine" do
+      client
+      |> Client.notify!(make_descr(ns, id, nil), Utils.pack(args))
+    end
   end
 
   def simple_repair(%__MODULE__{client: client, ns: ns, id: id} = machine) do
-    _ = Client.simple_repair(client, ns, make_ref(id))
-    machine
+    Tracer.with_span "simply repairaing machine" do
+      _ = Client.simple_repair(client, ns, make_ref(id))
+      machine
+    end
   end
 
   defp make_descr(ns, id, range) do

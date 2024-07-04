@@ -3,6 +3,7 @@ defmodule LoadProcessor.ProcessorHandler do
   alias Woody.Generated.MachinegunProto.StateProcessing.Processor
   @behaviour Processor.Handler
 
+  require OpenTelemetry.Tracer, as: Tracer
   require Logger
 
   alias LoadProcessor.Machine.Utils
@@ -22,13 +23,19 @@ defmodule LoadProcessor.ProcessorHandler do
   def process_signal(%SignalArgs{signal: signal, machine: machine}, _ctx, _hdlops) do
     case signal do
       %Signal{init: %InitSignal{arg: args}} ->
-        process_init(machine, args)
+        Tracer.with_span "initializing" do
+          process_init(machine, Utils.unpack(args))
+        end
 
       %Signal{timeout: %TimeoutSignal{}} ->
-        process_timeout(machine)
+        Tracer.with_span "timeouting" do
+          process_timeout(machine)
+        end
 
       %Signal{notification: %NotificationSignal{arg: args}} ->
-        process_notification(machine, args)
+        Tracer.with_span "notifying" do
+          process_notification(machine, Utils.unpack(args))
+        end
 
       _uknown_signal ->
         throw(:not_implemented)
@@ -37,19 +44,20 @@ defmodule LoadProcessor.ProcessorHandler do
 
   @impl true
   def process_call(%CallArgs{arg: args, machine: machine}, _ctx, _hdlops) do
-    args = Utils.unpack(args)
-    Logger.debug("Calling machine #{machine.id} of #{machine.ns} with #{inspect(args)}")
+    Tracer.with_span "processing call" do
+      Logger.debug("Calling machine #{machine.id} of #{machine.ns} with #{inspect(args)}")
 
-    change =
-      %MachineStateChange{}
-      |> put_events([{:call_processed, args}])
-      |> put_aux_state(get_aux_state(machine))
+      change =
+        %MachineStateChange{}
+        |> preserve_aux_state(machine)
+        |> put_events([{:call_processed, args}])
 
-    action =
-      %ComplexAction{}
-      |> set_timer(0)
+      action =
+        %ComplexAction{}
+        |> set_timer(0)
 
-    {:ok, %CallResult{response: Utils.pack("result"), change: change, action: action}}
+      {:ok, %CallResult{response: Utils.pack("result"), change: change, action: action}}
+    end
   end
 
   @impl true
@@ -58,11 +66,11 @@ defmodule LoadProcessor.ProcessorHandler do
   end
 
   defp process_init(%Machine{id: id, ns: ns} = _machine, args) do
-    Logger.debug("Starting '#{id}' of '#{ns}' with arguments: #{inspect(Utils.unpack(args))}")
+    Logger.debug("Starting '#{id}' of '#{ns}' with arguments: #{inspect(args)}")
 
     change =
       %MachineStateChange{}
-      |> put_aux_state(%{"arbitrary" => "arbitrary aux state data", "counter" => 0})
+      |> put_aux_state(%{"arbitrary" => "arbitrary aux state data", :counter => 0})
       |> put_events([:counter_created])
 
     action =
@@ -74,7 +82,11 @@ defmodule LoadProcessor.ProcessorHandler do
 
   defp get_rand_sleep_time(seed) do
     # 0s 1s 2s etc occurrences in seed
-    seed |> Enum.with_index() |> Enum.map(fn {occ, i} -> List.duplicate(i, occ) end) |> List.flatten() |> Enum.random()
+    seed
+    |> Enum.with_index()
+    |> Enum.map(fn {occ, i} -> List.duplicate(i, occ) end)
+    |> List.flatten()
+    |> Enum.random()
   end
 
   defp process_timeout(%Machine{id: id, ns: ns} = machine) do
@@ -82,14 +94,22 @@ defmodule LoadProcessor.ProcessorHandler do
     aux_state = get_aux_state(machine)
 
     case aux_state do
-      %{"counter" => counter} when counter < 100 ->
-        aux_state = Map.update!(aux_state, "counter", &(&1 + 1))
+      %{notified: true} ->
+        change =
+          %MachineStateChange{}
+          |> put_aux_state(aux_state)
+          |> put_events([:counter_stopped])
+
+        {:ok, %SignalResult{change: change, action: %ComplexAction{}}}
+
+      %{counter: counter} when counter < 100 ->
+        aux_state = Map.update!(aux_state, :counter, &(&1 + 1))
         Logger.debug("New aux state #{inspect(aux_state)}")
 
         change =
           %MachineStateChange{}
           |> put_aux_state(aux_state)
-          |> put_events([:counter_incremented])
+          |> put_events([{:counter_incremented, 1}])
 
         action =
           %ComplexAction{}
@@ -107,8 +127,23 @@ defmodule LoadProcessor.ProcessorHandler do
     end
   end
 
-  defp process_notification(_machine, _args) do
-    throw(:not_implemented)
+  defp process_notification(%Machine{id: id, ns: ns} = machine, args) do
+    Logger.debug("Notifying machine #{id} of #{ns}")
+
+    change =
+      %MachineStateChange{}
+      |> put_aux_state(Map.put(get_aux_state(machine), :notified, true))
+      |> put_events([{:counter_notified, args}])
+
+    action =
+      %ComplexAction{}
+      |> set_timer(get_rand_sleep_time([3, 2, 1]))
+
+    {:ok, %SignalResult{change: change, action: action}}
+  end
+
+  defp preserve_aux_state(change, %Machine{aux_state: aux_state}) do
+    %MachineStateChange{change | aux_state: aux_state}
   end
 
   defp get_aux_state(%Machine{aux_state: aux_state}) do

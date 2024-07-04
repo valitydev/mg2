@@ -26,7 +26,8 @@ defmodule LoadProcessor.MixProject do
         version: "0.1.0",
         applications: [
           api_key_mgmt: :permanent,
-          logstash_logger_formatter: :load
+          logstash_logger_formatter: :load,
+          opentelemetry: :temporary
         ],
         include_executables_for: [:unix],
         include_erts: false
@@ -49,7 +50,11 @@ defmodule LoadProcessor.MixProject do
        git: "https://github.com/valitydev/logstash_logger_formatter.git",
        branch: "master",
        only: [:prod],
-       runtime: false}
+       runtime: false},
+      {:gproc, "~> 0.9.1", override: true},
+      {:opentelemetry, "~> 1.3"},
+      {:opentelemetry_api, "~> 1.2"},
+      {:opentelemetry_exporter, "~> 1.6"}
     ]
   end
 end
