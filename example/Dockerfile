@@ -13,7 +13,7 @@ ENV CHARSET=UTF-8
 ENV LANG=C.UTF-8
 
 RUN apt-get update && \
-    apt-get install -y inotify-tools && \
+    apt-get install -y inotify-tools=3.22.6.0-4 && \
     mix local.hex --force && \
     mix local.rebar --force
 
