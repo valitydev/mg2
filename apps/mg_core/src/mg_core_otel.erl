@@ -135,14 +135,14 @@ machine_tags(Namespace, ID, OtherTags) ->
 -spec event_range_to_attributes(mg_core_events:events_range()) -> map().
 event_range_to_attributes(undefined) ->
     #{};
-event_range_to_attributes({After, Limit, Direction}) ->
+event_range_to_attributes({UpperBoundary, LowerBoundary, Direction}) ->
     #{
-        "mg.machine.event_range.after" => After,
-        "mg.machine.event_range.limit" => Limit,
-        "mg.machine.event_range.direction" =>
+        <<"mg.machine.event_range.upper_boundary">> => UpperBoundary,
+        <<"mg.machine.event_range.lower_boundary">> => LowerBoundary,
+        <<"mg.machine.event_range.direction">> =>
             case Direction of
-                +1 -> forward;
-                -1 -> backward
+                +1 -> <<"forward">>;
+                -1 -> <<"backward">>
             end
     }.
 

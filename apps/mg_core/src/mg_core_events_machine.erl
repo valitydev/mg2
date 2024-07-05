@@ -408,14 +408,20 @@ maybe_stash_events(#{event_stash_size := Max}, State = #{events := EventStash}, 
             false ->
                 {State#{events => Events}, [], NumEvents, erlang:length(NewEvents), 0}
         end,
-    ok = mg_core_otel:add_event(
-        <<"events stash updated">>,
-        #{
-            <<"mg.machine.event_stash.size">> => StashCount,
-            <<"mg.machine.event_stash.added">> => AddedCount,
-            <<"mg.machine.event_stash.unstashed">> => UnstashedCount
-        }
-    ),
+    ok =
+        case AddedCount of
+            0 ->
+                ok;
+            _ ->
+                mg_core_otel:add_event(
+                    <<"events stash updated">>,
+                    #{
+                        <<"mg.machine.event_stash.size">> => StashCount,
+                        <<"mg.machine.event_stash.added">> => AddedCount,
+                        <<"mg.machine.event_stash.unstashed">> => UnstashedCount
+                    }
+                )
+        end,
     {State1, Events1}.
 
 -spec retry_store_events(options(), id(), deadline(), [event()]) -> ok.
