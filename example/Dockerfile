@@ -12,7 +12,10 @@ RUN wget -q -O- "https://github.com/valitydev/woorl/releases/download/1.8/woorl-
 ENV CHARSET=UTF-8
 ENV LANG=C.UTF-8
 
-RUN apt update && apt install -y inotify-tools && mix local.hex --force && mix local.rebar --force
+RUN apt-get update && \
+    apt-get install -y inotify-tools && \
+    mix local.hex --force && \
+    mix local.rebar --force
 
 # Set runtime
 CMD ["/bin/bash"]
