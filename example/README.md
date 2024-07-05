@@ -3,14 +3,16 @@
 **TODO: Add description**
 
 
-## Receipts
+## Examples
+
+### Per machine
 
 ``` elixir
 # Alias machinery helper for convinence
 alias LoadProcessor.Machine
 
 # Create machine client
-machine = Machine.new("load-test")
+machine = Machine.new("eventful-counter")
 
 # Start machine
 machine |> Machine.start("start payload")
@@ -26,4 +28,10 @@ machine |> Machine.get()
 
 # Get machine status
 machine |> Machine.get() |> Map.get(:status)
+```
+
+### Start batch
+
+``` elixir
+LoadProcessor.run("simple-counter", 100)
 ```

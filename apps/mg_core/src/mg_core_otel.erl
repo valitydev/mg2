@@ -16,6 +16,8 @@
 
 -export([impact_to_machine_activity/1]).
 -export([machine_tags/2]).
+-export([machine_tags/3]).
+-export([event_range_to_attributes/1]).
 
 -type packed_otel_stub() :: [mg_core_storage:opaque()].
 
@@ -125,10 +127,24 @@ machine_tags(Namespace, ID) ->
 machine_tags(Namespace, ID, OtherTags) ->
     genlib_map:compact(
         maps:merge(OtherTags, #{
-            <<"machine.ns">> => Namespace,
-            <<"machine.id">> => ID
+            <<"mg.machine.ns">> => Namespace,
+            <<"mg.machine.id">> => ID
         })
     ).
+
+-spec event_range_to_attributes(mg_core_events:events_range()) -> map().
+event_range_to_attributes(undefined) ->
+    #{};
+event_range_to_attributes({After, Limit, Direction}) ->
+    #{
+        "mg.machine.event_range.after" => After,
+        "mg.machine.event_range.limit" => Limit,
+        "mg.machine.event_range.direction" =>
+            case Direction of
+                +1 -> forward;
+                -1 -> backward
+            end
+    }.
 
 %%
 

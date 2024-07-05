@@ -37,7 +37,12 @@ defmodule LoadProcessor.Application do
       |> Map.put(:port, 8022)
 
     Server.child_spec(LoadProcessor, endpoint, [
-      ProcessorHandler.new("/v1/stateproc", event_handler: WoodyHandler) | additional_handlers
+      ProcessorHandler.new("/v1/stateproc/simple-counter",
+        event_handler: WoodyHandler,
+        less_events: true
+      ),
+      ProcessorHandler.new("/v1/stateproc/eventful-counter", event_handler: WoodyHandler)
+      | additional_handlers
     ])
   end
 
