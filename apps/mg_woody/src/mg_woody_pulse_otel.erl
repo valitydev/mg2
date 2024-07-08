@@ -32,20 +32,7 @@ handle_beat(Options, #woody_event{event = Event, rpc_id = RpcID, event_meta = Me
     woody_event_handler_otel:handle_event(Event, RpcID, Meta, Options);
 %% Woody server's function handling error beat.
 handle_beat(_Options, #woody_request_handle_error{namespace = NS, machine_id = ID, exception = Exception}) ->
-    mg_core_otel:record_exception(Exception, machine_tags(NS, ID));
+    mg_core_otel:record_exception(Exception, mg_core_otel:machine_tags(NS, ID));
 %% Disregard any other
 handle_beat(_Options, _Beat) ->
     ok.
-
-%% Internal
-
--spec machine_tags(mg_core:ns(), mg_core:id()) -> map().
-machine_tags(Namespace, ID) ->
-    machine_tags(Namespace, ID, #{}).
-
--spec machine_tags(mg_core:ns(), mg_core:id(), map()) -> map().
-machine_tags(Namespace, ID, OtherTags) ->
-    maps:merge(OtherTags, #{
-        <<"machine.ns">> => Namespace,
-        <<"machine.id">> => ID
-    }).
