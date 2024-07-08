@@ -51,7 +51,7 @@
 add_events(_Handler, _NS, _ID, [], _ReqCtx, _Deadline) ->
     ok;
 add_events(Handler, NS, ID, Events, ReqCtx, Deadline) ->
-    {Mod, _} = mg_utils:separate_mod_opts(Handler),
+    {Mod, _} = mg_core_utils:separate_mod_opts(Handler),
     SpanOpts = #{
         kind => ?SPAN_KIND_PRODUCER,
         attributes => mg_core_otel:machine_tags(NS, ID, #{

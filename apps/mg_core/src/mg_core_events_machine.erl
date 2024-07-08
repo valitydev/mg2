@@ -454,7 +454,7 @@ push_events_to_event_sinks(Options, ID, ReqCtx, Deadline, Events) ->
     EventSinks = maps:get(event_sinks, Options, []),
     lists:foreach(
         fun(EventSinkHandler) ->
-            ok = mg_core_event_sink:add_events(EventSinkHandler, Namespace, ID, Events, ReqCtx, Deadline)
+            ok = mg_core_events_sink:add_events(EventSinkHandler, Namespace, ID, Events, ReqCtx, Deadline)
         end,
         EventSinks
     ).
