@@ -399,13 +399,30 @@ process_machine_std(Options, ReqCtx, Deadline, Subject, Args, Machine, State) ->
 maybe_stash_events(#{event_stash_size := Max}, State = #{events := EventStash}, NewEvents) ->
     Events = EventStash ++ NewEvents,
     NumEvents = erlang:length(Events),
-    case NumEvents > Max of
-        true ->
-            {External, Internal} = lists:split(NumEvents - Max, Events),
-            {State#{events => Internal}, External};
-        false ->
-            {State#{events => Events}, []}
-    end.
+    {State1, Events1, StashCount, AddedCount, UnstashedCount} =
+        case NumEvents > Max of
+            true ->
+                Offset = NumEvents - Max,
+                {External, Internal} = lists:split(Offset, Events),
+                {State#{events => Internal}, External, erlang:length(Internal), Offset, Offset};
+            false ->
+                {State#{events => Events}, [], NumEvents, erlang:length(NewEvents), 0}
+        end,
+    ok =
+        case AddedCount of
+            0 ->
+                ok;
+            _ ->
+                mg_core_otel:add_event(
+                    <<"events stash updated">>,
+                    #{
+                        <<"mg.machine.event_stash.size">> => StashCount,
+                        <<"mg.machine.event_stash.added">> => AddedCount,
+                        <<"mg.machine.event_stash.unstashed">> => UnstashedCount
+                    }
+                )
+        end,
+    {State1, Events1}.
 
 -spec retry_store_events(options(), id(), deadline(), [event()]) -> ok.
 retry_store_events(Options, ID, Deadline, Events) ->
@@ -437,14 +454,7 @@ push_events_to_event_sinks(Options, ID, ReqCtx, Deadline, Events) ->
     EventSinks = maps:get(event_sinks, Options, []),
     lists:foreach(
         fun(EventSinkHandler) ->
-            ok = mg_core_events_sink:add_events(
-                EventSinkHandler,
-                Namespace,
-                ID,
-                Events,
-                ReqCtx,
-                Deadline
-            )
+            ok = mg_core_events_sink:add_events(EventSinkHandler, Namespace, ID, Events, ReqCtx, Deadline)
         end,
         EventSinks
     ).
@@ -578,10 +588,11 @@ handle_state_change(
     StateWas = #{events_range := EventsRangeWas}
 ) ->
     {Events, EventsRange} = mg_core_events:generate_events_with_range(EventsBodies, EventsRangeWas),
+    NewEventsRange = diff_event_ranges(EventsRange, EventsRangeWas),
     DelayedActions = #{
         % NOTE
         % This is a range of events which are not yet pushed to event sinks
-        new_events_range => diff_event_ranges(EventsRange, EventsRangeWas)
+        new_events_range => NewEventsRange
     },
     State = add_delayed_actions(
         DelayedActions,
@@ -590,6 +601,16 @@ handle_state_change(
             aux_state := AuxState
         }
     ),
+    ok =
+        case NewEventsRange of
+            undefined ->
+                ok;
+            _ ->
+                mg_core_otel:add_event(
+                    <<"new delayed event range">>,
+                    mg_core_otel:event_range_to_attributes(NewEventsRange)
+                )
+        end,
     maybe_stash_events(Options, State, Events).
 
 -spec diff_event_ranges(events_range(), events_range()) -> events_range().

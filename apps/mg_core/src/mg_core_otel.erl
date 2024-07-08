@@ -16,6 +16,8 @@
 
 -export([impact_to_machine_activity/1]).
 -export([machine_tags/2]).
+-export([machine_tags/3]).
+-export([event_range_to_attributes/1]).
 
 -type packed_otel_stub() :: [mg_core_storage:opaque()].
 
@@ -52,7 +54,7 @@ pack_otel_stub(Ctx) ->
 -spec restore_otel_stub(otel_ctx:t(), packed_otel_stub()) -> otel_ctx:t().
 restore_otel_stub(Ctx, [TraceID, SpanID, TraceFlags]) ->
     SpanCtx = otel_tracer:from_remote_span(binary_to_id(TraceID), binary_to_id(SpanID), TraceFlags),
-    %% NOTE Thus resored span context is considered being not recording and remote.
+    %% NOTE Thus restored span context is considered being remote and not recording.
     otel_tracer:set_current_span(Ctx, SpanCtx);
 restore_otel_stub(Ctx, _Other) ->
     Ctx.
@@ -125,10 +127,24 @@ machine_tags(Namespace, ID) ->
 machine_tags(Namespace, ID, OtherTags) ->
     genlib_map:compact(
         maps:merge(OtherTags, #{
-            <<"machine.ns">> => Namespace,
-            <<"machine.id">> => ID
+            <<"mg.machine.ns">> => Namespace,
+            <<"mg.machine.id">> => ID
         })
     ).
+
+-spec event_range_to_attributes(mg_core_events:events_range()) -> map().
+event_range_to_attributes(undefined) ->
+    #{};
+event_range_to_attributes({UpperBoundary, LowerBoundary, Direction}) ->
+    #{
+        <<"mg.machine.event_range.upper_boundary">> => UpperBoundary,
+        <<"mg.machine.event_range.lower_boundary">> => LowerBoundary,
+        <<"mg.machine.event_range.direction">> =>
+            case Direction of
+                +1 -> <<"forward">>;
+                -1 -> <<"backward">>
+            end
+    }.
 
 %%
 

@@ -16,6 +16,9 @@
 
 -module(mg_core_events_sink).
 
+-include_lib("opentelemetry_api/include/otel_tracer.hrl").
+-include_lib("opentelemetry_api/include/opentelemetry.hrl").
+
 -export([add_events/6]).
 
 -callback add_events(
@@ -48,4 +51,14 @@
 add_events(_Handler, _NS, _ID, [], _ReqCtx, _Deadline) ->
     ok;
 add_events(Handler, NS, ID, Events, ReqCtx, Deadline) ->
-    ok = mg_core_utils:apply_mod_opts(Handler, add_events, [NS, ID, Events, ReqCtx, Deadline]).
+    {Mod, _} = mg_core_utils:separate_mod_opts(Handler),
+    SpanOpts = #{
+        kind => ?SPAN_KIND_PRODUCER,
+        attributes => mg_core_otel:machine_tags(NS, ID, #{
+            <<"mg.event_sink.handler">> => Mod,
+            <<"mg.event_sink.count">> => erlang:length(Events)
+        })
+    },
+    ?with_span(<<"sinking events">>, SpanOpts, fun(_) ->
+        ok = mg_core_utils:apply_mod_opts(Handler, add_events, [NS, ID, Events, ReqCtx, Deadline])
+    end).
