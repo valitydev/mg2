@@ -484,8 +484,8 @@ default_option(resolve_timeout) -> 5000;
 default_option(connect_timeout) -> 5000;
 default_option(request_timeout) -> 10000;
 default_option(index_query_timeout) -> 10000;
-default_option(r_options) -> [{r, quorum}, {pr, quorum}, {sloppy_quorum, false}];
-default_option(w_options) -> [{w, quorum}, {pw, quorum}, {dw, quorum}, {sloppy_quorum, false}];
+default_option(r_options) -> [{r, all}, {pr, all}, {sloppy_quorum, false}];
+default_option(w_options) -> [{w, all}, {pw, all}, {dw, all}, {sloppy_quorum, false}];
 % ?
 default_option(d_options) -> [].
 
