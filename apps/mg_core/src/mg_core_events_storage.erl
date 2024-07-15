@@ -71,7 +71,7 @@ get_events(Options, ID, Range) ->
 
 -spec events_storage_options(mg_core_events_machine:options()) -> mg_core_storage:options().
 events_storage_options(#{namespace := NS, events_storage := StorageOptions, pulse := Handler}) ->
-    {Mod, Options} = mg_core_utils:separate_mod_opts(StorageOptions, #{}),
+    {Mod, Options} = mg_utils:separate_mod_opts(StorageOptions, #{}),
     {Mod, Options#{name => {NS, ?STORAGE_NS, events}, pulse => Handler}}.
 
 -spec events_to_kvs(mg_core:id(), [mg_core_events:event()]) -> [mg_core_storage:kv()].

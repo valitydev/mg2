@@ -110,7 +110,7 @@ end_per_suite(C) ->
 -spec init_per_group(group_name(), config()) -> config().
 init_per_group(with_global, C) ->
     [
-        {registry, mg_core_procreg_global},
+        {registry, mg_procreg_global},
         {load_pressure, 100},
         {runner_retry_strategy, #{
             noproc => genlib_retry:linear(3, 100),
@@ -120,7 +120,7 @@ init_per_group(with_global, C) ->
     ];
 init_per_group(with_gproc, C) ->
     [
-        {registry, mg_core_procreg_gproc},
+        {registry, mg_procreg_gproc},
         {load_pressure, 100},
         {runner_retry_strategy, #{
             noproc => genlib_retry:linear(3, 100),
@@ -547,7 +547,7 @@ try_unlink(#{}) ->
 %%
 -spec start_workers(_Options) -> pid().
 start_workers(Options) ->
-    mg_core_utils:throw_if_error(mg_core_workers_manager:start_link(Options)).
+    mg_utils:throw_if_error(mg_core_workers_manager:start_link(Options)).
 
 -spec stop_workers(pid()) -> ok.
 stop_workers(Pid) ->

@@ -1,0 +1,19 @@
+{application, mg_conf, [
+    {description, "Machinegun configuration"},
+    {vsn, "1"},
+    {registered, []},
+    {applications, [
+        kernel,
+        stdlib,
+        genlib,
+        mg_utils,
+        mg_core,
+        mg_riak,
+        mg_es_kafka,
+        mg_woody
+    ]},
+    {env, []},
+    {modules, []},
+    {licenses, []},
+    {links, []}
+]}.

@@ -96,6 +96,7 @@ all() ->
 groups() ->
     [
         % TODO проверить отмену таймера
+        % TODO проверить отдельно get_history
         {base, [sequence], [
             namespace_not_found,
             machine_id_not_found,
@@ -332,12 +333,16 @@ mg_woody_config(C) ->
                 % сейчас же можно иногда включать и смотреть
                 % suicide_probability => 0.1,
                 event_sinks => [
-                    {mg_core_events_sink_kafka, #{
+                    {mg_event_sink_kafka, #{
                         name => kafka,
                         topic => ?ES_ID,
                         client => mg_cth:config(kafka_client_name)
                     }}
-                ]
+                ],
+                worker => #{
+                    registry => mg_procreg_global,
+                    sidecar => mg_cth_worker
+                }
             }
         }
     }.
@@ -613,12 +618,16 @@ config_with_multiple_event_sinks(_C) ->
                 },
                 retries => #{},
                 event_sinks => [
-                    {mg_core_events_sink_kafka, #{
+                    {mg_event_sink_kafka, #{
                         name => kafka,
                         topic => <<"mg_core_event_sink">>,
                         client => mg_cth:config(kafka_client_name)
                     }}
-                ]
+                ],
+                worker => #{
+                    registry => mg_procreg_global,
+                    sidecar => mg_cth_worker
+                }
             },
             <<"2">> => #{
                 storage => mg_core_storage_memory,
@@ -633,17 +642,21 @@ config_with_multiple_event_sinks(_C) ->
                 },
                 retries => #{},
                 event_sinks => [
-                    {mg_core_events_sink_kafka, #{
+                    {mg_event_sink_kafka, #{
                         name => kafka_other,
                         topic => <<"mg_core_event_sink_2">>,
                         client => mg_cth:config(kafka_client_name)
                     }},
-                    {mg_core_events_sink_kafka, #{
+                    {mg_event_sink_kafka, #{
                         name => kafka,
                         topic => <<"mg_core_event_sink">>,
                         client => mg_cth:config(kafka_client_name)
                     }}
-                ]
+                ],
+                worker => #{
+                    registry => mg_procreg_global,
+                    sidecar => mg_cth_worker
+                }
             }
         }
     },
@@ -654,7 +667,7 @@ config_with_multiple_event_sinks(_C) ->
     {ok, _Pid} = genlib_adhoc_supervisor:start_link(
         {local, mg_core_sup_does_nothing},
         #{strategy => rest_for_one},
-        mg_cth_configurator:construct_child_specs(Config)
+        mg_cth_conf:construct_child_specs(Config)
     ),
     ok = mg_cth:stop_applications(Apps).
 

@@ -16,11 +16,12 @@
 
 -module(mg_pulse_log).
 
+-include_lib("mg_scheduler/include/pulse.hrl").
 -include_lib("mg_core/include/pulse.hrl").
 -include_lib("mg_woody/include/pulse.hrl").
 
-%% mg_pulse handler
--behaviour(mg_core_pulse).
+%% mpulse handler
+-behaviour(mpulse).
 
 -export([handle_beat/2]).
 
@@ -70,14 +71,14 @@ format_beat(#woody_event{event = Event, rpc_id = RPCID, event_meta = EventMeta},
     WoodyMeta = woody_event_handler:format_meta(Event, EventMeta, WoodyMetaFields),
     Meta = lists:flatten([extract_woody_meta(WoodyMeta), extract_meta(rpc_id, RPCID)]),
     {Level, Msg, Meta};
-format_beat(#mg_core_scheduler_task_error{scheduler_name = Name, exception = {_, Reason, _}} = Beat, _Options) ->
-    Context = ?BEAT_TO_META(mg_core_scheduler_task_error, Beat),
+format_beat(#mg_skd_task_error{scheduler_name = Name, exception = {_, Reason, _}} = Beat, _Options) ->
+    Context = ?BEAT_TO_META(mg_skd_task_error, Beat),
     {warning, {"scheduler task ~p failed ~p", [Name, Reason]}, Context};
-format_beat(#mg_core_scheduler_task_add_error{scheduler_name = Name, exception = {_, Reason, _}} = Beat, _Options) ->
-    Context = ?BEAT_TO_META(mg_core_scheduler_task_add_error, Beat),
+format_beat(#mg_skd_task_add_error{scheduler_name = Name, exception = {_, Reason, _}} = Beat, _Options) ->
+    Context = ?BEAT_TO_META(mg_skd_task_add_error, Beat),
     {warning, {"scheduler task ~p add failed ~p", [Name, Reason]}, Context};
-format_beat(#mg_core_scheduler_search_error{scheduler_name = Name, exception = {_, Reason, _}} = Beat, _Options) ->
-    Context = ?BEAT_TO_META(mg_core_scheduler_search_error, Beat),
+format_beat(#mg_skd_search_error{scheduler_name = Name, exception = {_, Reason, _}} = Beat, _Options) ->
+    Context = ?BEAT_TO_META(mg_skd_search_error, Beat),
     {warning, {"scheduler search ~p failed ~p", [Name, Reason]}, Context};
 format_beat(#mg_core_machine_process_transient_error{exception = {_, Reason, _}} = Beat, _Options) ->
     Context = ?BEAT_TO_META(mg_core_machine_process_transient_error, Beat),
@@ -122,7 +123,7 @@ format_beat(_Beat, _Options) ->
     undefined.
 
 %% squad
--spec format_squad_beat(mg_core_gen_squad_pulse:beat()) -> log_msg() | undefined.
+-spec format_squad_beat(gen_squad_pulse:beat()) -> log_msg() | undefined.
 format_squad_beat({rank, {changed, Rank}}) ->
     {info, {"rank changed to: ~p", [Rank]}, [
         {mg_pulse_event_id, squad_rank_changed},

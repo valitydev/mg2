@@ -16,8 +16,8 @@
 
 -module(mg_cth_pulse).
 
-%% mg_pulse handler
--behaviour(mg_core_pulse).
+%% mpulse handler
+-behaviour(mpulse).
 -export([handle_beat/2]).
 
 %%

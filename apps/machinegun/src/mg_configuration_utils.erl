@@ -327,7 +327,7 @@ proplist(Config) ->
 
 -spec ip(yaml_string()) -> inet:ip_address().
 ip(Host) ->
-    mg_core_utils:throw_if_error(inet:parse_address(string(Host))).
+    mg_utils:throw_if_error(inet:parse_address(string(Host))).
 
 -spec atom(yaml_string()) -> atom().
 atom(AtomStr) ->

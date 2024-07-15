@@ -1,0 +1,192 @@
+%%%
+%%% Copyright 2024 Valitydev
+%%%
+%%% Licensed under the Apache License, Version 2.0 (the "License");
+%%% you may not use this file except in compliance with the License.
+%%% You may obtain a copy of the License at
+%%%
+%%%     http://www.apache.org/licenses/LICENSE-2.0
+%%%
+%%% Unless required by applicable law or agreed to in writing, software
+%%% distributed under the License is distributed on an "AS IS" BASIS,
+%%% WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+%%% See the License for the specific language governing permissions and
+%%% limitations under the License.
+%%%
+
+-module(gen_squad_SUITE).
+
+-include_lib("stdlib/include/assert.hrl").
+-include("gen_squad_cth.hrl").
+
+%% tests descriptions
+-export([all/0]).
+-export([init_per_suite/1]).
+-export([end_per_suite/1]).
+
+%% tests
+-export([squad_view_consistency_holds/1]).
+-export([squad_shrinks_consistently/1]).
+
+%% squad behaviour
+-behaviour(gen_squad).
+-export([init/1]).
+-export([discover/1]).
+-export([handle_rank_change/3]).
+-export([handle_call/5]).
+-export([handle_cast/4]).
+-export([handle_info/4]).
+
+-behaviour(gen_squad_pulse).
+-export([handle_beat/2]).
+
+%% tests descriptions
+
+-type test_name() :: atom().
+-type config() :: [{atom(), _}].
+
+-spec all() -> [test_name()].
+all() ->
+    [
+        squad_view_consistency_holds,
+        squad_shrinks_consistently
+    ].
+
+%% starting/stopping
+
+-spec init_per_suite(config()) -> config().
+init_per_suite(C) ->
+    C.
+
+-spec end_per_suite(config()) -> ok.
+end_per_suite(_C) ->
+    ok.
+
+%%
+
+-spec squad_view_consistency_holds(config()) -> _.
+squad_view_consistency_holds(_) ->
+    N = 5,
+    Opts = #{
+        pulse => {?MODULE, erlang:system_time(millisecond)},
+        heartbeat => #{broadcast_interval => 200},
+        discovery => #{initial_interval => 200, refresh_interval => 1000},
+        promotion => #{min_squad_age => 3}
+    },
+    Members = lists:map(fun(_) -> start_member(Opts) end, lists:seq(1, N)),
+    ok = lists:foreach(
+        fun({M0, M1}) -> gen_server:cast(M0, {known, [M1]}) end,
+        neighbours(Members)
+    ),
+    LeaderView = {Leader, _, _} = ?assertReceive({_, leader, _}),
+    Followers = Members -- [Leader],
+    _ = [?assertReceive({Follower, follower, _}) || Follower <- Followers],
+    LeaderView = gen_server:call(Leader, report),
+    FollowerViews = [gen_server:call(M, report) || M <- Followers],
+    SquadViews = [LeaderView | FollowerViews],
+    _ = ?assertMatch({Leader, leader, _}, LeaderView),
+    _ = [?assertMatch({_, follower, _}, V) || V <- FollowerViews],
+    MembersViews = [ordsets:from_list([Pid | Ms]) || {Pid, _, Ms} <- SquadViews],
+    _ = [?assertEqual(N, ordsets:size(V)) || V <- MembersViews],
+    _ = [?assertEqual(V0, V1) || {V0, V1} <- neighbours(MembersViews)],
+    _ = ?assertNoReceive(),
+    ok.
+
+-spec squad_shrinks_consistently(config()) -> _.
+squad_shrinks_consistently(_) ->
+    N = 5,
+    Opts = #{
+        pulse => {?MODULE, erlang:system_time(millisecond)},
+        heartbeat => #{broadcast_interval => 200},
+        discovery => #{initial_interval => 200, refresh_interval => 1000},
+        promotion => #{min_squad_age => 3}
+    },
+    Members = lists:map(fun(_) -> start_member(Opts) end, lists:seq(1, N)),
+    ok = lists:foreach(
+        fun({M0, M1}) -> gen_server:cast(M0, {known, [M1]}) end,
+        neighbours(Members)
+    ),
+    {Leader, _, _} = ?assertReceive({_, leader, _}),
+    _ = [?assertReceive({Follower, follower, _}) || Follower <- Members, Follower /= Leader],
+    Exhaust = fun
+        Exhaust([LeaderLeft]) ->
+            LeaderLeft;
+        Exhaust(Ms) ->
+            {_, _, Left} = ?assertReceive({_, leader, _}),
+            _ = ?assertMatch([_], Ms -- Left),
+            _ = ?assertNoReceive(50),
+            Exhaust(Left)
+    end,
+    LeaderLast = Exhaust(Members),
+    _ = ?assertEqual([LeaderLast], lists:filter(fun erlang:is_process_alive/1, Members)),
+    ok.
+
+-spec start_member(gen_squad:opts()) -> pid().
+start_member(Opts) ->
+    {ok, Pid} = gen_squad:start_link(?MODULE, #{runner => self(), known => []}, Opts),
+    Pid.
+
+-spec neighbours([T]) -> [{T, T}].
+neighbours([A | [B | _] = Rest]) -> [{A, B} | neighbours(Rest)];
+neighbours([_]) -> [];
+neighbours([]) -> [].
+
+%%
+
+-type rank() :: gen_squad:rank().
+-type squad() :: gen_squad:squad().
+
+-type st() :: #{
+    runner := pid(),
+    known := [pid()]
+}.
+
+-spec init(st()) -> {ok, st()}.
+init(St) ->
+    {ok, St}.
+
+-spec discover(st()) -> {ok, [pid()], st()}.
+discover(St = #{known := Known}) ->
+    {ok, Known, St}.
+
+-spec handle_rank_change(rank(), squad(), st()) -> {noreply, st()}.
+handle_rank_change(Rank, Squad, St = #{runner := Runner}) ->
+    _ = Runner ! {self(), Rank, gen_squad:members(Squad)},
+    case Rank of
+        leader -> {noreply, St, 200};
+        follower -> {noreply, St}
+    end;
+handle_rank_change(_Rank, _Squad, St) ->
+    {noreply, St}.
+
+-type call() :: report.
+
+-spec handle_call(call(), _From, rank(), squad(), st()) -> {noreply, st()} | {reply, _, st()}.
+handle_call(report, _From, Rank, Squad, St) ->
+    {reply, {self(), Rank, gen_squad:members(Squad)}, St};
+handle_call(Call, From, _Rank, _Squad, _St) ->
+    erlang:error({unexpected, {call, Call, From}}).
+
+-type cast() :: {known, [pid()]}.
+
+-spec handle_cast(cast(), rank(), squad(), st()) -> {noreply, st()}.
+handle_cast({known, More}, _Rank, _Squad, St = #{known := Known}) ->
+    {noreply, St#{known := Known ++ More}};
+handle_cast(Cast, _Rank, _Squad, _St) ->
+    erlang:error({unexpected, {cast, Cast}}).
+
+-type info() :: timeout.
+
+-spec handle_info(info(), rank(), squad(), st()) -> {stop, normal, st()}.
+handle_info(timeout, leader, _Squad, St) ->
+    {stop, normal, St};
+handle_info(Info, _Rank, _Squad, _St) ->
+    erlang:error({unexpected, {info, Info}}).
+
+-spec handle_beat(_, gen_squad_pulse:beat()) -> _.
+handle_beat(_Start, {{timer, _}, _}) ->
+    ok;
+handle_beat(_Start, {{monitor, _}, _}) ->
+    ok;
+handle_beat(Start, Beat) ->
+    io:format("+~6..0Bms ~0p ~0p", [erlang:system_time(millisecond) - Start, self(), Beat]).

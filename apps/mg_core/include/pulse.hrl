@@ -27,7 +27,7 @@
     machine_id :: mg_core:id(),
     request_context :: mg_core:request_context(),
     deadline :: mg_core_deadline:deadline(),
-    exception :: mg_core_utils:exception()
+    exception :: mg_utils:exception()
 }).
 
 %% Timer processing
@@ -52,76 +52,12 @@
     duration :: non_neg_integer()
 }).
 
-%% Scheduler
-
--record(mg_core_scheduler_search_success, {
-    namespace :: mg_core:ns(),
-    scheduler_name :: mg_core_scheduler:name(),
-    delay :: mg_core_queue_scanner:scan_delay(),
-    tasks :: [mg_core_queue_task:task()],
-    limit :: mg_core_queue_scanner:scan_limit(),
-    % in native units
-    duration :: non_neg_integer()
-}).
-
--record(mg_core_scheduler_search_error, {
-    namespace :: mg_core:ns(),
-    scheduler_name :: mg_core_scheduler:name(),
-    exception :: mg_core_utils:exception()
-}).
-
--record(mg_core_scheduler_task_error, {
-    namespace :: mg_core:ns(),
-    scheduler_name :: mg_core_scheduler:name(),
-    exception :: mg_core_utils:exception(),
-    machine_id :: mg_core:id() | undefined
-}).
-
--record(mg_core_scheduler_task_add_error, {
-    namespace :: mg_core:ns(),
-    scheduler_name :: mg_core_scheduler:name(),
-    exception :: mg_core_utils:exception(),
-    machine_id :: mg_core:id(),
-    request_context :: mg_core:request_context()
-}).
-
--record(mg_core_scheduler_new_tasks, {
-    namespace :: mg_core:ns(),
-    scheduler_name :: mg_core_scheduler:name(),
-    new_tasks_count :: non_neg_integer()
-}).
-
--record(mg_core_scheduler_task_started, {
-    namespace :: mg_core:ns(),
-    scheduler_name :: mg_core_scheduler:name(),
-    machine_id :: mg_core:id() | undefined,
-    task_delay :: timeout()
-}).
-
--record(mg_core_scheduler_task_finished, {
-    namespace :: mg_core:ns(),
-    scheduler_name :: mg_core_scheduler:name(),
-    machine_id :: mg_core:id() | undefined,
-    task_delay :: timeout(),
-    % in native units
-    process_duration :: non_neg_integer()
-}).
-
--record(mg_core_scheduler_quota_reserved, {
-    namespace :: mg_core:ns(),
-    scheduler_name :: mg_core_scheduler:name(),
-    active_tasks :: non_neg_integer(),
-    waiting_tasks :: non_neg_integer(),
-    quota_name :: mg_core_quota_worker:name(),
-    quota_reserved :: mg_core_quota:resource()
-}).
-
 %% Machine
 
 -record(mg_core_machine_process_transient_error, {
     namespace :: mg_core:ns(),
     machine_id :: mg_core:id(),
-    exception :: mg_core_utils:exception(),
+    exception :: mg_utils:exception(),
     request_context :: mg_core:request_context()
 }).
 
@@ -180,7 +116,7 @@
     machine_id :: mg_core:id(),
     request_context :: mg_core:request_context(),
     deadline :: mg_core_deadline:deadline(),
-    exception :: mg_core_utils:exception()
+    exception :: mg_utils:exception()
 }).
 
 -record(mg_core_machine_lifecycle_repaired, {
@@ -194,14 +130,14 @@
     namespace :: mg_core:ns(),
     machine_id :: mg_core:id(),
     request_context :: mg_core:request_context(),
-    exception :: mg_core_utils:exception()
+    exception :: mg_utils:exception()
 }).
 
 -record(mg_core_machine_lifecycle_transient_error, {
     context :: atom(),
     namespace :: mg_core:ns(),
     machine_id :: mg_core:id(),
-    exception :: mg_core_utils:exception(),
+    exception :: mg_utils:exception(),
     request_context :: mg_core:request_context(),
     retry_strategy :: genlib_retry:strategy(),
     retry_action :: {wait, timeout(), genlib_retry:strategy()} | finish
@@ -226,7 +162,7 @@
     namespace :: mg_core:ns(),
     machine_id :: mg_core:id(),
     notification_id :: mg_core:id(),
-    exception :: mg_core_utils:exception(),
+    exception :: mg_utils:exception(),
     action :: delete | {reschedule, genlib_time:ts()} | ignore
 }).
 
@@ -269,62 +205,6 @@
     duration :: non_neg_integer()
 }).
 
-%% Riak client operations
-%% Duration is in native units
-
--record(mg_core_riak_client_get_start, {
-    name :: mg_core_storage:name()
-}).
-
--record(mg_core_riak_client_get_finish, {
-    name :: mg_core_storage:name(),
-    duration :: non_neg_integer()
-}).
-
--record(mg_core_riak_client_put_start, {
-    name :: mg_core_storage:name()
-}).
-
--record(mg_core_riak_client_put_finish, {
-    name :: mg_core_storage:name(),
-    duration :: non_neg_integer()
-}).
-
--record(mg_core_riak_client_search_start, {
-    name :: mg_core_storage:name()
-}).
-
--record(mg_core_riak_client_search_finish, {
-    name :: mg_core_storage:name(),
-    duration :: non_neg_integer()
-}).
-
--record(mg_core_riak_client_delete_start, {
-    name :: mg_core_storage:name()
-}).
-
--record(mg_core_riak_client_delete_finish, {
-    name :: mg_core_storage:name(),
-    duration :: non_neg_integer()
-}).
-
-%% Riak connection pool events
-
--record(mg_core_riak_connection_pool_state_reached, {
-    name :: mg_core_storage:name(),
-    state :: no_free_connections | queue_limit_reached
-}).
-
--record(mg_core_riak_connection_pool_connection_killed, {
-    name :: mg_core_storage:name(),
-    state :: free | in_use
-}).
-
--record(mg_core_riak_connection_pool_error, {
-    name :: mg_core_storage:name(),
-    reason :: connect_timeout
-}).
-
 %% Workers management
 
 -record(mg_core_worker_call_attempt, {
@@ -340,22 +220,4 @@
     request_context :: mg_core:request_context(),
     msg_queue_len :: non_neg_integer(),
     msg_queue_limit :: mg_core_workers_manager:queue_limit()
-}).
-
-%% Events sink operations
-
--record(mg_core_events_sink_kafka_sent, {
-    name :: atom(),
-    namespace :: mg_core:ns(),
-    machine_id :: mg_core:id(),
-    request_context :: mg_core:request_context(),
-    deadline :: mg_core_deadline:deadline(),
-    % in native units
-    encode_duration :: non_neg_integer(),
-    % in native units
-    send_duration :: non_neg_integer(),
-    % in bytes
-    data_size :: non_neg_integer(),
-    partition :: brod:partition(),
-    offset :: brod:offset()
 }).

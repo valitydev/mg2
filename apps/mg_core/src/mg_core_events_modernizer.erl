@@ -26,7 +26,7 @@
 
 -type options() :: #{
     current_format_version := mg_core_events:format_version(),
-    handler := mg_core_utils:mod_opts(handler_opts())
+    handler := mg_utils:mod_opts(handler_opts())
 }.
 
 % handler specific
@@ -123,4 +123,4 @@ event_to_machine_event(NS, ID, Event) ->
 -spec call_handler(options(), request_context(), machine_event()) -> modernized_event_body().
 call_handler(#{handler := Handler}, ReqCtx, MachineEvent) ->
     % TODO обработка ошибок?
-    mg_core_utils:apply_mod_opts(Handler, modernize_event, [ReqCtx, MachineEvent]).
+    mg_utils:apply_mod_opts(Handler, modernize_event, [ReqCtx, MachineEvent]).

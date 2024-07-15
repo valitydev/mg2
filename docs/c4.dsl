@@ -45,15 +45,6 @@ workspace {
                 support_services -> this "Executes RPC" "http, thrift"
             }
 
-            mg_es_thrift = container "Event Sink Thrift API" "Thrift service for reading all events of all machine in strictly ordered fashion" "erlang, http, thrift" {
-                unknown -> this "Executes RPC" "http, thrift"
-            }
-
-            mg_es_machine = container "Event sink collector machine" {
-                description "This process starts as a machine with internal processor. Other than that it is a machine with a namespace and its very own options."
-                mg_es_thrift -> this "Queries" "erlang"
-            }
-
             mg_es_kafka = container "Machines Business Event Sink" "Machines business events publisher via kafka topic on per-namcespace basis and thirft serialization of its data" "erlang, kafka, thrift" {
                 this -> eventstream "Produces" "thrift"
             }
@@ -148,7 +139,6 @@ workspace {
                         this -> mg_processor "Calls state processor"
                         this -> mg_events_storage "Reads and writes" "erlang"
                         this -> mg_es_kafka "Publishes business events" "erlang"
-                        this -> mg_es_machine "Publishes business events" "erlang"
                     }
                 }
             }
