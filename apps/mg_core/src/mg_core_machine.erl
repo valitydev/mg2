@@ -513,7 +513,7 @@ handle_load(ID, Options, ReqCtx) ->
 -spec handle_call(_Call, mg_core_worker:call_context(), maybe(request_context()), deadline(), state()) ->
     {{reply, _Resp} | noreply, state()}.
 handle_call(Call, CallContext, ReqCtx, Deadline, S) ->
-    %% FIXME Consider adding new pulse beats to wrap 'processing calls' here.
+    %% NOTE Consider adding new pulse beats to wrap 'processing calls' here.
     ok = attach_otel_ctx(ReqCtx),
     ParentSpanId = mg_core_otel:current_span_id(otel_ctx:get_current()),
     ?with_span(?SPAN_NAME(call), ?SPAN_OPTS, fun(SpanCtx) ->

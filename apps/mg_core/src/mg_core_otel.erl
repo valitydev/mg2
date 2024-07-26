@@ -67,12 +67,15 @@ maybe_attach_otel_ctx(NewCtx) ->
     _ = otel_ctx:attach(choose_viable_otel_ctx(NewCtx, otel_ctx:get_current())),
     ok.
 
+%% lowest bit is if it is sampled
+-define(SPAN_IS_SAMPLED(SpanCtx), SpanCtx#span_ctx.trace_flags band 2#1 =:= 1).
+
 -spec choose_viable_otel_ctx(T, T) -> T when T :: otel_ctx:t().
 choose_viable_otel_ctx(NewCtx, CurrentCtx) ->
     case {otel_tracer:current_span_ctx(NewCtx), otel_tracer:current_span_ctx(CurrentCtx)} of
-        %% Don't attach if new context is without recording span
-        %% and old context has span defined
-        {#span_ctx{is_recording = false}, #span_ctx{}} -> CurrentCtx;
+        %% Don't attach if new context is without sampled span and old
+        %% context has span defined
+        {SpanCtx = #span_ctx{}, #span_ctx{}} when ?SPAN_IS_SAMPLED(SpanCtx) -> CurrentCtx;
         {undefined, #span_ctx{}} -> CurrentCtx;
         {_, _} -> NewCtx
     end.
