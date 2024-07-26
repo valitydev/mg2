@@ -68,14 +68,14 @@ maybe_attach_otel_ctx(NewCtx) ->
     ok.
 
 %% lowest bit is if it is sampled
--define(SPAN_IS_SAMPLED(SpanCtx), SpanCtx#span_ctx.trace_flags band 2#1 =:= 1).
+-define(IS_NOT_SAMPLED(SpanCtx), SpanCtx#span_ctx.trace_flags band 2#1 =/= 1).
 
 -spec choose_viable_otel_ctx(T, T) -> T when T :: otel_ctx:t().
 choose_viable_otel_ctx(NewCtx, CurrentCtx) ->
     case {otel_tracer:current_span_ctx(NewCtx), otel_tracer:current_span_ctx(CurrentCtx)} of
         %% Don't attach if new context is without sampled span and old
         %% context has span defined
-        {SpanCtx = #span_ctx{}, #span_ctx{}} when ?SPAN_IS_SAMPLED(SpanCtx) -> CurrentCtx;
+        {SpanCtx = #span_ctx{}, #span_ctx{}} when ?IS_NOT_SAMPLED(SpanCtx) -> CurrentCtx;
         {undefined, #span_ctx{}} -> CurrentCtx;
         {_, _} -> NewCtx
     end.
@@ -187,7 +187,7 @@ binary_to_id(Opaque) when is_binary(Opaque) ->
 -type testgen() :: {_ID, fun(() -> _)}.
 -spec test() -> _.
 
--define(OTEL_CTX(IsRecording),
+-define(OTEL_CTX(IsSampled),
     otel_tracer:set_current_span(
         otel_ctx:new(),
         (otel_tracer_noop:noop_span_ctx())#span_ctx{
@@ -195,7 +195,12 @@ binary_to_id(Opaque) when is_binary(Opaque) ->
             span_id = otel_id_generator:generate_span_id(),
             is_valid = true,
             is_remote = true,
-            is_recording = IsRecording
+            is_recording = false,
+            trace_flags =
+                case IsSampled of
+                    true -> 1;
+                    false -> 0
+                end
         }
     )
 ).
