@@ -187,6 +187,8 @@ binary_to_id(Opaque) when is_binary(Opaque) ->
 -type testgen() :: {_ID, fun(() -> _)}.
 -spec test() -> _.
 
+-define(IS_SAMPLED, 1).
+-define(NOT_SAMPLED, 0).
 -define(OTEL_CTX(IsSampled),
     otel_tracer:set_current_span(
         otel_ctx:new(),
@@ -196,19 +198,15 @@ binary_to_id(Opaque) when is_binary(Opaque) ->
             is_valid = true,
             is_remote = true,
             is_recording = false,
-            trace_flags =
-                case IsSampled of
-                    true -> 1;
-                    false -> 0
-                end
+            trace_flags = IsSampled
         }
     )
 ).
 
 -spec choose_viable_otel_ctx_test_() -> [testgen()].
 choose_viable_otel_ctx_test_() ->
-    A = ?OTEL_CTX(true),
-    B = ?OTEL_CTX(false),
+    A = ?OTEL_CTX(?IS_SAMPLED),
+    B = ?OTEL_CTX(?NOT_SAMPLED),
     [
         ?_assertEqual(A, choose_viable_otel_ctx(A, B)),
         ?_assertEqual(A, choose_viable_otel_ctx(B, A)),
