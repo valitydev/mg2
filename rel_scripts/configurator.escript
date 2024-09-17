@@ -216,6 +216,7 @@ machinegun(YamlConfig) ->
         {health_check, health_check(YamlConfig)},
         {quotas, quotas(YamlConfig)},
         {namespaces, namespaces(YamlConfig)},
+        {event_sink_ns, event_sink_ns(YamlConfig)},
         {pulse, pulse(YamlConfig)},
         {cluster, cluster(YamlConfig)}
     ].
@@ -539,9 +540,23 @@ notification_scheduler(Share, Config) ->
 timeout(Name, Config, Default, Unit) ->
     ?C:time_interval(?C:conf([Name], Config, Default), Unit).
 
+event_sink_ns(YamlConfig) ->
+    #{
+        registry => procreg(YamlConfig),
+        storage => storage(<<"_event_sinks">>, YamlConfig),
+        worker => #{registry => procreg(YamlConfig)},
+        duplicate_search_batch => 1000,
+        default_processing_timeout => ?C:milliseconds(<<"30s">>)
+    }.
+
 event_sink({Name, ESYamlConfig}) ->
     event_sink(?C:atom(?C:conf([type], ESYamlConfig)), Name, ESYamlConfig).
 
+event_sink(machine, Name, ESYamlConfig) ->
+    {mg_core_events_sink_machine, #{
+        name => ?C:atom(Name),
+        machine_id => ?C:conf([machine_id], ESYamlConfig)
+    }};
 event_sink(kafka, Name, ESYamlConfig) ->
     {mg_core_events_sink_kafka, #{
         name => ?C:atom(Name),
