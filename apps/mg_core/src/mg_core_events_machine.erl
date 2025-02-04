@@ -121,16 +121,16 @@
 -type options() :: #{
     namespace => mg_core:ns(),
     events_storage => storage_options(),
-    processor => mg_core_utils:mod_opts(),
+    processor => mg_utils:mod_opts(),
     machines => mg_core_machine:options(),
     retries => #{_Subject => genlib_retry:policy()},
-    pulse => mg_core_pulse:handler(),
-    event_sinks => [mg_core_events_sink:handler()],
+    pulse => mpulse:handler(),
+    event_sinks => [mg_core_event_sink:handler()],
     default_processing_timeout => timeout(),
     event_stash_size => non_neg_integer()
 }.
 % like mg_core_storage:options() except `name`
--type storage_options() :: mg_core_utils:mod_opts(map()).
+-type storage_options() :: mg_utils:mod_opts(map()).
 
 -spec child_spec(options(), atom()) -> supervisor:child_spec().
 child_spec(Options, ChildID) ->
@@ -141,11 +141,11 @@ child_spec(Options, ChildID) ->
         type => supervisor
     }.
 
--spec start_link(options()) -> mg_core_utils:gen_start_ret().
+-spec start_link(options()) -> mg_utils:gen_start_ret().
 start_link(Options) ->
     genlib_adhoc_supervisor:start_link(
         #{strategy => one_for_all},
-        mg_core_utils:lists_compact([
+        mg_utils:lists_compact([
             mg_core_events_storage:child_spec(Options),
             mg_core_machine:child_spec(machine_options(Options), automaton)
         ])
@@ -209,7 +209,7 @@ call(Options, ID, Args, HRange, ReqCtx, Deadline) ->
 get_machine(Options, ID, HRange) ->
     #{state := State, status := Status} = mg_core_machine:get(machine_options(Options), ID),
     EffectiveState = maybe_apply_delayed_actions(opaque_to_state(State)),
-    _ = mg_core_utils:throw_if_undefined(EffectiveState, {logic, machine_not_found}),
+    _ = mg_utils:throw_if_undefined(EffectiveState, {logic, machine_not_found}),
     machine(Options, ID, EffectiveState, Status, HRange).
 
 -spec remove(options(), id(), request_context(), deadline()) -> ok.
@@ -246,7 +246,7 @@ notify(Options, MachineID, Args, HRange, ReqCtx) ->
 
 -spec processor_child_spec(options()) -> supervisor:child_spec() | undefined.
 processor_child_spec(Options) ->
-    mg_core_utils:apply_mod_opts_if_defined(
+    mg_utils:apply_mod_opts_if_defined(
         processor_options(Options),
         processor_child_spec,
         undefined
@@ -454,7 +454,7 @@ push_events_to_event_sinks(Options, ID, ReqCtx, Deadline, Events) ->
     EventSinks = maps:get(event_sinks, Options, []),
     lists:foreach(
         fun(EventSinkHandler) ->
-            ok = mg_core_events_sink:add_events(EventSinkHandler, Namespace, ID, Events, ReqCtx, Deadline)
+            ok = mg_core_event_sink:add_events(EventSinkHandler, Namespace, ID, Events, ReqCtx, Deadline)
         end,
         EventSinks
     ).
@@ -479,14 +479,14 @@ emit_action_beats(Options, ID, ReqCtx, ComplexAction) ->
 -spec emit_timer_action_beats(options(), mg_core:id(), request_context(), complex_action()) -> ok.
 emit_timer_action_beats(Options, ID, ReqCtx, #{timer := unset_timer}) ->
     #{namespace := NS, pulse := Pulse} = Options,
-    mg_core_pulse:handle_beat(Pulse, #mg_core_timer_lifecycle_removed{
+    mpulse:handle_beat(Pulse, #mg_core_timer_lifecycle_removed{
         namespace = NS,
         machine_id = ID,
         request_context = ReqCtx
     });
 emit_timer_action_beats(Options, ID, ReqCtx, #{timer := {set_timer, Timer, _, _}}) ->
     #{namespace := NS, pulse := Pulse} = Options,
-    mg_core_pulse:handle_beat(Pulse, #mg_core_timer_lifecycle_created{
+    mpulse:handle_beat(Pulse, #mg_core_timer_lifecycle_created{
         namespace = NS,
         machine_id = ID,
         request_context = ReqCtx,
@@ -501,7 +501,7 @@ emit_timer_action_beats(_Options, _ID, _ReqCtx, #{}) ->
     {ok, state()}.
 process_signal(Options = #{processor := Processor}, ReqCtx, Deadline, Signal, Machine, State) ->
     SignalArgs = [ReqCtx, Deadline, {Signal, Machine}],
-    {StateChange, ComplexAction} = mg_core_utils:apply_mod_opts(
+    {StateChange, ComplexAction} = mg_utils:apply_mod_opts(
         Processor,
         process_signal,
         SignalArgs
@@ -522,7 +522,7 @@ process_signal(Options = #{processor := Processor}, ReqCtx, Deadline, Signal, Ma
     {_Resp, state()}.
 process_call(Options = #{processor := Processor}, ReqCtx, Deadline, Args, Machine, State) ->
     CallArgs = [ReqCtx, Deadline, {Args, Machine}],
-    {Resp, StateChange, ComplexAction} = mg_core_utils:apply_mod_opts(
+    {Resp, StateChange, ComplexAction} = mg_utils:apply_mod_opts(
         Processor,
         process_call,
         CallArgs
@@ -543,7 +543,7 @@ process_call(Options = #{processor := Processor}, ReqCtx, Deadline, Args, Machin
     {ok, {_Resp, state()}} | {error, repair_error()}.
 process_repair(Options = #{processor := Processor}, ReqCtx, Deadline, Args, Machine, State) ->
     RepairArgs = [ReqCtx, Deadline, {Args, Machine}],
-    case mg_core_utils:apply_mod_opts(Processor, process_repair, RepairArgs) of
+    case mg_utils:apply_mod_opts(Processor, process_repair, RepairArgs) of
         {ok, {Resp, StateChange, ComplexAction}} ->
             #{id := ID} = Machine,
             NewState = handle_processing_result(
@@ -653,7 +653,7 @@ timer_to_timestamp({deadline, Deadline}) ->
 
 %%
 
--spec processor_options(options()) -> mg_core_utils:mod_opts().
+-spec processor_options(options()) -> mg_utils:mod_opts().
 processor_options(Options) ->
     maps:get(processor, Options).
 

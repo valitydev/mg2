@@ -1,0 +1,186 @@
+service_name: machinegun
+
+dist_node_name:
+  hostpart: ip
+
+dist_port:
+  mode: static
+  port: 31337
+
+erlang:
+  secret_cookie_file: "/opt/machinegun/etc/cookie"
+  ipv6: false
+  disable_dns_cache: true
+
+woody_server:
+  ip: "::"
+  port: 8022
+  max_concurrent_connections: 8000
+  http_keep_alive_timeout: 3000ms
+  shutdown_timeout: 5s
+
+snowflake_machine_id: 1
+
+storage:
+  type: riak
+  host: riakdb
+  port: 8087
+  pool:
+    size: 100
+    queue_max: 500
+  connect_timeout: 500ms
+  request_timeout: 10s
+  index_query_timeout: 60s
+  batch_concurrency_limit: 10
+
+cluster:
+  discovery:
+    type: dns
+    options:
+      domain_name: machinegun
+      sname: machinegun
+  reconnect_timeout: 5000
+
+process_registry:
+  module: mg_procreg_global
+
+limits:
+  process_heap: 2M
+  memory:
+    type: cgroups  # cgroups | total
+    value: 90%
+  scheduler_tasks: 5000
+
+logging:
+  out_type: stdout
+  level: warning
+  formatter:
+    level_map:
+      'emergency': 'ERROR'
+      'alert': 'ERROR'
+      'critical': 'ERROR'
+      'error': 'ERROR'
+      'warning': 'WARN'
+      'notice': 'INFO'
+      'info': 'INFO'
+      'debug': 'DEBUG'
+
+namespaces:
+  simple-counter:
+    retries: &retries
+      storage:
+        type: exponential
+        max_retries: infinity
+        factor: 2
+        timeout: 10ms
+        max_timeout: 60s
+      timers:
+        type: exponential
+        max_retries: 100
+        factor: 2
+        timeout: 2s
+        max_timeout: 30m
+      processor:
+        type: exponential
+        max_retries:
+          max_total_timeout: 1d
+        factor: 2
+        timeout: 10ms
+        max_timeout: 60s
+      continuation:
+        type: exponential
+        max_retries: infinity
+        factor: 2
+        timeout: 10ms
+        max_timeout: 60s
+    event_sinks:
+      kafka:
+        type: kafka
+        client: default_kafka_client
+        topic: simple-counter
+    default_processing_timeout: 30s
+    timer_processing_timeout: 60s
+    reschedule_timeout: 60s
+    hibernate_timeout: 5s
+    shutdown_timeout: 5s
+    unload_timeout: 1m
+    processor:
+      url: http://load-processor:8022/v1/stateproc/simple-counter
+      pool_size: 50
+      http_keep_alive_timeout: 10s
+    overseer: &overseer
+      capacity: 1000
+      min_scan_delay: 1s
+      scan_interval: 1m
+    timers: &timers
+      scan_interval: 1m
+      scan_limit: 1000
+      capacity: 1000
+      min_scan_delay: 10s
+    notification: &notification
+      capacity: 1000
+      scan_interval: 1m
+      min_scan_delay: 1s
+      scan_handicap: 10s
+      scan_cutoff: 4W
+      reschedule_time: 5s
+    event_stash_size: 5
+    modernizer:
+      current_format_version: 1
+      handler:
+        url: http://load-processor:8022/v1/modernizer/simple-counter
+        pool_size: 50
+        http_keep_alive_timeout: 10s
+
+  eventful-counter:
+    retries: *retries
+    event_sinks:
+      kafka:
+        type: kafka
+        client: default_kafka_client
+        topic: eventful-counter
+    default_processing_timeout: 30s
+    timer_processing_timeout: 60s
+    reschedule_timeout: 60s
+    hibernate_timeout: 5s
+    shutdown_timeout: 5s
+    unload_timeout: 1m
+    processor:
+      url: http://load-processor:8022/v1/stateproc/eventful-counter
+      pool_size: 50
+      http_keep_alive_timeout: 10s
+    overseer: *overseer
+    timers: *timers
+    notification: *notification
+    event_stash_size: 5
+    modernizer:
+      current_format_version: 1
+      handler:
+        url: http://load-processor:8022/v1/modernizer/eventful-counter
+        pool_size: 50
+        http_keep_alive_timeout: 10s
+
+lifecycle_pulse:
+  topic: mg-lifecycle
+  client: default_kafka_client
+
+kafka:
+  default_kafka_client:
+    endpoints:
+      - host: "kafka1"
+        port: 9092
+      - host: "kafka2"
+        port: 9092
+      - host: "kafka3"
+        port: 9092
+    producer:
+      compression: no_compression
+      partition_onwire_limit: 1
+      ack_timeout: 10s
+      required_acks: all_isr
+      partition_buffer_limit: 256
+      max_linger: 0ms
+      max_linger_count: 0
+      max_batch_size: 1M
+      max_retries: 3
+      retry_backoff: 500ms

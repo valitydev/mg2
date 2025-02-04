@@ -247,7 +247,7 @@ mg_config(#{endpoint := {IP, Port}}, C) ->
                 % сейчас же можно иногда включать и смотреть
                 % suicide_probability => 0.1,
                 event_sinks => [
-                    {mg_core_events_sink_kafka, #{
+                    {mg_event_sink_kafka, #{
                         name => kafka,
                         topic => ?ES_ID,
                         client => mg_cth:config(kafka_client_name)

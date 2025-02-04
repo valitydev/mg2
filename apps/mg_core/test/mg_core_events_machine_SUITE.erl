@@ -35,8 +35,8 @@
 -export_type([options/0]).
 -export([process_signal/4, process_call/4, process_repair/4]).
 
-%% mg_core_events_sink handler
--behaviour(mg_core_events_sink).
+%% mg_core_event_sink handler
+-behaviour(mg_core_event_sink).
 -export([add_events/6]).
 
 %% mg_core_storage callbacks
@@ -398,7 +398,7 @@ start_automaton(ProcessorOptions, NS) ->
 -spec start_automaton(mg_core_events_machine:options()) ->
     {pid(), mg_core_events_machine:options()}.
 start_automaton(Options) ->
-    {mg_core_utils:throw_if_error(mg_core_events_machine:start_link(Options)), Options}.
+    {mg_utils:throw_if_error(mg_core_events_machine:start_link(Options)), Options}.
 
 -spec stop_automaton(pid()) -> ok.
 stop_automaton(Pid) ->
@@ -439,7 +439,7 @@ events_machine_options(Base, StorageOptions, ProcessorOptions, NS) ->
             namespace => NS,
             storage => mg_cth:build_storage(NS, Storage),
             worker => #{
-                registry => mg_core_procreg_global
+                registry => mg_procreg_global
             },
             notification => #{
                 namespace => NS,
@@ -570,7 +570,7 @@ decode(Value) ->
 
 -include("pulse.hrl").
 
--spec handle_beat(_, mg_core_pulse:beat()) -> ok.
+-spec handle_beat(_, mpulse:beat()) -> ok.
 handle_beat(_, Beat = #mg_core_machine_lifecycle_failed{}) ->
     ct:pal("~p", [Beat]);
 handle_beat(_, Beat = #mg_core_machine_lifecycle_transient_error{}) ->

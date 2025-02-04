@@ -130,19 +130,19 @@
         % how much tasks in total scheduler is ready to enqueue for processing
         capacity => non_neg_integer(),
         % wait at least this delay before subsequent scanning of persistent store for queued tasks
-        min_scan_delay => mg_core_queue_scanner:scan_delay(),
+        min_scan_delay => mg_skd_scanner:scan_delay(),
         % wait at most this delay before subsequent scanning attempts when queue appears to be empty
-        rescan_delay => mg_core_queue_scanner:scan_delay(),
+        rescan_delay => mg_skd_scanner:scan_delay(),
         % how many tasks to fetch at most
-        max_scan_limit => mg_core_queue_scanner:scan_limit(),
+        max_scan_limit => mg_skd_scanner:scan_limit(),
         % by how much to adjust limit to account for possibly duplicated tasks
-        scan_ahead => mg_core_queue_scanner:scan_ahead(),
+        scan_ahead => mg_skd_scanner:scan_ahead(),
         % how many seconds in future a task can be for it to be sent to the local scheduler
         target_cutoff => seconds(),
         % name of quota limiting number of active tasks
-        task_quota => mg_core_quota_worker:name(),
+        task_quota => mg_skd_quota_worker:name(),
         % share of quota limit
-        task_share => mg_core_quota:share(),
+        task_share => mg_skd_quota:share(),
         % notifications: upper bound for scan ([_; TSNow - scan_handicap])
         scan_handicap => seconds(),
         % notifications: lower bound for scan ([TSNow - scan_handicap - scan_cutoff; _])
@@ -163,10 +163,10 @@
 %%        fixed for namespace and pulse, worker
 -type options() :: #{
     namespace := mg_core:ns(),
-    pulse := mg_core_pulse:handler(),
+    pulse := mpulse:handler(),
     storage => storage_options(),
     notification => mg_core_notification:options(),
-    processor => mg_core_utils:mod_opts(),
+    processor => mg_utils:mod_opts(),
     worker := mg_core_workers_manager:ns_options(),
     retries => retry_opt(),
     schedulers => schedulers_opt(),
@@ -176,7 +176,7 @@
 }.
 
 % like mg_core_storage:options() except `name`
--type storage_options() :: mg_core_utils:mod_opts(map()).
+-type storage_options() :: mg_utils:mod_opts(map()).
 
 -type thrown_error() ::
     {logic, logic_error()} | {transient, transient_error()} | {timeout, _Reason}.
@@ -266,11 +266,11 @@ child_spec(Options, ChildID) ->
         type => supervisor
     }.
 
--spec start_link(options()) -> mg_core_utils:gen_start_ret().
+-spec start_link(options()) -> mg_utils:gen_start_ret().
 start_link(Options = #{namespace := NS}) ->
     start_link(Options, {?MODULE, NS}).
 
--spec start_link(options(), _ChildID) -> mg_core_utils:gen_start_ret().
+-spec start_link(options(), _ChildID) -> mg_utils:gen_start_ret().
 start_link(Options, ChildID) ->
     genlib_adhoc_supervisor:start_link(
         #{strategy => one_for_one},
@@ -287,7 +287,7 @@ machine_sup_child_spec(Options, ChildID) ->
         start =>
             {genlib_adhoc_supervisor, start_link, [
                 #{strategy => rest_for_one},
-                mg_core_utils:lists_compact([
+                mg_utils:lists_compact([
                     mg_core_storage:child_spec(storage_options(Options), storage),
                     notification_child_spec(Options),
                     processor_child_spec(Options),
@@ -309,7 +309,7 @@ scheduler_sup_child_spec(Options, ChildID) ->
                     intensity => 10,
                     period => 30
                 },
-                mg_core_utils:lists_compact([
+                mg_utils:lists_compact([
                     scheduler_child_spec(timers, Options),
                     scheduler_child_spec(timers_retries, Options),
                     scheduler_child_spec(overseer, Options),
@@ -380,14 +380,14 @@ resume_interrupted(Options, ID, Deadline) ->
 fail(Options, ID, ReqCtx, Deadline) ->
     fail(Options, ID, {error, explicit_fail, []}, ReqCtx, Deadline).
 
--spec fail(options(), mg_core:id(), mg_core_utils:exception(), request_context(), deadline()) -> ok.
+-spec fail(options(), mg_core:id(), mg_utils:exception(), request_context(), deadline()) -> ok.
 fail(Options, ID, Exception, ReqCtx, Deadline) ->
     call_(Options, ID, {fail, Exception}, ReqCtx, Deadline).
 
 -spec get(options(), mg_core:id()) -> storage_machine() | throws().
 get(Options, ID) ->
     {_, StorageMachine} =
-        mg_core_utils:throw_if_undefined(
+        mg_utils:throw_if_undefined(
             get_storage_machine(Options, ID),
             {logic, machine_not_found}
         ),
@@ -465,7 +465,7 @@ all_statuses() ->
 
 -spec call_(options(), mg_core:id(), _, maybe(request_context()), deadline()) -> _ | no_return().
 call_(Options, ID, Call, ReqCtx, Deadline) ->
-    mg_core_utils:throw_if_error(
+    mg_utils:throw_if_error(
         mg_core_workers_manager:call(manager_options(Options), ID, Call, ReqCtx, Deadline)
     ).
 
@@ -483,7 +483,7 @@ call_(Options, ID, Call, ReqCtx, Deadline) ->
 }.
 
 -type scheduler_ref() ::
-    {mg_core_scheduler:id(), _TargetCutoff :: seconds()}.
+    {mg_skd:id(), _TargetCutoff :: seconds()}.
 
 -spec handle_load(mg_core:id(), options(), request_context()) -> {ok, state()}.
 handle_load(ID, Options, ReqCtx) ->
@@ -917,7 +917,7 @@ opaque_to_notification_args([1, Args, RequestContext]) ->
     TargetTime :: genlib_time:ts().
 send_notification_task(Options, NotificationID, Args, MachineID, Context, TargetTime) ->
     Task = mg_core_queue_notifications:build_task(NotificationID, MachineID, TargetTime, Context, Args),
-    mg_core_scheduler:send_task(scheduler_id(notification, Options), Task).
+    mg_skd:send_task(scheduler_id(notification, Options), Task).
 
 -spec process_with_retry(Impact, ProcessingCtx, ReqCtx, Deadline, State, Retry) -> State when
     Impact :: processor_impact(),
@@ -990,7 +990,7 @@ handle_transient_exception(_Reason, State) ->
     State.
 
 -spec handle_exception(Exception, ReqCtx, Deadline, state()) -> state() when
-    Exception :: mg_core_utils:exception(),
+    Exception :: mg_utils:exception(),
     ReqCtx :: request_context(),
     Deadline :: deadline().
 handle_exception(Exception, ReqCtx, Deadline, State) ->
@@ -1094,7 +1094,7 @@ handle_notification_processed(NotificationID, State = #{notifications_processed 
 ) -> processor_result().
 call_processor(Impact, ProcessingCtx, ReqCtx, Deadline, State) ->
     #{options := Options, id := ID, storage_machine := #{state := MachineState}} = State,
-    mg_core_utils:apply_mod_opts(
+    mg_utils:apply_mod_opts(
         get_options(processor, Options),
         process_machine,
         [ID, Impact, ProcessingCtx, ReqCtx, Deadline, MachineState]
@@ -1108,7 +1108,7 @@ notification_child_spec(#{}) ->
 
 -spec processor_child_spec(options()) -> supervisor:child_spec().
 processor_child_spec(Options) ->
-    mg_core_utils:apply_mod_opts_if_defined(
+    mg_utils:apply_mod_opts_if_defined(
         get_options(processor, Options),
         processor_child_spec,
         undefined
@@ -1264,16 +1264,16 @@ get_scheduler_ref(SchedulerType, Options) ->
             undefined
     end.
 
--spec try_send_timer_task(scheduler_type(), mg_core_queue_task:target_time(), state()) -> ok.
+-spec try_send_timer_task(scheduler_type(), mg_skd_task:target_time(), state()) -> ok.
 try_send_timer_task(SchedulerType, TargetTime, #{id := ID, schedulers := Schedulers}) ->
     case maps:get(SchedulerType, Schedulers, undefined) of
         {SchedulerID, Cutoff} when is_integer(Cutoff) ->
             % Ok let's send if it's not too far in the future.
-            CurrentTime = mg_core_queue_task:current_time(),
+            CurrentTime = mg_skd_task:current_time(),
             case TargetTime =< CurrentTime + Cutoff of
                 true ->
                     Task = mg_core_queue_timer:build_task(ID, TargetTime),
-                    mg_core_scheduler:send_task(SchedulerID, Task);
+                    mg_skd:send_task(SchedulerID, Task);
                 false ->
                     ok
             end;
@@ -1444,7 +1444,7 @@ manager_options(Options = #{namespace := NS, worker := ManagerOptions, pulse := 
 
 -spec storage_options(options()) -> mg_core_storage:options().
 storage_options(#{namespace := NS, storage := StorageOptions, pulse := Handler}) ->
-    {Mod, Options} = mg_core_utils:separate_mod_opts(StorageOptions, #{}),
+    {Mod, Options} = mg_utils:separate_mod_opts(StorageOptions, #{}),
     {Mod, Options#{name => {NS, ?MODULE, machines}, pulse => Handler}}.
 
 -spec notification_options(options()) -> mg_core_notification:options().
@@ -1459,15 +1459,15 @@ scheduler_child_spec(SchedulerType, Options) ->
         Config ->
             SchedulerID = scheduler_id(SchedulerType, Options),
             SchedulerOptions = scheduler_options(SchedulerType, Options, Config),
-            mg_core_scheduler_sup:child_spec(SchedulerID, SchedulerOptions, SchedulerType)
+            mg_skd_sup:child_spec(SchedulerID, SchedulerOptions, SchedulerType)
     end.
 
--spec scheduler_id(scheduler_type(), options()) -> mg_core_scheduler:id() | undefined.
+-spec scheduler_id(scheduler_type(), options()) -> mg_skd:id() | undefined.
 scheduler_id(SchedulerType, #{namespace := NS}) ->
     {SchedulerType, NS}.
 
 -spec scheduler_options(scheduler_type(), options(), scheduler_opt()) ->
-    mg_core_scheduler_sup:options().
+    mg_skd_sup:options().
 scheduler_options(SchedulerType, Options, Config) when
     SchedulerType == timers;
     SchedulerType == timers_retries
@@ -1503,8 +1503,7 @@ scheduler_options(notification = SchedulerType, Options, Config) ->
     },
     scheduler_options(mg_core_queue_notifications, Options, HandlerOptions, Config).
 
--spec scheduler_options(module(), options(), map(), scheduler_opt()) ->
-    mg_core_scheduler_sup:options().
+-spec scheduler_options(module(), options(), map(), scheduler_opt()) -> mg_skd_sup:options().
 scheduler_options(HandlerMod, Options, HandlerOptions, Config) ->
     #{
         pulse := Pulse
@@ -1613,6 +1612,6 @@ do_with_retry(Options = #{namespace := NS}, ID, Fun, RetryStrategy, ReqCtx, Beat
 %% logging
 %%
 
--spec emit_beat(options(), mg_core_pulse:beat()) -> ok.
+-spec emit_beat(options(), mpulse:beat()) -> ok.
 emit_beat(#{pulse := Handler}, Beat) ->
-    ok = mg_core_pulse:handle_beat(Handler, Beat).
+    ok = mpulse:handle_beat(Handler, Beat).

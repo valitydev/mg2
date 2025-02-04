@@ -176,7 +176,11 @@ mg_woody_config(Name, C) ->
                         timers => #{}
                     },
                     retries => #{},
-                    event_stash_size => 0
+                    event_stash_size => 0,
+                    worker => #{
+                        registry => mg_procreg_global,
+                        sidecar => mg_cth_worker
+                    }
                 },
                 case Name of
                     legacy_activities ->

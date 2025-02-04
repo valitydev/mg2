@@ -1,0 +1,156 @@
+version: '3'
+services:
+
+  load-processor:
+    build:
+      dockerfile: Dockerfile
+      context: .
+      args:
+        OTP_VERSION: 26
+        ELIXIR_VERSION: 1.16.2
+    volumes:
+      - .:$PWD
+    environment:
+      OTEL_TRACES_EXPORTER: otlp
+      OTEL_TRACES_SAMPLER: parentbased_always_on
+      OTEL_EXPORTER_OTLP_PROTOCOL: http_protobuf
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://jaeger:4318
+      OTEL_SERVICE_NAME: load-processor
+    depends_on:
+      machinegun:
+        condition: service_healthy
+    working_dir: $PWD
+    command: /usr/local/bin/iex
+
+  machinegun:
+    build:
+      dockerfile: Dockerfile
+      context: ..
+      args:
+        SERVICE_NAME: machinegun
+        OTP_VERSION: 25.3
+        REBAR_VERSION: 3.18
+        THRIFT_VERSION: 0.14.2.2
+    volumes:
+      - ./machinegun/config.yaml:/opt/machinegun/etc/config.yaml
+      - ./machinegun/cookie:/opt/machinegun/etc/cookie
+    healthcheck:
+      # For `ERL_DIST_PORT` see `dist_port` entry in `example/machinegun/config.yaml`
+      test: "ERL_DIST_PORT=31337 /opt/machinegun/bin/machinegun ping"
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    environment:
+      OTEL_TRACES_EXPORTER: otlp
+      OTEL_TRACES_SAMPLER: parentbased_always_off
+      OTEL_EXPORTER_OTLP_PROTOCOL: http_protobuf
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://jaeger:4318
+    depends_on:
+      jaeger:
+        condition: service_healthy
+      riakdb:
+        condition: service_started
+      member1:
+        condition: service_started
+      member2:
+        condition: service_started
+      kafka1:
+        condition: service_healthy
+      kafka2:
+        condition: service_healthy
+      kafka3:
+        condition: service_healthy
+    # See https://docs.docker.com/compose/compose-file/deploy/
+    deploy:
+      mode: replicated
+      replicas: 5
+      endpoint_mode: dnsrr
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 1G
+        reservations:
+          cpus: '0.2'
+          memory: 512M
+      restart_policy:
+        condition: on-failure
+
+  riakdb: &member-node
+    image: docker.io/basho/riak-kv:ubuntu-2.2.3
+    environment:
+      - CLUSTER_NAME=riakkv
+      - COORDINATOR_NODE=riakdb
+    labels:
+      - "com.basho.riak.cluster.name=riakkv"
+    volumes:
+      - ./riak/riak_user.conf:/etc/riak/user.conf:ro
+      - schemas:/etc/riak/schemas
+  member1:
+    <<: *member-node
+    links:
+      - riakdb
+    depends_on:
+      - riakdb
+  member2:
+    <<: *member-node
+    links:
+      - riakdb
+    depends_on:
+      - riakdb
+
+  zookeeper:
+    image: docker.io/confluentinc/cp-zookeeper:5.1.2
+    healthcheck:
+      test: echo ruok | nc 127.0.0.1 2181 || exit -1
+      interval: 5s
+      timeout: 240s
+      retries: 50
+    environment:
+      KAFKA_OPTS: "-Dzookeeper.4lw.commands.whitelist=ruok"
+      ZOOKEEPER_CLIENT_PORT: 2181
+
+  kafka1: &kafka-broker
+    image: docker.io/confluentinc/cp-kafka:5.1.2
+    depends_on:
+      - zookeeper
+    healthcheck:
+      test: ["CMD", "kafka-topics", "--list", "--zookeeper", "zookeeper:2181"]
+      interval: 5s
+      timeout: 10s
+      retries: 5
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: 'zookeeper:2181'
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka1:9092
+  kafka2:
+    <<: *kafka-broker
+    environment:
+      KAFKA_BROKER_ID: 2
+      KAFKA_ZOOKEEPER_CONNECT: 'zookeeper:2181'
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka2:9092
+  kafka3:
+    <<: *kafka-broker
+    environment:
+      KAFKA_BROKER_ID: 3
+      KAFKA_ZOOKEEPER_CONNECT: 'zookeeper:2181'
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka3:9092
+
+  jaeger:
+    image: jaegertracing/all-in-one:1.47
+    environment:
+      - COLLECTOR_OTLP_ENABLED=true
+    healthcheck:
+      test: "/go/bin/all-in-one-linux status"
+      interval: 2s
+      timeout: 1s
+      retries: 20
+    ports:
+      - 4317:4317
+      - 4318:4318
+      - 5778:5778
+      - 14250:14250
+      - 16686:16686
+
+volumes:
+  schemas:
+    external: false
