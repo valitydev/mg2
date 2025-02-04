@@ -16,6 +16,8 @@
 
 -export([impact_to_machine_activity/1]).
 -export([machine_tags/2]).
+-export([machine_tags/3]).
+-export([event_range_to_attributes/1]).
 
 -type packed_otel_stub() :: [mg_core_storage:opaque()].
 
@@ -58,12 +60,25 @@ restore_otel_stub(Ctx, _Other) ->
     Ctx.
 
 -spec maybe_attach_otel_ctx(otel_ctx:t()) -> ok.
-maybe_attach_otel_ctx(OtelCtx) when map_size(OtelCtx) =:= 0 ->
+maybe_attach_otel_ctx(NewCtx) when map_size(NewCtx) =:= 0 ->
     %% Don't attach empty context
     ok;
-maybe_attach_otel_ctx(OtelCtx) ->
-    _Old = otel_ctx:attach(OtelCtx),
+maybe_attach_otel_ctx(NewCtx) ->
+    _ = otel_ctx:attach(choose_viable_otel_ctx(NewCtx, otel_ctx:get_current())),
     ok.
+
+%% lowest bit is if it is sampled
+-define(IS_NOT_SAMPLED(SpanCtx), SpanCtx#span_ctx.trace_flags band 2#1 =/= 1).
+
+-spec choose_viable_otel_ctx(T, T) -> T when T :: otel_ctx:t().
+choose_viable_otel_ctx(NewCtx, CurrentCtx) ->
+    case {otel_tracer:current_span_ctx(NewCtx), otel_tracer:current_span_ctx(CurrentCtx)} of
+        %% Don't attach if new context is without sampled span and old
+        %% context has span defined
+        {SpanCtx = #span_ctx{}, #span_ctx{}} when ?IS_NOT_SAMPLED(SpanCtx) -> CurrentCtx;
+        {undefined, #span_ctx{}} -> CurrentCtx;
+        {_, _} -> NewCtx
+    end.
 
 -spec span_start(term(), opentelemetry:span_name(), otel_span:start_opts()) -> ok.
 span_start(Key, SpanName, Opts) ->
@@ -125,10 +140,24 @@ machine_tags(Namespace, ID) ->
 machine_tags(Namespace, ID, OtherTags) ->
     genlib_map:compact(
         maps:merge(OtherTags, #{
-            <<"machine.ns">> => Namespace,
-            <<"machine.id">> => ID
+            <<"mg.machine.ns">> => Namespace,
+            <<"mg.machine.id">> => ID
         })
     ).
+
+-spec event_range_to_attributes(mg_core_events:events_range()) -> map().
+event_range_to_attributes(undefined) ->
+    #{};
+event_range_to_attributes({UpperBoundary, LowerBoundary, Direction}) ->
+    #{
+        <<"mg.machine.event_range.upper_boundary">> => UpperBoundary,
+        <<"mg.machine.event_range.lower_boundary">> => LowerBoundary,
+        <<"mg.machine.event_range.direction">> =>
+            case Direction of
+                +1 -> <<"forward">>;
+                -1 -> <<"backward">>
+            end
+    }.
 
 %%
 
@@ -151,3 +180,39 @@ span_id_to_binary(SpanID) ->
 -spec binary_to_id(binary()) -> non_neg_integer().
 binary_to_id(Opaque) when is_binary(Opaque) ->
     binary_to_integer(Opaque, 16).
+
+-ifdef(TEST).
+-include_lib("eunit/include/eunit.hrl").
+
+-type testgen() :: {_ID, fun(() -> _)}.
+-spec test() -> _.
+
+-define(IS_SAMPLED, 1).
+-define(NOT_SAMPLED, 0).
+-define(OTEL_CTX(IsSampled),
+    otel_tracer:set_current_span(
+        otel_ctx:new(),
+        (otel_tracer_noop:noop_span_ctx())#span_ctx{
+            trace_id = otel_id_generator:generate_trace_id(),
+            span_id = otel_id_generator:generate_span_id(),
+            is_valid = true,
+            is_remote = true,
+            is_recording = false,
+            trace_flags = IsSampled
+        }
+    )
+).
+
+-spec choose_viable_otel_ctx_test_() -> [testgen()].
+choose_viable_otel_ctx_test_() ->
+    A = ?OTEL_CTX(?IS_SAMPLED),
+    B = ?OTEL_CTX(?NOT_SAMPLED),
+    [
+        ?_assertEqual(A, choose_viable_otel_ctx(A, B)),
+        ?_assertEqual(A, choose_viable_otel_ctx(B, A)),
+        ?_assertEqual(A, choose_viable_otel_ctx(A, otel_ctx:new())),
+        ?_assertEqual(B, choose_viable_otel_ctx(otel_ctx:new(), B)),
+        ?_assertEqual(otel_ctx:new(), choose_viable_otel_ctx(otel_ctx:new(), otel_ctx:new()))
+    ].
+
+-endif.
