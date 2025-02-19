@@ -102,7 +102,7 @@ end_per_suite(C) ->
 %%
 
 -spec init_per_group(group_name(), config()) -> config().
-init_per_group(Name = legacy_activities, C0) ->
+init_per_group(legacy_activities = Name, C0) ->
     Config = mg_woody_config(Name, C0),
     C1 = start_mg_woody(Name, C0),
     {ok, ProcessorPid, _HandlerInfo} = mg_cth_processor:start(
@@ -114,7 +114,7 @@ init_per_group(Name = legacy_activities, C0) ->
         Config
     ),
     [{processor_pid, ProcessorPid} | C1];
-init_per_group(Name = modern_activities, C0) ->
+init_per_group(modern_activities = Name, C0) ->
     Config = mg_woody_config(Name, C0),
     C1 = start_mg_woody(Name, C0),
     {ok, ProcessorPid, _HandlerInfo} = mg_cth_processor:start(

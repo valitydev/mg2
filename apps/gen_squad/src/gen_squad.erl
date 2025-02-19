@@ -248,7 +248,7 @@ init(St0) ->
     end.
 
 -spec handle_call(_Call, from(), st()) -> reply(_, st()).
-handle_call(Call, From, St = #st{squad = Squad}) ->
+handle_call(Call, From, #st{squad = Squad} = St) ->
     invoke_callback(handle_call, [Call, From, get_rank(St), Squad], try_cancel_st_timer(user, St)).
 
 -type cast() ::
@@ -261,13 +261,13 @@ handle_cast({'$squad', Payload = #{vsn := 1, msg := _, from := _}}, St) ->
     handle_broadcast(Payload, St);
 handle_cast(heartbeat, St) ->
     handle_heartbeat_feedback(St);
-handle_cast(Cast, St = #st{squad = Squad}) ->
+handle_cast(Cast, #st{squad = Squad} = St) ->
     invoke_callback(handle_cast, [Cast, get_rank(St), Squad], try_cancel_st_timer(user, St)).
 
 -spec handle_broadcast(gen_squad_heart:payload(), st()) -> noreply(st()).
 handle_broadcast(
     #{msg := howdy, from := Pid, members := Pids},
-    St = #st{squad = Squad0, opts = Opts}
+    #st{squad = Squad0, opts = Opts} = St
 ) ->
     Squad = refresh_member(Pid, add_members([Pid | Pids], Squad0, Opts), Opts),
     % NOTE
@@ -291,19 +291,19 @@ handle_broadcast(
 handle_info({timeout, TRef, Msg}, St) ->
     _ = beat({{timer, TRef}, {fired, Msg}}, St),
     handle_timeout(Msg, TRef, St);
-handle_info({'DOWN', MRef, process, Pid, Reason}, St = #st{squad = Squad, opts = Opts}) ->
+handle_info({'DOWN', MRef, process, Pid, Reason}, #st{squad = Squad, opts = Opts} = St) ->
     _ = beat({{monitor, MRef}, {fired, Pid, Reason}}, St),
     try_update_squad(handle_member_down(Pid, MRef, Reason, Squad, Opts), St);
-handle_info(Info, St = #st{squad = Squad}) ->
+handle_info(Info, #st{squad = Squad} = St) ->
     invoke_callback(handle_info, [Info, get_rank(St), Squad], try_cancel_st_timer(user, St)).
 
 -spec handle_timeout(timer(), reference(), st()) -> st().
-handle_timeout(discovery, TRef, St = #st{timers = Timers0}) ->
+handle_timeout(discovery, TRef, #st{timers = Timers0} = St) ->
     {TRef, Timers} = maps:take(discovery, Timers0),
     try_discover(St#st{timers = Timers});
-handle_timeout({lost, Pid}, TRef, St = #st{squad = Squad, opts = Opts}) ->
+handle_timeout({lost, Pid}, TRef, #st{squad = Squad, opts = Opts} = St) ->
     try_update_squad(handle_loss_timeout(TRef, Pid, Squad, Opts), St);
-handle_timeout(user, TRef, St = #st{squad = Squad, timers = Timers0}) ->
+handle_timeout(user, TRef, #st{squad = Squad, timers = Timers0} = St) ->
     {TRef, Timers} = maps:take(user, Timers0),
     invoke_callback(handle_info, [timeout, get_rank(St), Squad], St#st{timers = Timers}).
 
@@ -312,7 +312,7 @@ restart_st_timer(Type, Timeout, St) ->
     start_st_timer(Type, Timeout, try_cancel_st_timer(Type, St)).
 
 -spec try_cancel_st_timer(atom(), st()) -> st().
-try_cancel_st_timer(Type, St = #st{timers = Timers, opts = Opts}) ->
+try_cancel_st_timer(Type, #st{timers = Timers, opts = Opts} = St) ->
     case Timers of
         #{Type := TRef} ->
             ok = cancel_timer(TRef, Opts),
@@ -322,7 +322,7 @@ try_cancel_st_timer(Type, St = #st{timers = Timers, opts = Opts}) ->
     end.
 
 -spec start_st_timer(atom(), pos_integer(), st()) -> st().
-start_st_timer(Type, Timeout, St = #st{timers = Timers, opts = Opts}) ->
+start_st_timer(Type, Timeout, #st{timers = Timers, opts = Opts} = St) ->
     St#st{timers = Timers#{Type => start_timer(Type, Timeout, Opts)}}.
 
 -spec terminate(reason(), st()) -> _.
@@ -336,7 +336,7 @@ code_change(OldVsn, St, Extra) ->
 %% Core logic
 
 -spec try_discover(st()) -> st().
-try_discover(St0 = #st{squad = Squad0, opts = Opts}) ->
+try_discover(#st{squad = Squad0, opts = Opts} = St0) ->
     case invoke_callback(discover, [], St0) of
         {ok, Members, St} ->
             Squad = add_members(Members, Squad0, Opts),
@@ -347,7 +347,7 @@ try_discover(St0 = #st{squad = Squad0, opts = Opts}) ->
     end.
 
 -spec defer_discovery(st()) -> st().
-defer_discovery(St = #st{squad = Squad, opts = #{discovery := DOpts}}) ->
+defer_discovery(#st{squad = Squad, opts = #{discovery := DOpts}} = St) ->
     Timeout =
         case maps:size(Squad) of
             S when S < 2 -> maps:get(initial_interval, DOpts);
@@ -356,11 +356,11 @@ defer_discovery(St = #st{squad = Squad, opts = #{discovery := DOpts}}) ->
     restart_st_timer(discovery, Timeout, St).
 
 -spec handle_heartbeat_feedback(st()) -> noreply(st()).
-handle_heartbeat_feedback(St = #st{squad = Squad, opts = Opts}) ->
+handle_heartbeat_feedback(#st{squad = Squad, opts = Opts} = St) ->
     try_update_squad(refresh_member(self(), Squad, Opts), St).
 
 -spec try_update_squad(squad(), st()) -> noreply(st()).
-try_update_squad(Squad, St0 = #st{heart = HeartPid, opts = Opts}) ->
+try_update_squad(Squad, #st{heart = HeartPid, opts = Opts} = St0) ->
     St1 = St0#st{squad = Squad},
     ok =
         case has_squad_changed(Squad, St0) of
@@ -451,17 +451,17 @@ rewatch_member(Pid, Member, _Opts) when Pid == self() ->
     Member.
 
 -spec unwatch_member(member(), opts()) -> member().
-unwatch_member(Member = #{loss_timer := TRef}, Opts) ->
+unwatch_member(#{loss_timer := TRef} = Member, Opts) ->
     ok = cancel_timer(TRef, Opts),
     unwatch_member(maps:remove(loss_timer, Member), Opts);
-unwatch_member(Member = #{monitor := MRef}, Opts) ->
+unwatch_member(#{monitor := MRef} = Member, Opts) ->
     ok = cancel_monitor(MRef, Opts),
     unwatch_member(maps:remove(monitor, Member), Opts);
-unwatch_member(Member = #{}, _Opts) ->
+unwatch_member(#{} = Member, _Opts) ->
     Member.
 
 -spec defer_loss(pid(), member(), opts()) -> member().
-defer_loss(Pid, Member, Opts = #{heartbeat := #{loss_timeout := Timeout}}) ->
+defer_loss(Pid, Member, #{heartbeat := #{loss_timeout := Timeout}} = Opts) ->
     false = maps:is_key(loss_timer, Member),
     Member#{loss_timer => start_timer({lost, Pid}, Timeout, Opts)}.
 
@@ -506,7 +506,7 @@ newbies(Squad) ->
 %% Utilities
 
 -spec invoke_callback(_Name :: atom(), _Args :: list(), st()) -> _Result.
-invoke_callback(Name, Args, St = #st{modstate = {Module, ModState}}) ->
+invoke_callback(Name, Args, #st{modstate = {Module, ModState}} = St) ->
     handle_callback_ret(erlang:apply(Module, Name, Args ++ [ModState]), St).
 
 -spec try_invoke_callback(_Name :: atom(), _Args :: list(), _Default, st()) -> _Result.
@@ -515,7 +515,7 @@ try_invoke_callback(Name, Args, Default, St) ->
 
 -spec try_invoke_callback(_Name :: atom(), _Args :: list(), _LastArgs :: list(), _Default, st()) ->
     _Result.
-try_invoke_callback(Name, Args, LastArgs, Default, St = #st{modstate = {Module, ModState}}) ->
+try_invoke_callback(Name, Args, LastArgs, Default, #st{modstate = {Module, ModState}} = St) ->
     handle_callback_ret(
         try
             erlang:apply(Module, Name, Args ++ [ModState] ++ LastArgs)
@@ -548,7 +548,7 @@ handle_callback_ret(Ret, _St) ->
     Ret.
 
 -spec update_modstate(_ModState, st()) -> st().
-update_modstate(ModSt, St = #st{modstate = {Module, _}}) ->
+update_modstate(ModSt, #st{modstate = {Module, _}} = St) ->
     St#st{modstate = {Module, ModSt}}.
 
 %%

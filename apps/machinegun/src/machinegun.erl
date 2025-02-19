@@ -65,7 +65,7 @@ get_startup_route() ->
 -spec get_health_route(erl_health:check()) -> {iodata(), module(), _Opts :: any()}.
 get_health_route(Check0) ->
     EvHandler = {erl_health_event_handler, []},
-    Check = maps:map(fun(_, V = {_, _, _}) -> #{runner => V, event_handler => EvHandler} end, Check0),
+    Check = maps:map(fun(_, {_, _, _} = V) -> #{runner => V, event_handler => EvHandler} end, Check0),
     erl_health_handle:get_route(Check).
 
 -spec get_prometheus_route() -> {iodata(), module(), _Opts :: any()}.

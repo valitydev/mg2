@@ -172,7 +172,7 @@ init({SchedulerID, Options}) ->
     }}.
 
 -spec discover(st()) -> {ok, [pid()], st()}.
-discover(St = #st{scheduler_id = SchedulerID}) ->
+discover(#st{scheduler_id = SchedulerID} = St) ->
     Nodes = erlang:nodes(),
     Pids = multicall(Nodes, ?MODULE, where_is, [SchedulerID], ?DISCOVER_TIMEOUT),
     {ok, lists:filter(fun erlang:is_pid/1, Pids), St}.
@@ -219,7 +219,7 @@ handle_info(Info, Rank, _Squad, St) ->
     {noreply, St}.
 
 -spec handle_scan(gen_squad:squad(), st()) -> st().
-handle_scan(Squad, St0 = #st{max_limit = MaxLimit, retry_delay = RetryDelay}) ->
+handle_scan(Squad, #st{max_limit = MaxLimit, retry_delay = RetryDelay} = St0) ->
     StartedAt = erlang:monotonic_time(),
     %% Try to find out which schedulers are here, getting their statuses
     case inquire_schedulers(Squad, St0) of
@@ -237,7 +237,7 @@ handle_scan(Squad, St0 = #st{max_limit = MaxLimit, retry_delay = RetryDelay}) ->
     end.
 
 -spec scan_queue(scan_limit(), st()) -> {{scan_delay(), [task()]}, st()}.
-scan_queue(Limit, St = #st{queue_handler = HandlerState, retry_delay = RetryDelay}) ->
+scan_queue(Limit, #st{queue_handler = HandlerState, retry_delay = RetryDelay} = St) ->
     StartedAt = erlang:monotonic_time(),
     {Result, HandlerStateNext} =
         try
@@ -262,7 +262,7 @@ disseminate_tasks(Tasks, Schedulers, Capacities, _St) ->
     Partitions = mg_utils:partition(Tasks, lists:zip(Schedulers, Capacities)),
     %% Distribute shares of tasks among schedulers, sending directly to pids
     maps:fold(
-        fun(_Scheduler = #{pid := Pid}, TasksShare, _) ->
+        fun(#{pid := Pid} = _Scheduler, TasksShare, _) ->
             mg_skd:distribute_tasks(Pid, TasksShare)
         end,
         ok,
@@ -314,7 +314,7 @@ start_timer(RefTime, Delay, St) ->
     St#st{timer = erlang:send_after(FireTime, self(), scan, [{abs, true}])}.
 
 -spec cancel_timer(st()) -> st().
-cancel_timer(St = #st{timer = TRef}) when is_reference(TRef) ->
+cancel_timer(#st{timer = TRef} = St) when is_reference(TRef) ->
     _ = erlang:cancel_timer(TRef),
     St#st{timer = undefined};
 cancel_timer(St) ->

@@ -156,7 +156,7 @@ get_events_test(_C) ->
 -spec assert_history_consistent
     (history(), mg_core_events:history_range()) -> boolean() | ok;
     (history(), _Assertion :: {from | limit | direction, _}) -> boolean() | ok.
-assert_history_consistent(History, HRange = {From, Limit, Direction}) ->
+assert_history_consistent(History, {From, Limit, Direction} = HRange) ->
     Result = lists:all(fun(Assert) -> assert_history_consistent(History, Assert) end, [
         {from, {From, Direction}},
         {limit, Limit},
@@ -169,7 +169,7 @@ assert_history_consistent([{ID, _} | _], {from, {From, backward}}) when From /= 
     From > ID;
 assert_history_consistent(History, {limit, Limit}) ->
     length(History) =< Limit;
-assert_history_consistent(History = [{ID, _} | _], {direction, Direction}) ->
+assert_history_consistent([{ID, _} | _] = History, {direction, Direction}) ->
     Step =
         case Direction of
             forward -> +1;
@@ -374,7 +374,7 @@ child_spec(#{name := Name, storage := {Module, Options}}, ChildID) ->
     mg_core_storage:child_spec({Module, Options#{name => Name}}, ChildID).
 
 -spec do_request(map(), mg_core_storage:request()) -> mg_core_storage:response().
-do_request(Options = #{lossfun := LossFun}, Req = {put, _Key, Context, BodyOpaque, _}) ->
+do_request(#{lossfun := LossFun} = Options, {put, _Key, Context, BodyOpaque, _} = Req) ->
     % Yeah, no easy way to know MachineID here, we're left with Body only
     #{body := {_MD, Data}} = mg_core_events:kv_to_event({<<"42">>, BodyOpaque}),
     case LossFun(decode(Data)) of
@@ -571,9 +571,9 @@ decode(Value) ->
 -include("pulse.hrl").
 
 -spec handle_beat(_, mpulse:beat()) -> ok.
-handle_beat(_, Beat = #mg_core_machine_lifecycle_failed{}) ->
+handle_beat(_, #mg_core_machine_lifecycle_failed{} = Beat) ->
     ct:pal("~p", [Beat]);
-handle_beat(_, Beat = #mg_core_machine_lifecycle_transient_error{}) ->
+handle_beat(_, #mg_core_machine_lifecycle_transient_error{} = Beat) ->
     ct:pal("~p", [Beat]);
 handle_beat(quiet, _Beat) ->
     ok;

@@ -370,7 +370,7 @@ conf_maybe_default({default, Default}) ->
 ).
 
 -spec traverse(traverse_fun(), yaml_config()) -> yaml_config().
-traverse(TFun, Config = [{_, _} | _]) ->
+traverse(TFun, [{_, _} | _] = Config) ->
     lists:map(
         fun({Name, Value}) ->
             case TFun({property, Name}, Value) of
@@ -487,22 +487,22 @@ to_proper_map(L) when is_list(L) ->
 -spec build_policy(yaml_config_path(), retry_config()) -> genlib_retry:policy().
 build_policy(
     _Path,
-    Config = #{
+    #{
         type := <<"linear">>,
         max_retries := MaxRetries,
         timeout := Timeout
-    }
+    } = Config
 ) ->
     maybe_timecap(Config, {linear, max_retries_spec(MaxRetries), maybe_w_jitter(Config, time_interval(Timeout, 'ms'))});
 build_policy(
     _Path,
-    Config = #{
+    #{
         type := <<"exponential">>,
         max_retries := MaxRetries,
         factor := Factor,
         timeout := Timeout,
         max_timeout := MaxTimeout
-    }
+    } = Config
 ) ->
     maybe_timecap(
         Config,
@@ -511,12 +511,12 @@ build_policy(
     );
 build_policy(
     _Path,
-    Config = #{
+    #{
         type := <<"exponential">>,
         max_retries := MaxRetries,
         factor := Factor,
         timeout := Timeout
-    }
+    } = Config
 ) ->
     maybe_timecap(
         Config,
@@ -524,10 +524,10 @@ build_policy(
     );
 build_policy(
     _Path,
-    Config = #{
+    #{
         type := <<"intervals">>,
         timeouts := Timeouts
-    }
+    } = Config
 ) when is_list(Timeouts) ->
     maybe_timecap(Config, {intervals, [maybe_w_jitter(Config, time_interval(Timeout, 'ms')) || Timeout <- Timeouts]});
 build_policy(Path, Config) ->

@@ -154,9 +154,9 @@
 
 -spec gen_reg_name_to_ref(gen_reg_name()) -> gen_ref().
 gen_reg_name_to_ref({local, Name}) -> Name;
-gen_reg_name_to_ref(V = {global, _}) -> V;
+gen_reg_name_to_ref({global, _} = V) -> V;
 % Is this correct?
-gen_reg_name_to_ref(V = {via, _, _}) -> V.
+gen_reg_name_to_ref({via, _, _} = V) -> V.
 
 -spec gen_reg_name_to_pid(gen_reg_name()) -> pid() | undefined.
 gen_reg_name_to_pid({global, Name}) ->
@@ -204,11 +204,11 @@ supervisor_old_spec({Flags, ChildSpecs}) ->
     {supervisor_old_flags(Flags), lists:map(fun supervisor_old_child_spec/1, ChildSpecs)}.
 
 -spec supervisor_old_flags(supervisor:sup_flags()) -> supervisor_old_flags().
-supervisor_old_flags(Flags = #{strategy := Strategy}) ->
+supervisor_old_flags(#{strategy := Strategy} = Flags) ->
     {Strategy, maps:get(intensity, Flags, 1), maps:get(period, Flags, 5)}.
 
 -spec supervisor_old_child_spec(supervisor:child_spec()) -> supervisor_old_child_spec().
-supervisor_old_child_spec(ChildSpec = #{id := ChildID, start := Start = {M, _, _}}) ->
+supervisor_old_child_spec(#{id := ChildID, start := Start = {M, _, _}} = ChildSpec) ->
     {
         ChildID,
         Start,
@@ -282,7 +282,7 @@ separate_mod_opts(ModOpts) ->
     separate_mod_opts(ModOpts, undefined).
 
 -spec separate_mod_opts(mod_opts(Defaults), Defaults) -> {module(), Defaults}.
-separate_mod_opts(ModOpts = {_, _}, _) ->
+separate_mod_opts({_, _} = ModOpts, _) ->
     ModOpts;
 separate_mod_opts(Mod, Default) ->
     {Mod, Default}.
@@ -343,7 +343,7 @@ join(_, [H]) -> H;
 join(Delim, [H | T]) -> [H, Delim, join(Delim, T)].
 
 -spec partition([T], [{Owner, Weight}, ...]) -> #{Owner => [T]} when Weight :: non_neg_integer().
-partition(L, Owners = [_ | _]) ->
+partition(L, [_ | _] = Owners) ->
     WeightSum = lists:foldl(fun({_, W}, Acc) -> Acc + W end, 0, Owners),
     partition(L, Owners, erlang:max(WeightSum, 1), #{}).
 

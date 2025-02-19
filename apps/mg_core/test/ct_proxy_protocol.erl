@@ -79,13 +79,13 @@ init(ListenerPid, Socket, Transport, Opts) ->
 
 -spec loop(st()) -> no_return().
 loop(
-    State = #state{
+    #state{
         socket = Socket,
         transport = Transport,
         proxy = ProxyFun,
         buffer = Buffer,
         timeout = Timeout
-    }
+    } = State
 ) ->
     case Transport:recv(Socket, 0, Timeout) of
         {ok, Data} ->
@@ -108,7 +108,7 @@ loop(
     end.
 
 -spec start_proxy_loop(st()) -> no_return().
-start_proxy_loop(State = #state{remote_endpoint = Remote, buffer = Buffer}) ->
+start_proxy_loop(#state{remote_endpoint = Remote, buffer = Buffer} = State) ->
     case remote_connect(Remote) of
         {Transport, {ok, Socket}} ->
             _ = Transport:send(Socket, Buffer),
@@ -123,14 +123,14 @@ start_proxy_loop(State = #state{remote_endpoint = Remote, buffer = Buffer}) ->
 
 -spec proxy_loop(st()) -> no_return().
 proxy_loop(
-    State = #state{
+    #state{
         socket = SSock,
         transport = STrans,
         socket_opts = SOpts,
         remote_socket = RSock,
         remote_transport = RTrans,
         remote_socket_opts = ROpts
-    }
+    } = State
 ) ->
     _ = STrans:setopts(SSock, SOpts),
     _ = RTrans:setopts(RSock, ROpts),

@@ -106,7 +106,7 @@ init(_Options) ->
     {ok, #state{scan_handicap = undefined}}.
 
 -spec search_tasks(options(), scan_limit(), state()) -> {{scan_delay(), [task()]}, state()}.
-search_tasks(Options, Limit, State = #state{}) ->
+search_tasks(Options, Limit, #state{} = State) ->
     CurrentTs = mg_skd_task:current_time(),
     ScanCutoff = maps:get(scan_cutoff, Options, ?DEFAULT_SCAN_CUTOFF),
     ScanHandicap = get_handicap_seconds(State),
@@ -166,7 +166,7 @@ get_handicap_seconds(State) ->
     State#state.scan_handicap.
 
 -spec maybe_set_handicap(options(), state()) -> state().
-maybe_set_handicap(Options, State = #state{scan_handicap = undefined}) ->
+maybe_set_handicap(Options, #state{scan_handicap = undefined} = State) ->
     State#state{scan_handicap = maps:get(scan_handicap, Options, ?DEFAULT_SCAN_HANDICAP_SECONDS)};
 maybe_set_handicap(_Options, State) ->
     State.

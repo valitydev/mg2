@@ -286,7 +286,7 @@ unpack(event, Event) ->
     };
 unpack(history, History) ->
     unpack({list, event}, History);
-unpack(machine_simple, Machine = #mg_stateproc_Machine{}) ->
+unpack(machine_simple, #mg_stateproc_Machine{} = Machine) ->
     #mg_stateproc_Machine{
         ns = NS,
         id = ID,

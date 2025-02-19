@@ -17,7 +17,6 @@
 -module(mg_core_events_modernizer_SUITE).
 -include_lib("common_test/include/ct.hrl").
 -include_lib("stdlib/include/assert.hrl").
--include_lib("mg_cth/include/mg_cth.hrl").
 
 %% tests descriptions
 -export([all/0]).
@@ -282,9 +281,9 @@ decode(Value) ->
 -include("pulse.hrl").
 
 -spec handle_beat(_, mpulse:beat()) -> ok.
-handle_beat(_, Beat = #mg_core_machine_lifecycle_failed{}) ->
+handle_beat(_, #mg_core_machine_lifecycle_failed{} = Beat) ->
     ct:pal("~p", [Beat]);
-handle_beat(_, Beat = #mg_core_machine_lifecycle_transient_error{}) ->
+handle_beat(_, #mg_core_machine_lifecycle_transient_error{} = Beat) ->
     ct:pal("~p", [Beat]);
 handle_beat(quiet, _Beat) ->
     ok;
