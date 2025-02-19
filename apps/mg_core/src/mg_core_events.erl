@@ -128,7 +128,7 @@ limit_range(R, N) ->
     mg_core_dirange:limit(R, N).
 
 -spec slice_events([event()], events_range()) -> [event()].
-slice_events(Events = [#{id := First} | _], Range) ->
+slice_events([#{id := First} | _] = Events, Range) ->
     D = mg_core_dirange:direction(Range),
     case mg_core_dirange:bounds(Range) of
         {A, B} when D == +1 ->

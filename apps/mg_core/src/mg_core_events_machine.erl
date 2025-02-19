@@ -297,11 +297,11 @@ process_machine(Options, ID, Impact, PCtx, ReqCtx, Deadline, PackedState) ->
 process_machine_(
     Options,
     ID,
-    Subj = timeout,
+    timeout = Subj,
     PCtx,
     ReqCtx,
     Deadline,
-    State = #{timer := {_, _, _, HRange}}
+    #{timer := {_, _, _, HRange}} = State
 ) ->
     NewState = State#{timer := undefined},
     process_machine_(Options, ID, {Subj, {undefined, HRange}}, PCtx, ReqCtx, Deadline, NewState);
@@ -335,7 +335,7 @@ process_machine_(
     PCtx,
     ReqCtx,
     Deadline,
-    State1 = #{delayed_actions := DelayedActions}
+    #{delayed_actions := DelayedActions} = State1
 ) ->
     % отложенные действия (эвент синк)
     %
@@ -396,7 +396,7 @@ process_machine_std(Options, ReqCtx, Deadline, Subject, Args, Machine, State) ->
 
 -spec maybe_stash_events(options(), state(), [event()]) ->
     {state(), [mg_core_events:event()]}.
-maybe_stash_events(#{event_stash_size := Max}, State = #{events := EventStash}, NewEvents) ->
+maybe_stash_events(#{event_stash_size := Max}, #{events := EventStash} = State, NewEvents) ->
     Events = EventStash ++ NewEvents,
     NumEvents = erlang:length(Events),
     {State1, Events1, StashCount, AddedCount, UnstashedCount} =
@@ -443,7 +443,7 @@ update_event_sinks(
     ID,
     ReqCtx,
     Deadline,
-    State = #{delayed_actions := #{new_events_range := NewEventsRange}}
+    #{delayed_actions := #{new_events_range := NewEventsRange}} = State
 ) ->
     Events = get_events(Options, ID, State, NewEventsRange),
     push_events_to_event_sinks(Options, ID, ReqCtx, Deadline, Events).
@@ -499,7 +499,7 @@ emit_timer_action_beats(_Options, _ID, _ReqCtx, #{}) ->
 
 -spec process_signal(options(), request_context(), deadline(), signal(), machine(), state()) ->
     {ok, state()}.
-process_signal(Options = #{processor := Processor}, ReqCtx, Deadline, Signal, Machine, State) ->
+process_signal(#{processor := Processor} = Options, ReqCtx, Deadline, Signal, Machine, State) ->
     SignalArgs = [ReqCtx, Deadline, {Signal, Machine}],
     {StateChange, ComplexAction} = mg_utils:apply_mod_opts(
         Processor,
@@ -520,7 +520,7 @@ process_signal(Options = #{processor := Processor}, ReqCtx, Deadline, Signal, Ma
 
 -spec process_call(options(), request_context(), deadline(), term(), machine(), state()) ->
     {_Resp, state()}.
-process_call(Options = #{processor := Processor}, ReqCtx, Deadline, Args, Machine, State) ->
+process_call(#{processor := Processor} = Options, ReqCtx, Deadline, Args, Machine, State) ->
     CallArgs = [ReqCtx, Deadline, {Args, Machine}],
     {Resp, StateChange, ComplexAction} = mg_utils:apply_mod_opts(
         Processor,
@@ -541,7 +541,7 @@ process_call(Options = #{processor := Processor}, ReqCtx, Deadline, Args, Machin
 
 -spec process_repair(options(), request_context(), deadline(), term(), machine(), state()) ->
     {ok, {_Resp, state()}} | {error, repair_error()}.
-process_repair(Options = #{processor := Processor}, ReqCtx, Deadline, Args, Machine, State) ->
+process_repair(#{processor := Processor} = Options, ReqCtx, Deadline, Args, Machine, State) ->
     RepairArgs = [ReqCtx, Deadline, {Args, Machine}],
     case mg_utils:apply_mod_opts(Processor, process_repair, RepairArgs) of
         {ok, {Resp, StateChange, ComplexAction}} ->
@@ -585,7 +585,7 @@ handle_processing_result(Options, ID, StateChange, ComplexAction, ReqCtx, Deadli
 handle_state_change(
     Options,
     {AuxState, EventsBodies},
-    StateWas = #{events_range := EventsRangeWas}
+    #{events_range := EventsRangeWas} = StateWas
 ) ->
     {Events, EventsRange} = mg_core_events:generate_events_with_range(EventsBodies, EventsRangeWas),
     NewEventsRange = diff_event_ranges(EventsRange, EventsRangeWas),
@@ -658,7 +658,7 @@ processor_options(Options) ->
     maps:get(processor, Options).
 
 -spec machine_options(options()) -> mg_core_machine:options().
-machine_options(Options = #{machines := MachinesOptions}) ->
+machine_options(#{machines := MachinesOptions} = Options) ->
     (maps:without([processor], MachinesOptions))#{
         processor => {?MODULE, Options}
     }.
@@ -670,7 +670,7 @@ get_option(Subj, Options) ->
 %%
 
 -spec machine(options(), id(), state(), mg_core_events:history_range()) -> machine().
-machine(Options = #{namespace := Namespace}, ID, State, HRange) ->
+machine(#{namespace := Namespace} = Options, ID, State, HRange) ->
     #{
         events_range := EventsRange,
         aux_state := AuxState,

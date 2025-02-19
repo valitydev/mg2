@@ -188,16 +188,16 @@ new_batch() ->
     [].
 
 -spec add_batch_request(request(), batch()) -> batch().
-add_batch_request(Request = {get, Key}, Batch) ->
+add_batch_request({get, Key} = Request, Batch) ->
     _ = validate_key(Key),
     [Request | Batch];
-add_batch_request(Request = {put, Key, _Context, _Value, _Indices}, Batch) ->
+add_batch_request({put, Key, _Context, _Value, _Indices} = Request, Batch) ->
     _ = validate_key(Key),
     [Request | Batch];
-add_batch_request(Request = {delete, Key, _Context}, Batch) ->
+add_batch_request({delete, Key, _Context} = Request, Batch) ->
     _ = validate_key(Key),
     [Request | Batch];
-add_batch_request(Request = {search, _}, Batch) ->
+add_batch_request({search, _} = Request, Batch) ->
     [Request | Batch].
 
 -spec run_batch(options(), batch()) -> [{request(), response()}].

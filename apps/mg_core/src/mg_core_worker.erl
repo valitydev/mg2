@@ -189,9 +189,9 @@ init({ID, Options = #{worker := WorkerModOpts}, ReqCtx}) ->
 % загрузка делается отдельно и лениво, чтобы не блокировать этим супервизор,
 % т.к. у него легко может начать расти очередь
 handle_call(
-    Call = {call, _, _, _},
+    {call, _, _, _} = Call,
     From,
-    State = #{id := ID, mod := Mod, status := {loading, Args, ReqCtx}}
+    #{id := ID, mod := Mod, status := {loading, Args, ReqCtx}} = State
 ) ->
     case Mod:handle_load(ID, Args, ReqCtx) of
         {ok, ModState} ->
@@ -202,7 +202,7 @@ handle_call(
 handle_call(
     {call, Deadline, Call, ReqCtx},
     From,
-    State = #{mod := Mod, status := {working, ModState}}
+    #{mod := Mod, status := {working, ModState}} = State
 ) ->
     case mg_core_deadline:is_reached(Deadline) of
         false ->
@@ -235,7 +235,7 @@ handle_info(timeout, State) ->
     {noreply, State, hibernate};
 handle_info(
     {timeout, TRef, unload},
-    State = #{mod := Mod, unload_tref := TRef, status := Status}
+    #{mod := Mod, unload_tref := TRef, status := Status} = State
 ) ->
     case Status of
         {working, ModState} ->
@@ -244,7 +244,7 @@ handle_info(
             ok
     end,
     {stop, normal, State};
-handle_info({timeout, _, unload}, State = #{}) ->
+handle_info({timeout, _, unload}, #{} = State) ->
     % А кто-то опаздал!
     {noreply, schedule_unload_timer(State), hibernate_timeout(State)};
 handle_info(Info, State) ->
@@ -288,7 +288,7 @@ timeout_to_shutdown(Timeout) when is_integer(Timeout) andalso Timeout >= 0 ->
     Timeout.
 
 -spec schedule_unload_timer(state()) -> state().
-schedule_unload_timer(State = #{unload_tref := UnloadTRef}) ->
+schedule_unload_timer(#{unload_tref := UnloadTRef} = State) ->
     _ =
         case UnloadTRef of
             undefined -> ok;

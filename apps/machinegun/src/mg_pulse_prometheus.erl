@@ -254,11 +254,11 @@ dispatch_metrics(#mg_core_timer_process_finished{namespace = NS, queue = Queue, 
 dispatch_metrics(#mg_skd_search_success{
     scheduler_name = Name,
     namespace = NS,
-    delay = DelayMS,
+    delay = DelayMs,
     duration = Duration
 }) ->
     ok = inc(mg_scheduler_scan_changes_total, [NS, Name, success]),
-    ok = observe(mg_scheduler_scan_delay_seconds, [NS, Name], decode_delay(DelayMS)),
+    ok = observe(mg_scheduler_scan_delay_seconds, [NS, Name], decode_delay(DelayMs)),
     ok = observe(mg_scheduler_scan_duration_seconds, [NS, Name], Duration);
 dispatch_metrics(#mg_skd_search_error{scheduler_name = Name, namespace = NS}) ->
     ok = inc(mg_scheduler_scan_changes_total, [NS, Name, error]);
@@ -266,9 +266,9 @@ dispatch_metrics(#mg_skd_task_error{scheduler_name = Name, namespace = NS}) ->
     ok = inc(mg_scheduler_task_changes_total, [NS, Name, error]);
 dispatch_metrics(#mg_skd_new_tasks{scheduler_name = Name, namespace = NS, new_tasks_count = Count}) ->
     ok = inc(mg_scheduler_task_changes_total, [NS, Name, created], Count);
-dispatch_metrics(#mg_skd_task_started{scheduler_name = Name, namespace = NS, task_delay = DelayMS}) ->
+dispatch_metrics(#mg_skd_task_started{scheduler_name = Name, namespace = NS, task_delay = DelayMs}) ->
     ok = inc(mg_scheduler_task_changes_total, [NS, Name, started]),
-    ok = observe(mg_scheduler_task_processing_delay_seconds, [NS, Name], decode_delay(DelayMS));
+    ok = observe(mg_scheduler_task_processing_delay_seconds, [NS, Name], decode_delay(DelayMs));
 dispatch_metrics(#mg_skd_task_finished{} = Beat) ->
     #mg_skd_task_finished{
         scheduler_name = Name,

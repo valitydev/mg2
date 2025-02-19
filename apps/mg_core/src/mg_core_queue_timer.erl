@@ -74,7 +74,7 @@ build_task(ID, Timestamp) ->
     }.
 
 -spec search_tasks(options(), scan_limit(), state()) -> {{scan_delay(), [task()]}, state()}.
-search_tasks(Options = #{timer_queue := TimerQueue}, Limit, State = #state{}) ->
+search_tasks(#{timer_queue := TimerQueue} = Options, Limit, #state{} = State) ->
     CurrentTs = mg_skd_task:current_time(),
     Lookahead = maps:get(lookahead, Options, 0),
     Query = {TimerQueue, 1, CurrentTs + Lookahead},

@@ -219,7 +219,7 @@ forget_about_task(Monitor, State) ->
     end.
 
 -spec add_tasks([task()], state()) -> state().
-add_tasks(Tasks, State = #state{waiting_tasks = WaitingTasks}) ->
+add_tasks(Tasks, #state{waiting_tasks = WaitingTasks} = State) ->
     NewWaitingTasks = lists:foldl(fun enqueue_task/2, WaitingTasks, Tasks),
     NewTasksCount = get_task_queue_size(NewWaitingTasks) - get_task_queue_size(WaitingTasks),
     ok = emit_new_tasks_beat(NewTasksCount, State),
@@ -227,8 +227,8 @@ add_tasks(Tasks, State = #state{waiting_tasks = WaitingTasks}) ->
 
 -spec enqueue_task(task(), task_queue()) -> task_queue().
 enqueue_task(
-    Task = #{id := TaskID, target_time := TargetTime},
-    Queue = #task_queue{runnable = Runnable, runqueue = RQ, counter = Counter}
+    #{id := TaskID, target_time := TargetTime} = Task,
+    #task_queue{runnable = Runnable, runqueue = RQ, counter = Counter} = Queue
 ) ->
     % TODO
     % Blindly overwriting a task with same ID here if there's one. This is not the best strategy out
@@ -242,7 +242,7 @@ enqueue_task(
     Queue#task_queue{runnable = NewRunnable, runqueue = NewRQ, counter = Counter + 1}.
 
 -spec start_new_tasks(state()) -> state().
-start_new_tasks(State = #state{quota_reserved = Reserved, waiting_tasks = WaitingTasks}) ->
+start_new_tasks(#state{quota_reserved = Reserved, waiting_tasks = WaitingTasks} = State) ->
     TotalActiveTasks = get_active_task_count(State),
     NewTasksNumber = erlang:max(Reserved - TotalActiveTasks, 0),
     CurrentTime = genlib_time:unow(),
@@ -304,7 +304,7 @@ next_task({Iterator, TargetTimeCutoff}) ->
     end.
 
 -spec dequeue_task(task_rank(), task_queue()) -> {task() | outdated, task_queue()}.
-dequeue_task(Rank = {TargetTime, _}, Queue = #task_queue{runnable = Runnable, runqueue = RQ}) ->
+dequeue_task({TargetTime, _} = Rank, #task_queue{runnable = Runnable, runqueue = RQ} = Queue) ->
     {TaskID, RQLeft} = gb_trees:take(Rank, RQ),
     case maps:take(TaskID, Runnable) of
         {Task = #{target_time := TargetTime}, RunnableLeft} ->
@@ -326,7 +326,7 @@ get_task_queue_size(#task_queue{runnable = Runnable}) ->
     maps:size(Runnable).
 
 -spec update_reserved(state()) -> state().
-update_reserved(State = #state{id = ID, quota_name = Quota, quota_share = QuotaShare}) ->
+update_reserved(#state{id = ID, quota_name = Quota, quota_share = QuotaShare} = State) ->
     TotalActiveTasks = get_active_task_count(State),
     TotalKnownTasks = TotalActiveTasks + get_waiting_task_count(State),
     ClientOptions = #{

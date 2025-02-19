@@ -42,7 +42,7 @@ log({Level, Msg, Meta}) ->
     ok = logger:log(Level, MsgFormat, MsgArgs, maps:from_list(Meta)).
 
 -spec expand_msg(msg()) -> expanded_msg().
-expand_msg(Msg = {_, _}) ->
+expand_msg({_, _} = Msg) ->
     Msg;
 expand_msg(Str) ->
     {Str, []}.

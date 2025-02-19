@@ -227,7 +227,7 @@ next_state(S, {start, _}, already_exist) ->
     S;
 next_state(not_exists, _, not_found) ->
     not_exists;
-next_state(State = not_exists, Action, Result) ->
+next_state(not_exists = State, Action, Result) ->
     erlang:error(bad_transition, [State, Action, Result]);
 %% failed / fail & rapair
 next_state(_, fail, ok) ->
@@ -240,7 +240,7 @@ next_state(failed, _, failed) ->
     failed;
 next_state(S, {repair, _}, already_working) ->
     S;
-next_state(State = failed, Action, Result) ->
+next_state(failed = State, Action, Result) ->
     erlang:error(bad_transition, [State, Action, Result]);
 %% sleeping / sleep
 next_state(sleeping, {call, sleep}, ok) ->

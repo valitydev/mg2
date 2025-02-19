@@ -146,11 +146,11 @@ init(St) ->
     {ok, St}.
 
 -spec discover(st()) -> {ok, [pid()], st()}.
-discover(St = #{known := Known}) ->
+discover(#{known := Known} = St) ->
     {ok, Known, St}.
 
 -spec handle_rank_change(rank(), squad(), st()) -> {noreply, st()}.
-handle_rank_change(Rank, Squad, St = #{runner := Runner}) ->
+handle_rank_change(Rank, Squad, #{runner := Runner} = St) ->
     _ = Runner ! {self(), Rank, gen_squad:members(Squad)},
     case Rank of
         leader -> {noreply, St, 200};
@@ -170,7 +170,7 @@ handle_call(Call, From, _Rank, _Squad, _St) ->
 -type cast() :: {known, [pid()]}.
 
 -spec handle_cast(cast(), rank(), squad(), st()) -> {noreply, st()}.
-handle_cast({known, More}, _Rank, _Squad, St = #{known := Known}) ->
+handle_cast({known, More}, _Rank, _Squad, #{known := Known} = St) ->
     {noreply, St#{known := Known ++ More}};
 handle_cast(Cast, _Rank, _Squad, _St) ->
     erlang:error({unexpected, {cast, Cast}}).

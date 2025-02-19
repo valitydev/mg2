@@ -267,7 +267,7 @@ child_spec(Options, ChildID) ->
     }.
 
 -spec start_link(options()) -> mg_utils:gen_start_ret().
-start_link(Options = #{namespace := NS}) ->
+start_link(#{namespace := NS} = Options) ->
     start_link(Options, {?MODULE, NS}).
 
 -spec start_link(options(), _ChildID) -> mg_utils:gen_start_ret().
@@ -508,7 +508,6 @@ handle_load(ID, Options, ReqCtx) ->
     load_storage_machine(ReqCtx, State2).
 
 -define(SPAN_NAME(Call), <<"running machine '", (atom_to_binary(Call))/binary, "'">>).
--define(SPAN_OPTS, #{kind => ?SPAN_KIND_INTERNAL}).
 
 -spec handle_call(_Call, mg_core_worker:call_context(), 'maybe'(request_context()), deadline(), state()) ->
     {{reply, _Resp} | noreply, state()}.
@@ -516,7 +515,7 @@ handle_call(Call, CallContext, ReqCtx, Deadline, S) ->
     %% NOTE Consider adding new pulse beats to wrap 'processing calls' here.
     ok = attach_otel_ctx(ReqCtx),
     ParentSpanId = mg_core_otel:current_span_id(otel_ctx:get_current()),
-    ?with_span(?SPAN_NAME(call), ?SPAN_OPTS, fun(SpanCtx) ->
+    ?with_span(?SPAN_NAME(call), #{kind => ?SPAN_KIND_INTERNAL}, fun(SpanCtx) ->
         do_handle_call(Call, CallContext, ReqCtx, Deadline, ParentSpanId, SpanCtx, S)
     end).
 
@@ -535,7 +534,7 @@ end).
             ProcessFun(SpanCtx);
         %% Link spans
         false ->
-            SpanOpts = ?SPAN_OPTS#{links => [opentelemetry:link(SpanCtx)]},
+            SpanOpts = #{kind => ?SPAN_KIND_INTERNAL, links => [opentelemetry:link(SpanCtx)]},
             otel_tracer:with_span(ReqOtelCtx, ?current_tracer, SpanName, SpanOpts, ProcessFun)
     end
 ).
@@ -550,7 +549,7 @@ end).
     state()
 ) ->
     {{reply, _Resp} | noreply, state()}.
-do_handle_call(Call, CallContext, ReqCtx, Deadline, ParentSpanId, SpanCtx, S = #{storage_machine := StorageMachine}) ->
+do_handle_call(Call, CallContext, ReqCtx, Deadline, ParentSpanId, SpanCtx, #{storage_machine := StorageMachine} = S) ->
     PCtx = new_processing_context(CallContext),
 
     % довольно сложное место, тут определяется приоритет реакции на внешние раздражители, нужно
@@ -862,7 +861,7 @@ emit_repaired_beat(ReqCtx, Deadline, State) ->
 process(Impact, ProcessingCtx, ReqCtx, Deadline, State) ->
     RetryStrategy = get_impact_retry_strategy(Impact, Deadline, State),
     #{id := ID, namespace := NS} = State,
-    SpanOpts = (?SPAN_OPTS)#{attributes => mg_core_otel:machine_tags(NS, ID)},
+    SpanOpts = #{kind => ?SPAN_KIND_INTERNAL, attributes => mg_core_otel:machine_tags(NS, ID)},
     SpanName = <<"processing machine '", (mg_core_otel:impact_to_machine_activity(Impact))/binary, "'">>,
     ?with_span(SpanName, SpanOpts, fun(_SpanCtx) ->
         try
@@ -1024,7 +1023,7 @@ process_unsafe(
     ProcessingCtx,
     ReqCtx,
     Deadline,
-    State = #{storage_machine := StorageMachine}
+    #{storage_machine := StorageMachine} = State
 ) ->
     ok = emit_pre_process_beats(Impact, ReqCtx, Deadline, State),
     ProcessStart = erlang:monotonic_time(),
@@ -1082,7 +1081,7 @@ generate_snowflake_id() ->
 
 -spec handle_notification_processed(mg_core_notification:id(), state()) ->
     state().
-handle_notification_processed(NotificationID, State = #{notifications_processed := Buffer}) ->
+handle_notification_processed(NotificationID, #{notifications_processed := Buffer} = State) ->
     State#{notifications_processed => mg_core_circular_buffer:push(NotificationID, Buffer)}.
 
 -spec call_processor(
@@ -1154,10 +1153,10 @@ reschedule(ReqCtx, Deadline, State) ->
 reschedule_unsafe(
     ReqCtx,
     Deadline,
-    State = #{
+    #{
         storage_machine := StorageMachine = #{status := Status},
         options := Options
-    }
+    } = State
 ) ->
     {Start, Attempt} =
         case Status of
@@ -1198,10 +1197,10 @@ transit_state(
     _ReqCtx,
     _Deadline,
     NewStorageMachine,
-    State = #{storage_machine := OldStorageMachine}
+    #{storage_machine := OldStorageMachine} = State
 ) when NewStorageMachine =:= OldStorageMachine ->
     State;
-transit_state(ReqCtx, Deadline, NewStorageMachine = #{status := Status}, State) ->
+transit_state(ReqCtx, Deadline, #{status := Status} = NewStorageMachine, State) ->
     #{
         id := ID,
         options := Options,
@@ -1246,7 +1245,7 @@ handle_status_transition(_FromStatus, _ToStatus, _ReqCtx, _Deadline, _State) ->
     ok.
 
 -spec try_acquire_scheduler(scheduler_type(), state()) -> state().
-try_acquire_scheduler(SchedulerType, State = #{schedulers := Schedulers, options := Options}) ->
+try_acquire_scheduler(SchedulerType, #{schedulers := Schedulers, options := Options} = State) ->
     case get_scheduler_ref(SchedulerType, Options) of
         undefined ->
             State;
@@ -1430,7 +1429,7 @@ emit_machine_load_beat(Options, Namespace, ID, ReqCtx, _StorageMachine) ->
 %%
 
 -spec manager_options(options()) -> mg_core_workers_manager:options().
-manager_options(Options = #{namespace := NS, worker := ManagerOptions, pulse := Pulse}) ->
+manager_options(#{namespace := NS, worker := ManagerOptions, pulse := Pulse} = Options) ->
     ManagerOptions#{
         name => NS,
         pulse => Pulse,
@@ -1584,7 +1583,7 @@ request_context_to_otel_context(_Other) ->
     request_context(),
     atom()
 ) -> R.
-do_with_retry(Options = #{namespace := NS}, ID, Fun, RetryStrategy, ReqCtx, BeatCtx) ->
+do_with_retry(#{namespace := NS} = Options, ID, Fun, RetryStrategy, ReqCtx, BeatCtx) ->
     try
         Fun()
     catch

@@ -238,7 +238,7 @@ try_do_request(Options, ClientRef, Request) ->
     IndexesUpdates
 ) -> context() when
     IndexesUpdates :: [mg_core_storage:index_update()].
-put(Options = #{bucket := Bucket}, ClientRef, Key, Context, Value, IndexesUpdates) ->
+put(#{bucket := Bucket} = Options, ClientRef, Key, Context, Value, IndexesUpdates) ->
     Object = to_riak_obj(Bucket, Key, Context, Value, IndexesUpdates),
     Timeout = get_option(request_timeout, Options),
     NewObject =
@@ -256,7 +256,7 @@ put(Options = #{bucket := Bucket}, ClientRef, Key, Context, Value, IndexesUpdate
 
 -spec get(options(), client_ref(), mg_core_storage:key()) ->
     {context(), mg_core_storage:value()} | undefined.
-get(Options = #{bucket := Bucket}, ClientRef, Key) ->
+get(#{bucket := Bucket} = Options, ClientRef, Key) ->
     Timeout = get_option(request_timeout, Options),
     case ?SAFE(riakc_pb_socket:get(ClientRef, Bucket, Key, get_option(r_options, Options), Timeout)) of
         {error, notfound} ->
@@ -268,13 +268,13 @@ get(Options = #{bucket := Bucket}, ClientRef, Key) ->
 
 -spec search(options(), client_ref(), mg_core_storage:index_query()) ->
     mg_core_storage:search_result().
-search(Options = #{bucket := Bucket}, ClientRef, Query) ->
+search(#{bucket := Bucket} = Options, ClientRef, Query) ->
     LiftedQuery = lift_query(Query),
     Result = handle_riak_response_(do_get_index(ClientRef, Bucket, LiftedQuery, Options)),
     get_index_response(LiftedQuery, Result).
 
 -spec delete(options(), client_ref(), mg_core_storage:key(), context()) -> ok.
-delete(Options = #{bucket := Bucket}, ClientRef, Key, Context) ->
+delete(#{bucket := Bucket} = Options, ClientRef, Key, Context) ->
     case
         ?SAFE(
             riakc_pb_socket:delete_vclock(
@@ -490,7 +490,7 @@ default_option(w_options) -> [{w, quorum}, {pw, quorum}, {dw, quorum}, {sloppy_q
 default_option(d_options) -> [].
 
 -spec get_riak_addr(options()) -> inet:ip_address().
-get_riak_addr(Options = #{host := Host}) ->
+get_riak_addr(#{host := Host} = Options) ->
     lists_random(get_addrs_by_host(Host, get_option(resolve_timeout, Options))).
 
 -spec lists_random(list(T)) -> T.
@@ -574,7 +574,7 @@ term_to_atom(Term) ->
     erlang:binary_to_atom(base64:encode(erlang:term_to_binary(Term)), latin1).
 
 -spec register_pool(options(), pid(), pool_name()) -> ok.
-register_pool(Options = #{name := Name}, Pid, PoolName) ->
+register_pool(#{name := Name} = Options, Pid, PoolName) ->
     PulseOptions = maps:with([name, pulse], Options),
     true = gproc:reg_other(?GPROC_POOL_NAME(Name), Pid, PoolName),
     true = gproc:reg_other(?GPROC_PULSE_OPTIONS(genlib:to_binary(PoolName)), Pid, PulseOptions),

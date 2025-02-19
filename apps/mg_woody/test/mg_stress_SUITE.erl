@@ -58,9 +58,7 @@ init_per_suite(C) ->
     end,
 
     SignalFunc = fun({Args, _Machine}) ->
-        case Args of
-            _ -> mg_cth_processor:default_result(signal, Args)
-        end
+        _ = mg_cth_processor:default_result(signal, Args)
     end,
 
     {ok, ProcessorPid, _HandlerInfo} = mg_cth_processor:start(

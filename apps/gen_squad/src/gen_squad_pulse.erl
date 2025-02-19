@@ -70,7 +70,7 @@ separate_mod_opts(ModOpts) ->
     separate_mod_opts(ModOpts, undefined).
 
 -spec separate_mod_opts(mod_opts(Defaults), Defaults) -> {module(), Defaults}.
-separate_mod_opts(ModOpts = {_, _}, _) ->
+separate_mod_opts({_, _} = ModOpts, _) ->
     ModOpts;
 separate_mod_opts(Mod, Default) ->
     {Mod, Default}.
