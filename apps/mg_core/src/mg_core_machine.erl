@@ -232,7 +232,7 @@
 -type processor_retry() :: genlib_retry:strategy() | undefined.
 
 -type deadline() :: mg_core_deadline:deadline().
--type maybe(T) :: T | undefined.
+-type 'maybe'(T) :: T | undefined.
 
 -callback processor_child_spec(_Options) -> supervisor:child_spec() | undefined.
 -callback process_machine(Options, ID, Impact, PCtx, ReqCtx, Deadline, MachineState) -> Result when
@@ -463,7 +463,7 @@ reply(#{call_context := CallContext}, Reply) ->
 all_statuses() ->
     [sleeping, waiting, retrying, processing, failed].
 
--spec call_(options(), mg_core:id(), _, maybe(request_context()), deadline()) -> _ | no_return().
+-spec call_(options(), mg_core:id(), _, 'maybe'(request_context()), deadline()) -> _ | no_return().
 call_(Options, ID, Call, ReqCtx, Deadline) ->
     mg_utils:throw_if_error(
         mg_core_workers_manager:call(manager_options(Options), ID, Call, ReqCtx, Deadline)
@@ -510,7 +510,7 @@ handle_load(ID, Options, ReqCtx) ->
 -define(SPAN_NAME(Call), <<"running machine '", (atom_to_binary(Call))/binary, "'">>).
 -define(SPAN_OPTS, #{kind => ?SPAN_KIND_INTERNAL}).
 
--spec handle_call(_Call, mg_core_worker:call_context(), maybe(request_context()), deadline(), state()) ->
+-spec handle_call(_Call, mg_core_worker:call_context(), 'maybe'(request_context()), deadline(), state()) ->
     {{reply, _Resp} | noreply, state()}.
 handle_call(Call, CallContext, ReqCtx, Deadline, S) ->
     %% NOTE Consider adding new pulse beats to wrap 'processing calls' here.
@@ -543,7 +543,7 @@ end).
 -spec do_handle_call(
     _Call,
     mg_core_worker:call_context(),
-    maybe(request_context()),
+    'maybe'(request_context()),
     deadline(),
     opentelemetry:span_id(),
     opentelemetry:span_ctx(),

@@ -7,7 +7,7 @@ ARG THRIFT_VERSION
 ARG BUILDARCH
 
 RUN apt-get --yes update && \
-    apt-get --yes --no-install-recommends install iproute2=5.10.0-4 && \
+    apt-get --yes --no-install-recommends install iproute2=6.1.0-3 && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 
