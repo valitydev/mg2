@@ -185,9 +185,9 @@ brod_client_ssl(false) ->
     false;
 brod_client_ssl(SslConfig) ->
     Opts = [
-        {certfile, ?C:maybe(fun ?C:string/1, ?C:conf([certfile], SslConfig, undefined))},
-        {keyfile, ?C:maybe(fun ?C:string/1, ?C:conf([keyfile], SslConfig, undefined))},
-        {cacertfile, ?C:maybe(fun ?C:string/1, ?C:conf([cacertfile], SslConfig, undefined))}
+        {certfile, ?C:'maybe'(fun ?C:string/1, ?C:conf([certfile], SslConfig, undefined))},
+        {keyfile, ?C:'maybe'(fun ?C:string/1, ?C:conf([keyfile], SslConfig, undefined))},
+        {cacertfile, ?C:'maybe'(fun ?C:string/1, ?C:conf([cacertfile], SslConfig, undefined))}
     ],
     [Opt || Opt = {_Key, Value} <- Opts, Value =/= undefined].
 
@@ -195,7 +195,7 @@ brod_client_sasl(undefined) ->
     undefined;
 brod_client_sasl(SaslConfig) ->
     Mechanism = ?C:atom(?C:conf([mechanism], SaslConfig, <<"scram_sha_512">>)),
-    File = ?C:maybe(fun ?C:string/1, ?C:conf([file], SaslConfig, undefined)),
+    File = ?C:'maybe'(fun ?C:string/1, ?C:conf([file], SaslConfig, undefined)),
     case File of
         undefined ->
             Username = ?C:string(?C:conf([username], SaslConfig)),
@@ -235,7 +235,7 @@ woody_server(YamlConfig) ->
             logger => logger
         },
         limits => genlib_map:compact(#{
-            max_heap_size => ?C:maybe(fun ?C:mem_words/1, ?C:conf([limits, process_heap], YamlConfig, undefined))
+            max_heap_size => ?C:'maybe'(fun ?C:mem_words/1, ?C:conf([limits, process_heap], YamlConfig, undefined))
         }),
         shutdown_timeout => ?C:milliseconds(?C:conf([woody_server, shutdown_timeout], YamlConfig, <<"5s">>))
     }.

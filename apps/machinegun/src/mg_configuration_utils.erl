@@ -49,8 +49,8 @@
 -export([probability/1]).
 -export([contents/1]).
 -export([interpolate/2]).
--export([maybe/2]).
--export([maybe/3]).
+-export(['maybe'/2]).
+-export(['maybe'/3]).
 -export([to_retry_policy/3]).
 
 %%
@@ -75,7 +75,7 @@
 -type filename() :: file:filename_all().
 -type mem_words() :: non_neg_integer().
 -type mem_bytes() :: non_neg_integer().
--type maybe(T) :: undefined | T.
+-type 'maybe'(T) :: undefined | T.
 
 -type time_interval_unit() :: 'week' | 'day' | 'hour' | 'min' | 'sec' | 'ms' | 'mu'.
 -type time_interval() :: {non_neg_integer(), time_interval_unit()}.
@@ -417,16 +417,16 @@ contents(Filename) ->
             erlang:throw({'could not read file contents', Filename, Reason})
     end.
 
--spec maybe(fun((T) -> U), maybe(T)) -> maybe(U).
-maybe(_Fun, undefined) ->
+-spec 'maybe'(fun((T) -> U), 'maybe'(T)) -> 'maybe'(U).
+'maybe'(_Fun, undefined) ->
     undefined;
-maybe(Fun, T) ->
+'maybe'(Fun, T) ->
     Fun(T).
 
--spec maybe(fun((T) -> U), maybe(T), Default) -> U | Default.
-maybe(_Fun, undefined, Default) ->
+-spec 'maybe'(fun((T) -> U), 'maybe'(T), Default) -> U | Default.
+'maybe'(_Fun, undefined, Default) ->
     Default;
-maybe(Fun, T, _Default) ->
+'maybe'(Fun, T, _Default) ->
     Fun(T).
 
 -type interpolate_fun() :: fun((yaml_string()) -> yaml_string()).

@@ -68,7 +68,7 @@
 -type name() :: mg_core:ns().
 -type req_ctx() :: mg_core:request_context().
 -type gen_ref() :: mg_utils:gen_ref().
--type maybe(T) :: T | undefined.
+-type 'maybe'(T) :: T | undefined.
 -type deadline() :: mg_core_deadline:deadline().
 
 %% Constants
@@ -117,7 +117,7 @@ sidecar_child_spec(#{}) ->
     undefined.
 
 % sync
--spec call(options(), id(), _Call, maybe(req_ctx()), deadline()) -> _Reply | {error, _}.
+-spec call(options(), id(), _Call, 'maybe'(req_ctx()), deadline()) -> _Reply | {error, _}.
 call(Options, ID, Call, ReqCtx, Deadline) ->
     case mg_core_deadline:is_reached(Deadline) of
         false ->
@@ -126,7 +126,7 @@ call(Options, ID, Call, ReqCtx, Deadline) ->
             {error, {transient, worker_call_deadline_reached}}
     end.
 
--spec call(options(), id(), _Call, maybe(req_ctx()), deadline(), boolean()) -> _Reply | {error, _}.
+-spec call(options(), id(), _Call, 'maybe'(req_ctx()), deadline(), boolean()) -> _Reply | {error, _}.
 call(Options, ID, Call, ReqCtx, Deadline, CanRetry) ->
     #{name := Name, pulse := Pulse} = Options,
     try
@@ -140,7 +140,7 @@ call(Options, ID, Call, ReqCtx, Deadline, CanRetry) ->
     options(),
     id(),
     _Call,
-    maybe(req_ctx()),
+    'maybe'(req_ctx()),
     deadline(),
     _Reason,
     boolean()
@@ -167,7 +167,7 @@ handle_worker_exit(Options, ID, Call, ReqCtx, Deadline, Reason, CanRetry) ->
         Unknown -> {error, {unexpected_exit, Unknown}}
     end.
 
--spec start_and_retry_call(options(), id(), _Call, maybe(req_ctx()), deadline()) ->
+-spec start_and_retry_call(options(), id(), _Call, 'maybe'(req_ctx()), deadline()) ->
     _Reply | {error, _}.
 start_and_retry_call(Options, ID, Call, ReqCtx, Deadline) ->
     %
@@ -214,7 +214,7 @@ worker_options(#{worker_options := WorkerOptions, registry := Registry}) ->
 %%
 %% local
 %%
--spec start_child(options(), id(), maybe(req_ctx())) -> {ok, pid()} | {error, term()}.
+-spec start_child(options(), id(), 'maybe'(req_ctx())) -> {ok, pid()} | {error, term()}.
 start_child(Options, ID, ReqCtx) ->
     SelfRef = self_ref(Options),
     #{name := Name, pulse := Pulse} = Options,
@@ -234,7 +234,7 @@ start_child(Options, ID, ReqCtx) ->
             {error, {transient, overload}}
     end.
 
--spec do_start_child(gen_ref(), name(), id(), maybe(req_ctx())) -> {ok, pid()} | {error, term()}.
+-spec do_start_child(gen_ref(), name(), id(), 'maybe'(req_ctx())) -> {ok, pid()} | {error, term()}.
 do_start_child(SelfRef, Name, ID, ReqCtx) ->
     try
         supervisor:start_child(SelfRef, [Name, ID, ReqCtx])
