@@ -155,13 +155,9 @@ start_client(#{port := Port} = Options) ->
 start_link(Options) ->
     PoolName = construct_pool_name(Options),
     PoolConfig = pooler_config:list_to_pool(make_pool_config(PoolName, Options)),
-    case pooler_pool_sup:start_link(PoolConfig) of
-        {ok, SupPid} ->
-            ok = register_pool(Options, SupPid, PoolName),
-            {ok, SupPid};
-        Error ->
-            Error
-    end.
+    {ok, SupPid} = pooler_pool_sup:start_link(PoolConfig),
+    ok = register_pool(Options, SupPid, PoolName),
+    {ok, SupPid}.
 
 %%
 %% mg_core_storage callbacks
