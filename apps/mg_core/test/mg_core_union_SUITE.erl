@@ -47,7 +47,10 @@ end_per_suite(_Config) ->
 
 -spec all() -> [{group, test_case_name()}].
 all() ->
-    [{group, basic_operations}].
+    [
+        {group, basic_operations},
+        {group, discovery}
+    ].
 
 -spec groups() -> [{group_name(), list(), [test_case_name()]}].
 groups() ->
