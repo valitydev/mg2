@@ -255,6 +255,9 @@ search_notifications_for_machine(MachineID) ->
     Found = mg_core_notification:search(Options, 1, genlib_time:unow(), inf),
     lists:filter(
         fun({_, NID}) ->
+            %% FIXME Investigate race condition with '{error,
+            %% not_found}' return. Looks like we must treat notfound
+            %% notification as deleted/consumed.
             {ok, _, #{machine_id := FoundMachineID}} = mg_core_notification:get(Options, NID),
             MachineID =:= FoundMachineID
         end,
