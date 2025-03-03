@@ -36,7 +36,7 @@
 %%
 %% internal API
 %%
--spec start_link(options()) -> mg_core_utils:gen_start_ret().
+-spec start_link(options()) -> mg_utils:gen_start_ret().
 start_link(Options) ->
     gen_server:start_link(reg_name(get_name(Options)), ?MODULE, Options, []).
 
@@ -48,7 +48,7 @@ start_link(Options) ->
     undefined
     | #{
         name := name(),
-        pulse := mg_core_pulse:handler(),
+        pulse := mpulse:handler(),
         existing_storage_name => name(),
         random_transient_fail => random_fail_policy()
     }.
@@ -92,7 +92,7 @@ get_name(#{name := Name}) ->
 -type search_result() ::
     [{mg_core_storage:index_value(), mg_core_storage:key()}] | [mg_core_storage:key()].
 
--spec init(options()) -> mg_core_utils:gen_server_init_ret(state()).
+-spec init(options()) -> mg_utils:gen_server_init_ret(state()).
 init(Options) ->
     {ok, #{
         options => Options,
@@ -100,8 +100,8 @@ init(Options) ->
         indexes => #{}
     }}.
 
--spec handle_call(_Call, mg_core_utils:gen_server_from(), state()) ->
-    mg_core_utils:gen_server_handle_call_ret(state()) | no_return().
+-spec handle_call(_Call, mg_utils:gen_server_from(), state()) ->
+    mg_utils:gen_server_handle_call_ret(state()) | no_return().
 handle_call({put, Key, Context, Value, IndexesUpdates}, _From, State) ->
     {Resp, NewState} = do_put(Key, Context, Value, IndexesUpdates, State),
     {reply, Resp, NewState};
@@ -131,7 +131,7 @@ handle_info(Info, State) ->
     _ = erlang:exit({'unexpected info received', Info}),
     {noreply, State}.
 
--spec code_change(_, state(), _) -> mg_core_utils:gen_server_code_change_ret(state()).
+-spec code_change(_, state(), _) -> mg_utils:gen_server_code_change_ret(state()).
 code_change(_, State, _) ->
     {ok, State}.
 
@@ -157,13 +157,13 @@ do_search({IndexName, QueryValue}, State) ->
     do_search({IndexName, QueryValue, inf}, State);
 do_search({IndexName, QueryValue, Limit}, State) ->
     do_search({IndexName, QueryValue, Limit, undefined}, State);
-do_search({IndexName, QueryValue, inf, _}, State = #{indexes := Indexes}) ->
+do_search({IndexName, QueryValue, inf, _}, #{indexes := Indexes} = State) ->
     Res = do_search_index(maps:get(IndexName, Indexes, []), QueryValue),
     {Res, State};
-do_search({IndexName, QueryValue, IndexLimit, undefined}, State = #{indexes := Indexes}) ->
+do_search({IndexName, QueryValue, IndexLimit, undefined}, #{indexes := Indexes} = State) ->
     Res = do_search_index(maps:get(IndexName, Indexes, []), QueryValue),
     {split_search_result(Res, IndexLimit), State};
-do_search({IndexName, QueryValue, IndexLimit, Cont}, State = #{indexes := Indexes}) ->
+do_search({IndexName, QueryValue, IndexLimit, Cont}, #{indexes := Indexes} = State) ->
     Res = find_continuation(do_search_index(maps:get(IndexName, Indexes, []), QueryValue), Cont),
     {split_search_result(Res, IndexLimit), State}.
 
@@ -198,7 +198,7 @@ generate_continuation(Result) ->
     [mg_core_storage:index_update()],
     state()
 ) -> {context(), state()}.
-do_put(Key, NewContext, Value, IndexesUpdates, State0 = #{values := Values}) ->
+do_put(Key, NewContext, Value, IndexesUpdates, #{values := Values} = State0) ->
     % по текущей схеме (пишет всегда только один процесс) конфликтов никогда не должно быть
     R =
         case {do_get(Key, State0), NewContext} of
@@ -230,7 +230,7 @@ do_put(Key, NewContext, Value, IndexesUpdates, State0 = #{values := Values}) ->
     end.
 
 -spec do_delete(mg_core_storage:key(), context(), state()) -> state().
-do_delete(Key, Context, State = #{values := Values}) ->
+do_delete(Key, Context, #{values := Values} = State) ->
     case do_get(Key, State) of
         {Context, _} ->
             NewState = State#{values := maps:remove(Key, Values)},
@@ -309,7 +309,7 @@ do_update_indexes(IndexesUpdates, Key, State) ->
     ).
 
 -spec do_update_index(mg_core_storage:index_update(), mg_core_storage:key(), state()) -> state().
-do_update_index(IndexUpdate = {IndexName, IndexValue}, Key, State = #{indexes := Indexes}) ->
+do_update_index({IndexName, IndexValue} = IndexUpdate, Key, #{indexes := Indexes} = State) ->
     ok = check_index_update(IndexUpdate),
     Index = maps:get(IndexName, Indexes, []),
     NewIndex = lists:sort([{IndexValue, Key} | Index]),
@@ -320,7 +320,7 @@ check_index_update({{binary, Name}, Value}) when is_binary(Name) andalso is_bina
 check_index_update({{integer, Name}, Value}) when is_binary(Name) andalso is_integer(Value) -> ok.
 
 -spec do_cleanup_indexes(mg_core_storage:key(), state()) -> state().
-do_cleanup_indexes(Key, State = #{indexes := Indexes}) ->
+do_cleanup_indexes(Key, #{indexes := Indexes} = State) ->
     NewIndexes =
         maps:map(
             fun(_, Index) ->
@@ -380,11 +380,11 @@ start_from_elem(Item, [_ | Tail]) ->
 
 %% Registry utils
 
--spec ref(name()) -> mg_core_utils:gen_ref().
+-spec ref(name()) -> mg_utils:gen_ref().
 ref(Name) ->
     {via, gproc, gproc_key(Name)}.
 
--spec reg_name(name()) -> mg_core_utils:gen_reg_name().
+-spec reg_name(name()) -> mg_utils:gen_reg_name().
 reg_name(Name) ->
     {via, gproc, gproc_key(Name)}.
 

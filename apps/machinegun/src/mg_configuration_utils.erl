@@ -49,8 +49,8 @@
 -export([probability/1]).
 -export([contents/1]).
 -export([interpolate/2]).
--export([maybe/2]).
--export([maybe/3]).
+-export(['maybe'/2]).
+-export(['maybe'/3]).
 -export([to_retry_policy/3]).
 
 %%
@@ -75,7 +75,7 @@
 -type filename() :: file:filename_all().
 -type mem_words() :: non_neg_integer().
 -type mem_bytes() :: non_neg_integer().
--type maybe(T) :: undefined | T.
+-type 'maybe'(T) :: undefined | T.
 
 -type time_interval_unit() :: 'week' | 'day' | 'hour' | 'min' | 'sec' | 'ms' | 'mu'.
 -type time_interval() :: {non_neg_integer(), time_interval_unit()}.
@@ -327,7 +327,7 @@ proplist(Config) ->
 
 -spec ip(yaml_string()) -> inet:ip_address().
 ip(Host) ->
-    mg_core_utils:throw_if_error(inet:parse_address(string(Host))).
+    mg_utils:throw_if_error(inet:parse_address(string(Host))).
 
 -spec atom(yaml_string()) -> atom().
 atom(AtomStr) ->
@@ -370,7 +370,7 @@ conf_maybe_default({default, Default}) ->
 ).
 
 -spec traverse(traverse_fun(), yaml_config()) -> yaml_config().
-traverse(TFun, Config = [{_, _} | _]) ->
+traverse(TFun, [{_, _} | _] = Config) ->
     lists:map(
         fun({Name, Value}) ->
             case TFun({property, Name}, Value) of
@@ -417,16 +417,16 @@ contents(Filename) ->
             erlang:throw({'could not read file contents', Filename, Reason})
     end.
 
--spec maybe(fun((T) -> U), maybe(T)) -> maybe(U).
-maybe(_Fun, undefined) ->
+-spec 'maybe'(fun((T) -> U), 'maybe'(T)) -> 'maybe'(U).
+'maybe'(_Fun, undefined) ->
     undefined;
-maybe(Fun, T) ->
+'maybe'(Fun, T) ->
     Fun(T).
 
--spec maybe(fun((T) -> U), maybe(T), Default) -> U | Default.
-maybe(_Fun, undefined, Default) ->
+-spec 'maybe'(fun((T) -> U), 'maybe'(T), Default) -> U | Default.
+'maybe'(_Fun, undefined, Default) ->
     Default;
-maybe(Fun, T, _Default) ->
+'maybe'(Fun, T, _Default) ->
     Fun(T).
 
 -type interpolate_fun() :: fun((yaml_string()) -> yaml_string()).
@@ -487,22 +487,22 @@ to_proper_map(L) when is_list(L) ->
 -spec build_policy(yaml_config_path(), retry_config()) -> genlib_retry:policy().
 build_policy(
     _Path,
-    Config = #{
+    #{
         type := <<"linear">>,
         max_retries := MaxRetries,
         timeout := Timeout
-    }
+    } = Config
 ) ->
     maybe_timecap(Config, {linear, max_retries_spec(MaxRetries), maybe_w_jitter(Config, time_interval(Timeout, 'ms'))});
 build_policy(
     _Path,
-    Config = #{
+    #{
         type := <<"exponential">>,
         max_retries := MaxRetries,
         factor := Factor,
         timeout := Timeout,
         max_timeout := MaxTimeout
-    }
+    } = Config
 ) ->
     maybe_timecap(
         Config,
@@ -511,12 +511,12 @@ build_policy(
     );
 build_policy(
     _Path,
-    Config = #{
+    #{
         type := <<"exponential">>,
         max_retries := MaxRetries,
         factor := Factor,
         timeout := Timeout
-    }
+    } = Config
 ) ->
     maybe_timecap(
         Config,
@@ -524,10 +524,10 @@ build_policy(
     );
 build_policy(
     _Path,
-    Config = #{
+    #{
         type := <<"intervals">>,
         timeouts := Timeouts
-    }
+    } = Config
 ) when is_list(Timeouts) ->
     maybe_timecap(Config, {intervals, [maybe_w_jitter(Config, time_interval(Timeout, 'ms')) || Timeout <- Timeouts]});
 build_policy(Path, Config) ->

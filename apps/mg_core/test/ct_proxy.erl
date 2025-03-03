@@ -75,7 +75,7 @@ resolve_endpoint({Host, Port}) ->
     {ok, #hostent{h_addr_list = [Address | _Rest]}} = inet:gethostbyname(Host),
     {Address, Port}.
 
-unlink(Proxy = #{supervisor := SupPid}) ->
+unlink(#{supervisor := SupPid} = Proxy) ->
     true = erlang:unlink(SupPid),
     Proxy.
 
@@ -106,7 +106,7 @@ init(Upstream) ->
     {ok, St}.
 
 -spec handle_call(_Call, _From, st()) -> {noreply, st()}.
-handle_call({mode, Mode}, _From, St = #{mode := ModeWas}) ->
+handle_call({mode, Mode}, _From, #{mode := ModeWas} = St) ->
     {reply, {ok, ModeWas}, St#{mode => Mode}};
 handle_call({proxy, Buffer}, _From, St) ->
     {reply, get_proxy_activity(Buffer, St), St};

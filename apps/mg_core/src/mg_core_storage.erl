@@ -77,7 +77,7 @@
 %%
 -type name() :: term().
 
--type opaque() :: null | true | false | number() | binary() | [opaque()] | #{opaque() => opaque()}.
+-type opaque() :: mg_utils:opaque().
 -type key() :: binary().
 -type value() :: opaque().
 -type kv() :: {key(), value()}.
@@ -104,12 +104,12 @@
 
 -type storage_options() :: #{
     name := name(),
-    pulse := mg_core_pulse:handler(),
-    sidecar => mg_core_utils:mod_opts(),
+    pulse := mpulse:handler(),
+    sidecar => mg_utils:mod_opts(),
     batching => batching_options(),
     atom() => any()
 }.
--type options() :: mg_core_utils:mod_opts(storage_options()).
+-type options() :: mg_utils:mod_opts(storage_options()).
 
 -type batching_options() :: #{
     % How many storage requests may be served concurrently at most?
@@ -145,12 +145,12 @@
 
 %%
 
--spec start_link(options()) -> mg_core_utils:gen_start_ret().
+-spec start_link(options()) -> mg_utils:gen_start_ret().
 start_link(Options) ->
     genlib_adhoc_supervisor:start_link(
         #{strategy => rest_for_one},
-        mg_core_utils:lists_compact([
-            mg_core_utils:apply_mod_opts_if_defined(Options, child_spec, undefined, [storage]),
+        mg_utils:lists_compact([
+            mg_utils:apply_mod_opts_if_defined(Options, child_spec, undefined, [storage]),
             sidecar_child_spec(Options, sidecar)
         ])
     ).
@@ -188,21 +188,21 @@ new_batch() ->
     [].
 
 -spec add_batch_request(request(), batch()) -> batch().
-add_batch_request(Request = {get, Key}, Batch) ->
+add_batch_request({get, Key} = Request, Batch) ->
     _ = validate_key(Key),
     [Request | Batch];
-add_batch_request(Request = {put, Key, _Context, _Value, _Indices}, Batch) ->
+add_batch_request({put, Key, _Context, _Value, _Indices} = Request, Batch) ->
     _ = validate_key(Key),
     [Request | Batch];
-add_batch_request(Request = {delete, Key, _Context}, Batch) ->
+add_batch_request({delete, Key, _Context} = Request, Batch) ->
     _ = validate_key(Key),
     [Request | Batch];
-add_batch_request(Request = {search, _}, Batch) ->
+add_batch_request({search, _} = Request, Batch) ->
     [Request | Batch].
 
 -spec run_batch(options(), batch()) -> [{request(), response()}].
 run_batch(Options, Batch) ->
-    {_Handler, StorageOptions} = mg_core_utils:separate_mod_opts(Options, #{}),
+    {_Handler, StorageOptions} = mg_utils:separate_mod_opts(Options, #{}),
     genlib_pmap:map(
         fun(Request) ->
             {Request, do_request(Options, Request)}
@@ -224,10 +224,10 @@ construct_pmap_options(Options) ->
 
 -spec do_request(options(), request()) -> response().
 do_request(Options, Request) ->
-    {_Handler, StorageOptions} = mg_core_utils:separate_mod_opts(Options, #{}),
+    {_Handler, StorageOptions} = mg_utils:separate_mod_opts(Options, #{}),
     StartTimestamp = erlang:monotonic_time(),
     ok = emit_beat_start(Request, StorageOptions),
-    Result = mg_core_utils:apply_mod_opts(Options, do_request, [Request]),
+    Result = mg_utils:apply_mod_opts(Options, do_request, [Request]),
     FinishTimestamp = erlang:monotonic_time(),
     Duration = FinishTimestamp - StartTimestamp,
     ok = emit_beat_finish(Request, StorageOptions, Duration),
@@ -275,10 +275,10 @@ binary_to_opaque(Binary) ->
 
 -spec sidecar_child_spec(options(), term()) -> supervisor:child_spec() | undefined.
 sidecar_child_spec(Options, ChildID) ->
-    {_Handler, StorageOptions} = mg_core_utils:separate_mod_opts(Options, #{}),
+    {_Handler, StorageOptions} = mg_utils:separate_mod_opts(Options, #{}),
     case maps:find(sidecar, StorageOptions) of
         {ok, Sidecar} ->
-            mg_core_utils:apply_mod_opts(Sidecar, child_spec, [Options, ChildID]);
+            mg_utils:apply_mod_opts(Sidecar, child_spec, [Options, ChildID]);
         error ->
             undefined
     end.
@@ -289,40 +289,40 @@ sidecar_child_spec(Options, ChildID) ->
 
 -spec emit_beat_start(mg_core_storage:request(), storage_options()) -> ok.
 emit_beat_start({get, _}, #{pulse := Handler, name := Name}) ->
-    ok = mg_core_pulse:handle_beat(Handler, #mg_core_storage_get_start{
+    ok = mpulse:handle_beat(Handler, #mg_core_storage_get_start{
         name = Name
     });
 emit_beat_start({put, _, _, _, _}, #{pulse := Handler, name := Name}) ->
-    ok = mg_core_pulse:handle_beat(Handler, #mg_core_storage_put_start{
+    ok = mpulse:handle_beat(Handler, #mg_core_storage_put_start{
         name = Name
     });
 emit_beat_start({search, _}, #{pulse := Handler, name := Name}) ->
-    ok = mg_core_pulse:handle_beat(Handler, #mg_core_storage_search_start{
+    ok = mpulse:handle_beat(Handler, #mg_core_storage_search_start{
         name = Name
     });
 emit_beat_start({delete, _, _}, #{pulse := Handler, name := Name}) ->
-    ok = mg_core_pulse:handle_beat(Handler, #mg_core_storage_delete_start{
+    ok = mpulse:handle_beat(Handler, #mg_core_storage_delete_start{
         name = Name
     }).
 
 -spec emit_beat_finish(mg_core_storage:request(), storage_options(), duration()) -> ok.
 emit_beat_finish({get, _}, #{pulse := Handler, name := Name}, Duration) ->
-    ok = mg_core_pulse:handle_beat(Handler, #mg_core_storage_get_finish{
+    ok = mpulse:handle_beat(Handler, #mg_core_storage_get_finish{
         name = Name,
         duration = Duration
     });
 emit_beat_finish({put, _, _, _, _}, #{pulse := Handler, name := Name}, Duration) ->
-    ok = mg_core_pulse:handle_beat(Handler, #mg_core_storage_put_finish{
+    ok = mpulse:handle_beat(Handler, #mg_core_storage_put_finish{
         name = Name,
         duration = Duration
     });
 emit_beat_finish({search, _}, #{pulse := Handler, name := Name}, Duration) ->
-    ok = mg_core_pulse:handle_beat(Handler, #mg_core_storage_search_finish{
+    ok = mpulse:handle_beat(Handler, #mg_core_storage_search_finish{
         name = Name,
         duration = Duration
     });
 emit_beat_finish({delete, _, _}, #{pulse := Handler, name := Name}, Duration) ->
-    ok = mg_core_pulse:handle_beat(Handler, #mg_core_storage_delete_finish{
+    ok = mpulse:handle_beat(Handler, #mg_core_storage_delete_finish{
         name = Name,
         duration = Duration
     }).

@@ -41,7 +41,7 @@
 -type machine_lifecycle_failed_event() ::
     event(machine_lifecycle_failed, #{
         occurred_at := timestamp_ns(),
-        exception := mg_core_utils:exception()
+        exception := mg_utils:exception()
     }).
 -type machine_lifecycle_repaired_event() ::
     event(machine_lifecycle_repaired, #{
@@ -105,7 +105,7 @@ serialize_data({machine_lifecycle_repaired, _}) ->
 serialize_data({machine_lifecycle_removed, _}) ->
     {machine, {removed, #mg_lifesink_MachineLifecycleRemovedEvent{}}}.
 
--spec exception_to_string(mg_core_utils:exception()) -> binary().
+-spec exception_to_string(mg_utils:exception()) -> binary().
 exception_to_string(Exception) ->
     iolist_to_binary(genlib_format:format_exception(Exception)).
 

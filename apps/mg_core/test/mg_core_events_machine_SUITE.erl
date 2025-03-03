@@ -35,8 +35,8 @@
 -export_type([options/0]).
 -export([process_signal/4, process_call/4, process_repair/4]).
 
-%% mg_core_events_sink handler
--behaviour(mg_core_events_sink).
+%% mg_core_event_sink handler
+-behaviour(mg_core_event_sink).
 -export([add_events/6]).
 
 %% mg_core_storage callbacks
@@ -156,7 +156,7 @@ get_events_test(_C) ->
 -spec assert_history_consistent
     (history(), mg_core_events:history_range()) -> boolean() | ok;
     (history(), _Assertion :: {from | limit | direction, _}) -> boolean() | ok.
-assert_history_consistent(History, HRange = {From, Limit, Direction}) ->
+assert_history_consistent(History, {From, Limit, Direction} = HRange) ->
     Result = lists:all(fun(Assert) -> assert_history_consistent(History, Assert) end, [
         {from, {From, Direction}},
         {limit, Limit},
@@ -169,7 +169,7 @@ assert_history_consistent([{ID, _} | _], {from, {From, backward}}) when From /= 
     From > ID;
 assert_history_consistent(History, {limit, Limit}) ->
     length(History) =< Limit;
-assert_history_consistent(History = [{ID, _} | _], {direction, Direction}) ->
+assert_history_consistent([{ID, _} | _] = History, {direction, Direction}) ->
     Step =
         case Direction of
             forward -> +1;
@@ -374,7 +374,7 @@ child_spec(#{name := Name, storage := {Module, Options}}, ChildID) ->
     mg_core_storage:child_spec({Module, Options#{name => Name}}, ChildID).
 
 -spec do_request(map(), mg_core_storage:request()) -> mg_core_storage:response().
-do_request(Options = #{lossfun := LossFun}, Req = {put, _Key, Context, BodyOpaque, _}) ->
+do_request(#{lossfun := LossFun} = Options, {put, _Key, Context, BodyOpaque, _} = Req) ->
     % Yeah, no easy way to know MachineID here, we're left with Body only
     #{body := {_MD, Data}} = mg_core_events:kv_to_event({<<"42">>, BodyOpaque}),
     case LossFun(decode(Data)) of
@@ -398,7 +398,7 @@ start_automaton(ProcessorOptions, NS) ->
 -spec start_automaton(mg_core_events_machine:options()) ->
     {pid(), mg_core_events_machine:options()}.
 start_automaton(Options) ->
-    {mg_core_utils:throw_if_error(mg_core_events_machine:start_link(Options)), Options}.
+    {mg_utils:throw_if_error(mg_core_events_machine:start_link(Options)), Options}.
 
 -spec stop_automaton(pid()) -> ok.
 stop_automaton(Pid) ->
@@ -439,7 +439,7 @@ events_machine_options(Base, StorageOptions, ProcessorOptions, NS) ->
             namespace => NS,
             storage => mg_cth:build_storage(NS, Storage),
             worker => #{
-                registry => mg_core_procreg_global
+                registry => mg_procreg_global
             },
             notification => #{
                 namespace => NS,
@@ -570,10 +570,10 @@ decode(Value) ->
 
 -include("pulse.hrl").
 
--spec handle_beat(_, mg_core_pulse:beat()) -> ok.
-handle_beat(_, Beat = #mg_core_machine_lifecycle_failed{}) ->
+-spec handle_beat(_, mpulse:beat()) -> ok.
+handle_beat(_, #mg_core_machine_lifecycle_failed{} = Beat) ->
     ct:pal("~p", [Beat]);
-handle_beat(_, Beat = #mg_core_machine_lifecycle_transient_error{}) ->
+handle_beat(_, #mg_core_machine_lifecycle_transient_error{} = Beat) ->
     ct:pal("~p", [Beat]);
 handle_beat(quiet, _Beat) ->
     ok;

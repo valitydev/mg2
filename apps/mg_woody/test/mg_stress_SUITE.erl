@@ -40,6 +40,7 @@ all() ->
 init_per_suite(C) ->
     Config = mg_woody_config(C),
     Apps = mg_cth:start_applications([
+        brod,
         {hackney, [{use_default_pool, false}]},
         mg_woody,
         opentelemetry_exporter,
@@ -57,9 +58,7 @@ init_per_suite(C) ->
     end,
 
     SignalFunc = fun({Args, _Machine}) ->
-        case Args of
-            _ -> mg_cth_processor:default_result(signal, Args)
-        end
+        _ = mg_cth_processor:default_result(signal, Args)
     end,
 
     {ok, ProcessorPid, _HandlerInfo} = mg_cth_processor:start(
@@ -120,8 +119,18 @@ mg_woody_config(_C) ->
                     timers => #{}
                 },
                 retries => #{},
-                event_sinks => [],
-                event_stash_size => 10
+                event_sinks => [
+                    {mg_event_sink_kafka, #{
+                        name => kafka,
+                        topic => <<"mg_core_event_sink">>,
+                        client => mg_cth:config(kafka_client_name)
+                    }}
+                ],
+                event_stash_size => 10,
+                worker => #{
+                    registry => mg_procreg_global,
+                    sidecar => mg_cth_worker
+                }
             }
         }
     }.

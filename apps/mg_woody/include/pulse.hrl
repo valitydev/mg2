@@ -3,7 +3,7 @@
     machine_id :: mg_core_events_machine:id(),
     request_context :: mg_core:request_context(),
     deadline :: mg_core_deadline:deadline(),
-    exception :: mg_core_utils:exception()
+    exception :: mg_utils:exception()
 }).
 
 -record(woody_event, {

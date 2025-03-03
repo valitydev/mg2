@@ -48,8 +48,8 @@
     {{reply, _Reply} | noreply, _State}.
 
 -type options() :: #{
-    worker => mg_core_utils:mod_opts(),
-    registry => mg_core_procreg:options(),
+    worker => mg_utils:mod_opts(),
+    registry => mg_procreg:options(),
     hibernate_timeout => pos_integer(),
     unload_timeout => pos_integer(),
     shutdown_timeout => timeout()
@@ -64,7 +64,7 @@
 
 -type call_msg() :: {call, mg_core_deadline:deadline(), call_payload(), req_ctx()}.
 
--type pulse() :: mg_core_pulse:handler().
+-type pulse() :: mpulse:handler().
 
 -define(WRAP_ID(NS, ID), {?MODULE, {NS, ID}}).
 -define(DEFAULT_SHUTDOWN, brutal_kill).
@@ -78,9 +78,9 @@ child_spec(ChildID, Options) ->
         shutdown => shutdown_timeout(Options, ?DEFAULT_SHUTDOWN)
     }.
 
--spec start_link(options(), mg_core:ns(), mg_core:id(), req_ctx()) -> mg_core_utils:gen_start_ret().
+-spec start_link(options(), mg_core:ns(), mg_core:id(), req_ctx()) -> mg_utils:gen_start_ret().
 start_link(Options, NS, ID, ReqCtx) ->
-    mg_core_procreg:start_link(
+    mg_procreg:start_link(
         procreg_options(Options),
         ?WRAP_ID(NS, ID),
         ?MODULE,
@@ -98,13 +98,13 @@ start_link(Options, NS, ID, ReqCtx) ->
     pulse()
 ) -> _Result | {error, _}.
 call(Options, NS, ID, Call, ReqCtx, Deadline, Pulse) ->
-    ok = mg_core_pulse:handle_beat(Pulse, #mg_core_worker_call_attempt{
+    ok = mpulse:handle_beat(Pulse, #mg_core_worker_call_attempt{
         namespace = NS,
         machine_id = ID,
         request_context = ReqCtx,
         deadline = Deadline
     }),
-    mg_core_procreg:call(
+    mg_procreg:call(
         procreg_options(Options),
         ?WRAP_ID(NS, ID),
         {call, Deadline, Call, ReqCtx},
@@ -114,7 +114,7 @@ call(Options, NS, ID, Call, ReqCtx, Deadline, Pulse) ->
 %% for testing
 -spec brutal_kill(options(), mg_core:ns(), mg_core:id()) -> ok.
 brutal_kill(Options, NS, ID) ->
-    case mg_core_utils:gen_reg_name_to_pid(self_ref(Options, NS, ID)) of
+    case mg_utils:gen_reg_name_to_pid(self_ref(Options, NS, ID)) of
         undefined ->
             ok;
         Pid ->
@@ -130,8 +130,8 @@ reply(CallCtx, Reply) ->
 
 -spec get_call_queue(options(), mg_core:ns(), mg_core:id()) -> [_Call].
 get_call_queue(Options, NS, ID) ->
-    Pid = mg_core_utils:exit_if_undefined(
-        mg_core_utils:gen_reg_name_to_pid(self_ref(Options, NS, ID)),
+    Pid = mg_utils:exit_if_undefined(
+        mg_utils:gen_reg_name_to_pid(self_ref(Options, NS, ID)),
         noproc
     ),
     [Call || {'$gen_call', _, {call, _Deadline, Call, _ReqCtx}} <- get_call_messages(Pid)].
@@ -143,15 +143,15 @@ get_call_messages(Pid) ->
 
 -spec is_alive(options(), mg_core:ns(), mg_core:id()) -> boolean().
 is_alive(Options, NS, ID) ->
-    Pid = mg_core_utils:gen_reg_name_to_pid(self_ref(Options, NS, ID)),
+    Pid = mg_utils:gen_reg_name_to_pid(self_ref(Options, NS, ID)),
     Pid =/= undefined andalso erlang:is_process_alive(Pid).
 
 % TODO nonuniform interface
--spec list(mg_core_procreg:options(), mg_core:ns()) -> [{mg_core:ns(), mg_core:id(), pid()}].
+-spec list(mg_procreg:options(), mg_core:ns()) -> [{mg_core:ns(), mg_core:id(), pid()}].
 list(Procreg, NS) ->
     [
         {NS, ID, Pid}
-     || {?WRAP_ID(_, ID), Pid} <- mg_core_procreg:select(Procreg, ?WRAP_ID(NS, '$1'))
+     || {?WRAP_ID(_, ID), Pid} <- mg_procreg:select(Procreg, ?WRAP_ID(NS, '$1'))
     ].
 
 %%
@@ -167,12 +167,12 @@ list(Procreg, NS) ->
         unload_timeout => timeout()
     }.
 
--spec init(_) -> mg_core_utils:gen_server_init_ret(state()).
+-spec init(_) -> mg_utils:gen_server_init_ret(state()).
 init({ID, Options = #{worker := WorkerModOpts}, ReqCtx}) ->
     _ = process_flag(trap_exit, true),
     HibernateTimeout = maps:get(hibernate_timeout, Options, 5 * 1000),
     UnloadTimeout = maps:get(unload_timeout, Options, 60 * 1000),
-    {Mod, Args} = mg_core_utils:separate_mod_opts(WorkerModOpts),
+    {Mod, Args} = mg_utils:separate_mod_opts(WorkerModOpts),
     State = #{
         id => ID,
         mod => Mod,
@@ -183,15 +183,15 @@ init({ID, Options = #{worker := WorkerModOpts}, ReqCtx}) ->
     },
     {ok, schedule_unload_timer(State)}.
 
--spec handle_call(call_msg(), mg_core_utils:gen_server_from(), state()) ->
-    mg_core_utils:gen_server_handle_call_ret(state()).
+-spec handle_call(call_msg(), mg_utils:gen_server_from(), state()) ->
+    mg_utils:gen_server_handle_call_ret(state()).
 
 % загрузка делается отдельно и лениво, чтобы не блокировать этим супервизор,
 % т.к. у него легко может начать расти очередь
 handle_call(
-    Call = {call, _, _, _},
+    {call, _, _, _} = Call,
     From,
-    State = #{id := ID, mod := Mod, status := {loading, Args, ReqCtx}}
+    #{id := ID, mod := Mod, status := {loading, Args, ReqCtx}} = State
 ) ->
     case Mod:handle_load(ID, Args, ReqCtx) of
         {ok, ModState} ->
@@ -202,7 +202,7 @@ handle_call(
 handle_call(
     {call, Deadline, Call, ReqCtx},
     From,
-    State = #{mod := Mod, status := {working, ModState}}
+    #{mod := Mod, status := {working, ModState}} = State
 ) ->
     case mg_core_deadline:is_reached(Deadline) of
         false ->
@@ -225,17 +225,17 @@ handle_call(Call, From, State) ->
     ok = logger:error("unexpected gen_server call received: ~p from ~p", [Call, From]),
     {noreply, State, hibernate_timeout(State)}.
 
--spec handle_cast(_Cast, state()) -> mg_core_utils:gen_server_handle_cast_ret(state()).
+-spec handle_cast(_Cast, state()) -> mg_utils:gen_server_handle_cast_ret(state()).
 handle_cast(Cast, State) ->
     ok = logger:error("unexpected gen_server cast received: ~p", [Cast]),
     {noreply, State, hibernate_timeout(State)}.
 
--spec handle_info(_Info, state()) -> mg_core_utils:gen_server_handle_info_ret(state()).
+-spec handle_info(_Info, state()) -> mg_utils:gen_server_handle_info_ret(state()).
 handle_info(timeout, State) ->
     {noreply, State, hibernate};
 handle_info(
     {timeout, TRef, unload},
-    State = #{mod := Mod, unload_tref := TRef, status := Status}
+    #{mod := Mod, unload_tref := TRef, status := Status} = State
 ) ->
     case Status of
         {working, ModState} ->
@@ -244,14 +244,14 @@ handle_info(
             ok
     end,
     {stop, normal, State};
-handle_info({timeout, _, unload}, State = #{}) ->
+handle_info({timeout, _, unload}, #{} = State) ->
     % А кто-то опаздал!
     {noreply, schedule_unload_timer(State), hibernate_timeout(State)};
 handle_info(Info, State) ->
     ok = logger:error("unexpected gen_server info ~p", [Info]),
     {noreply, State, hibernate_timeout(State)}.
 
--spec code_change(_, state(), _) -> mg_core_utils:gen_server_code_change_ret(state()).
+-spec code_change(_, state(), _) -> mg_utils:gen_server_code_change_ret(state()).
 code_change(_, State, _) ->
     {ok, State}.
 
@@ -288,7 +288,7 @@ timeout_to_shutdown(Timeout) when is_integer(Timeout) andalso Timeout >= 0 ->
     Timeout.
 
 -spec schedule_unload_timer(state()) -> state().
-schedule_unload_timer(State = #{unload_tref := UnloadTRef}) ->
+schedule_unload_timer(#{unload_tref := UnloadTRef} = State) ->
     _ =
         case UnloadTRef of
             undefined -> ok;
@@ -300,10 +300,10 @@ schedule_unload_timer(State = #{unload_tref := UnloadTRef}) ->
 start_timer(State) ->
     erlang:start_timer(unload_timeout(State), erlang:self(), unload).
 
--spec self_ref(options(), mg_core:ns(), mg_core:id()) -> mg_core_procreg:ref().
+-spec self_ref(options(), mg_core:ns(), mg_core:id()) -> mg_procreg:ref().
 self_ref(Options, NS, ID) ->
-    mg_core_procreg:ref(procreg_options(Options), ?WRAP_ID(NS, ID)).
+    mg_procreg:ref(procreg_options(Options), ?WRAP_ID(NS, ID)).
 
--spec procreg_options(options()) -> mg_core_procreg:options().
+-spec procreg_options(options()) -> mg_procreg:options().
 procreg_options(#{registry := ProcregOptions}) ->
     ProcregOptions.

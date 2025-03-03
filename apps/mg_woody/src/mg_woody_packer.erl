@@ -211,18 +211,6 @@ pack(machine_descriptor, {NS, Ref, Range}) ->
         ref = pack(ref, Ref),
         range = pack(history_range, Range)
     };
-pack(sink_event, #{
-    id := ID,
-    body := #{source_ns := SourceNS, source_id := SourceID, event := Event}
-}) ->
-    #mg_stateproc_SinkEvent{
-        id = pack(event_id, ID),
-        source_id = pack(id, SourceID),
-        source_ns = pack(ns, SourceNS),
-        event = pack(event, Event)
-    };
-pack(sink_history, SinkHistory) ->
-    pack({list, sink_event}, SinkHistory);
 pack(Type, Value) ->
     erlang:error(badarg, [Type, Value]).
 
@@ -298,7 +286,7 @@ unpack(event, Event) ->
     };
 unpack(history, History) ->
     unpack({list, event}, History);
-unpack(machine_simple, Machine = #mg_stateproc_Machine{}) ->
+unpack(machine_simple, #mg_stateproc_Machine{} = Machine) ->
     #mg_stateproc_Machine{
         ns = NS,
         id = ID,
@@ -356,7 +344,7 @@ unpack(state_change, MachineStateChange) ->
     } = MachineStateChange,
     {
         unpack(aux_state, AuxState),
-        unpack({list, event_body}, mg_core_utils:take_defined([EventBodies, []]))
+        unpack({list, event_body}, mg_utils:take_defined([EventBodies, []]))
     };
 unpack(signal, {timeout, #mg_stateproc_TimeoutSignal{}}) ->
     timeout;
@@ -413,19 +401,6 @@ unpack(history_range, #mg_stateproc_HistoryRange{
     {unpack(event_id, After), unpack(integer, Limit), unpack(direction, Direction)};
 unpack(machine_descriptor, #mg_stateproc_MachineDescriptor{ns = NS, ref = Ref, range = Range}) ->
     {unpack(ns, NS), unpack(ref, Ref), unpack(history_range, Range)};
-unpack(sink_event, SinkEvent) ->
-    #mg_stateproc_SinkEvent{id = ID, source_ns = SourceNS, source_id = SourceID, event = Event} =
-        SinkEvent,
-    #{
-        id => unpack(id, ID),
-        body => #{
-            source_ns => unpack(ns, SourceNS),
-            source_id => unpack(id, SourceID),
-            event => unpack(event, Event)
-        }
-    };
-unpack(sink_history, SinkHistory) ->
-    unpack({list, sink_event}, SinkHistory);
 unpack(Type, Value) ->
     erlang:error(badarg, [Type, Value]).
 

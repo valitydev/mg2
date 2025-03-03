@@ -1,5 +1,5 @@
 %%%
-%%% Copyright 2020 Valitydev
+%%% Copyright 2025 Valitydev
 %%%
 %%% Licensed under the Apache License, Version 2.0 (the "License");
 %%% you may not use this file except in compliance with the License.
@@ -24,9 +24,6 @@
 %% woody handler
 -behaviour(woody_server_thrift_handler).
 -export([handle_function/4]).
-
-%% уменьшаем писанину
--import(mg_woody_packer, [pack/2, unpack/2]).
 
 %% API types
 -type options() :: #{mg_core:ns() => ns_options()}.
@@ -61,7 +58,7 @@ handler(Options) ->
     {ok, _Result} | no_return().
 
 handle_function('Start', {NS, IDIn, Args}, WoodyContext, Options) ->
-    ID = unpack(id, IDIn),
+    ID = mg_woody_packer:unpack(id, IDIn),
     ReqCtx = to_request_context(otel_ctx:get_current(), WoodyContext),
     Deadline = get_deadline(NS, WoodyContext, Options),
     ok = mg_woody_utils:handle_error(
@@ -75,7 +72,7 @@ handle_function('Start', {NS, IDIn, Args}, WoodyContext, Options) ->
             mg_core_events_machine:start(
                 get_machine_options(NS, Options),
                 ID,
-                unpack(args, Args),
+                mg_woody_packer:unpack(args, Args),
                 ReqCtx,
                 Deadline
             )
@@ -85,7 +82,7 @@ handle_function('Start', {NS, IDIn, Args}, WoodyContext, Options) ->
     {ok, ok};
 handle_function('Repair', {MachineDesc, Args}, WoodyContext, Options) ->
     ReqCtx = to_request_context(otel_ctx:get_current(), WoodyContext),
-    {NS, ID, Range} = unpack(machine_descriptor, MachineDesc),
+    {NS, ID, Range} = mg_woody_packer:unpack(machine_descriptor, MachineDesc),
     Deadline = get_deadline(NS, WoodyContext, Options),
     Response =
         mg_woody_utils:handle_error(
@@ -94,7 +91,7 @@ handle_function('Repair', {MachineDesc, Args}, WoodyContext, Options) ->
                 mg_core_events_machine:repair(
                     get_machine_options(NS, Options),
                     ID,
-                    unpack(args, Args),
+                    mg_woody_packer:unpack(args, Args),
                     Range,
                     ReqCtx,
                     Deadline
@@ -104,14 +101,14 @@ handle_function('Repair', {MachineDesc, Args}, WoodyContext, Options) ->
         ),
     case Response of
         {ok, Reply} ->
-            {ok, pack(repair_response, Reply)};
+            {ok, mg_woody_packer:pack(repair_response, Reply)};
         {error, {failed, Reason}} ->
-            woody_error:raise(business, pack(repair_error, Reason))
+            woody_error:raise(business, mg_woody_packer:pack(repair_error, Reason))
     end;
 handle_function('SimpleRepair', {NS, RefIn}, WoodyContext, Options) ->
     Deadline = get_deadline(NS, WoodyContext, Options),
     ReqCtx = to_request_context(otel_ctx:get_current(), WoodyContext),
-    ID = unpack(ref, RefIn),
+    ID = mg_woody_packer:unpack(ref, RefIn),
     ok = mg_woody_utils:handle_error(
         #{namespace => NS, machine_id => ID, request_context => ReqCtx, deadline => Deadline},
         fun() ->
@@ -127,7 +124,7 @@ handle_function('SimpleRepair', {NS, RefIn}, WoodyContext, Options) ->
     {ok, ok};
 handle_function('Call', {MachineDesc, Args}, WoodyContext, Options) ->
     ReqCtx = to_request_context(otel_ctx:get_current(), WoodyContext),
-    {NS, ID, Range} = unpack(machine_descriptor, MachineDesc),
+    {NS, ID, Range} = mg_woody_packer:unpack(machine_descriptor, MachineDesc),
     Deadline = get_deadline(NS, WoodyContext, Options),
     Response =
         mg_woody_utils:handle_error(
@@ -136,7 +133,7 @@ handle_function('Call', {MachineDesc, Args}, WoodyContext, Options) ->
                 mg_core_events_machine:call(
                     get_machine_options(NS, Options),
                     ID,
-                    unpack(args, Args),
+                    mg_woody_packer:unpack(args, Args),
                     Range,
                     ReqCtx,
                     Deadline
@@ -144,10 +141,10 @@ handle_function('Call', {MachineDesc, Args}, WoodyContext, Options) ->
             end,
             pulse(NS, Options)
         ),
-    {ok, pack(call_response, Response)};
+    {ok, mg_woody_packer:pack(call_response, Response)};
 handle_function('GetMachine', {MachineDesc}, WoodyContext, Options) ->
     ReqCtx = to_request_context(otel_ctx:get_current(), WoodyContext),
-    {NS, ID, Range} = unpack(machine_descriptor, MachineDesc),
+    {NS, ID, Range} = mg_woody_packer:unpack(machine_descriptor, MachineDesc),
     Machine =
         mg_woody_utils:handle_error(
             #{namespace => NS, machine_id => ID, request_context => ReqCtx},
@@ -160,9 +157,9 @@ handle_function('GetMachine', {MachineDesc}, WoodyContext, Options) ->
             end,
             pulse(NS, Options)
         ),
-    {ok, pack(machine_simple, simplify_core_machine(Machine))};
+    {ok, mg_woody_packer:pack(machine_simple, simplify_core_machine(Machine))};
 handle_function('Remove', {NS, IDIn}, WoodyContext, Options) ->
-    ID = unpack(id, IDIn),
+    ID = mg_woody_packer:unpack(id, IDIn),
     Deadline = get_deadline(NS, WoodyContext, Options),
     ReqCtx = to_request_context(otel_ctx:get_current(), WoodyContext),
     ok = mg_woody_utils:handle_error(
@@ -179,7 +176,7 @@ handle_function('Remove', {NS, IDIn}, WoodyContext, Options) ->
     ),
     {ok, ok};
 handle_function('Modernize', {MachineDesc}, WoodyContext, Options) ->
-    {NS, ID, Range} = unpack(machine_descriptor, MachineDesc),
+    {NS, ID, Range} = mg_woody_packer:unpack(machine_descriptor, MachineDesc),
     ReqCtx = to_request_context(otel_ctx:get_current(), WoodyContext),
     mg_woody_utils:handle_error(
         #{namespace => NS, machine_id => ID, request_context => ReqCtx},
@@ -204,7 +201,7 @@ handle_function('Modernize', {MachineDesc}, WoodyContext, Options) ->
     );
 handle_function('Notify', {MachineDesc, Args}, WoodyContext, Options) ->
     ReqCtx = to_request_context(otel_ctx:get_current(), WoodyContext),
-    {NS, ID, Range} = unpack(machine_descriptor, MachineDesc),
+    {NS, ID, Range} = mg_woody_packer:unpack(machine_descriptor, MachineDesc),
     NotificationID =
         mg_woody_utils:handle_error(
             #{namespace => NS, machine_id => ID, request_context => ReqCtx},
@@ -212,14 +209,14 @@ handle_function('Notify', {MachineDesc, Args}, WoodyContext, Options) ->
                 mg_core_events_machine:notify(
                     get_machine_options(NS, Options),
                     ID,
-                    unpack(args, Args),
+                    mg_woody_packer:unpack(args, Args),
                     Range,
                     ReqCtx
                 )
             end,
             pulse(NS, Options)
         ),
-    {ok, pack(notify_response, NotificationID)}.
+    {ok, mg_woody_packer:pack(notify_response, NotificationID)}.
 
 %%
 %% local
@@ -237,7 +234,7 @@ get_ns_options(Namespace, Options) ->
             throw({logic, namespace_not_found})
     end.
 
--spec pulse(mg_core:ns(), options()) -> mg_core_pulse:handler().
+-spec pulse(mg_core:ns(), options()) -> mpulse:handler().
 pulse(Namespace, Options) ->
     try get_machine_options(Namespace, Options) of
         #{machines := #{pulse := Pulse}} ->
@@ -262,10 +259,10 @@ default_processing_timeout(Namespace, Options) ->
 
 -spec simplify_core_machine(mg_core_events_machine:machine()) ->
     machine_simple().
-simplify_core_machine(Machine = #{status := Status}) ->
+simplify_core_machine(#{status := Status} = Machine) ->
     Machine#{status => simplify_machine_status(Status)}.
 
--spec exception_to_string(mg_core_utils:exception()) -> binary().
+-spec exception_to_string(mg_utils:exception()) -> binary().
 exception_to_string(Exception) ->
     iolist_to_binary(genlib_format:format_exception(Exception)).
 

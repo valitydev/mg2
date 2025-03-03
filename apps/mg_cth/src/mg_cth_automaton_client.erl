@@ -1,5 +1,5 @@
 %%%
-%%% Copyright 2020 Valitydev
+%%% Copyright 2025 Valitydev
 %%%
 %%% Licensed under the Apache License, Version 2.0 (the "License");
 %%% you may not use this file except in compliance with the License.
@@ -33,9 +33,6 @@
 -export([get_machine/4]).
 -export([modernize/3]).
 
-%% уменьшаем писанину
--import(mg_woody_packer, [pack/2, unpack/2]).
-
 %%
 %% API
 %%
@@ -52,7 +49,12 @@ start(Options, ID, Args) ->
 
 -spec start(options(), mg_core:id(), mg_core_storage:opaque(), mg_core_deadline:deadline()) -> ok.
 start(#{ns := NS} = Options, ID, Args, Deadline) ->
-    ok = call_service(Options, 'Start', {pack(ns, NS), pack(id, ID), pack(args, Args)}, Deadline).
+    ok = call_service(
+        Options,
+        'Start',
+        {mg_woody_packer:pack(ns, NS), mg_woody_packer:pack(id, ID), mg_woody_packer:pack(args, Args)},
+        Deadline
+    ).
 
 -spec repair(options(), mg_core_events_machine:id(), mg_core_storage:opaque()) -> mg_core_storage:opaque().
 repair(Options, ID, Args) ->
@@ -65,8 +67,8 @@ repair(Options, ID, Args) ->
     mg_core_deadline:deadline()
 ) -> mg_core_storage:opaque().
 repair(#{ns := NS} = Options, ID, Args, Deadline) ->
-    Response = call_service(Options, 'Repair', {machine_desc(NS, ID), pack(args, Args)}, Deadline),
-    unpack(repair_response, Response).
+    Response = call_service(Options, 'Repair', {machine_desc(NS, ID), mg_woody_packer:pack(args, Args)}, Deadline),
+    mg_woody_packer:unpack(repair_response, Response).
 
 -spec simple_repair(options(), mg_core_events_machine:id()) -> ok.
 simple_repair(Options, ID) ->
@@ -74,7 +76,7 @@ simple_repair(Options, ID) ->
 
 -spec simple_repair(options(), mg_core_events_machine:id(), mg_core_deadline:deadline()) -> ok.
 simple_repair(#{ns := NS} = Options, ID, Deadline) ->
-    ok = call_service(Options, 'SimpleRepair', {pack(ns, NS), pack(ref, ID)}, Deadline).
+    ok = call_service(Options, 'SimpleRepair', {mg_woody_packer:pack(ns, NS), mg_woody_packer:pack(ref, ID)}, Deadline).
 
 -spec remove(options(), mg_core:id()) -> ok.
 remove(Options, ID) ->
@@ -82,7 +84,7 @@ remove(Options, ID) ->
 
 -spec remove(options(), mg_core:id(), mg_core_deadline:deadline()) -> ok.
 remove(#{ns := NS} = Options, ID, Deadline) ->
-    ok = call_service(Options, 'Remove', {pack(ns, NS), pack(id, ID)}, Deadline).
+    ok = call_service(Options, 'Remove', {mg_woody_packer:pack(ns, NS), mg_woody_packer:pack(id, ID)}, Deadline).
 
 -spec call(options(), mg_core_events_machine:id(), mg_core_storage:opaque()) ->
     mg_core_storage:opaque().
@@ -96,9 +98,9 @@ call(Options, ID, Args) ->
     mg_core_deadline:deadline()
 ) -> mg_core_storage:opaque().
 call(#{ns := NS} = Options, ID, Args, Deadline) ->
-    unpack(
+    mg_woody_packer:unpack(
         call_response,
-        call_service(Options, 'Call', {machine_desc(NS, ID), pack(args, Args)}, Deadline)
+        call_service(Options, 'Call', {machine_desc(NS, ID), mg_woody_packer:pack(args, Args)}, Deadline)
     ).
 
 -spec notify(
@@ -107,9 +109,9 @@ call(#{ns := NS} = Options, ID, Args, Deadline) ->
     mg_core_storage:opaque()
 ) -> mg_core_storage:opaque().
 notify(#{ns := NS} = Options, ID, Args) ->
-    unpack(
+    mg_woody_packer:unpack(
         notify_response,
-        call_service(Options, 'Notify', {machine_desc(NS, ID), pack(args, Args)}, undefined)
+        call_service(Options, 'Notify', {machine_desc(NS, ID), mg_woody_packer:pack(args, Args)}, undefined)
     ).
 
 -spec get_machine(options(), mg_core_events_machine:id(), mg_core_events:history_range()) ->
@@ -124,7 +126,7 @@ get_machine(Options, ID, Range) ->
     mg_core_deadline:deadline()
 ) -> mg_woody_automaton:machine_simple().
 get_machine(#{ns := NS} = Options, ID, Range, Deadline) ->
-    unpack(
+    mg_woody_packer:unpack(
         machine_simple,
         call_service(Options, 'GetMachine', {machine_desc(NS, ID, Range)}, Deadline)
     ).
@@ -142,7 +144,7 @@ machine_desc(NS, ID) ->
 
 -spec machine_desc(mg_core:ns(), mg_core_events_machine:id(), mg_core_events:history_range()) -> _.
 machine_desc(NS, ID, HRange) ->
-    pack(machine_descriptor, {NS, ID, HRange}).
+    mg_woody_packer:pack(machine_descriptor, {NS, ID, HRange}).
 
 -spec call_service(options(), atom(), woody:args(), mg_core_deadline:deadline()) -> any().
 call_service(#{retry_strategy := Strategy} = Options, Function, Args, Deadline) ->

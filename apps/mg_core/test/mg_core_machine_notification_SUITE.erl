@@ -255,6 +255,9 @@ search_notifications_for_machine(MachineID) ->
     Found = mg_core_notification:search(Options, 1, genlib_time:unow(), inf),
     lists:filter(
         fun({_, NID}) ->
+            %% FIXME Investigate race condition with '{error,
+            %% not_found}' return. Looks like we must treat notfound
+            %% notification as deleted/consumed.
             {ok, _, #{machine_id := FoundMachineID}} = mg_core_notification:get(Options, NID),
             MachineID =:= FoundMachineID
         end,
@@ -279,7 +282,7 @@ start() ->
 
 -spec start_automaton(mg_core_machine:options()) -> pid().
 start_automaton(Options) ->
-    mg_core_utils:throw_if_error(mg_core_machine:start_link(Options)).
+    mg_utils:throw_if_error(mg_core_machine:start_link(Options)).
 
 -spec stop_automaton(pid()) -> ok.
 stop_automaton(Pid) ->
@@ -296,7 +299,7 @@ automaton_options(_C) ->
         processor => ?MODULE,
         storage => mg_core_storage_memory,
         worker => #{
-            registry => mg_core_procreg_global
+            registry => mg_procreg_global
         },
         notification => notification_options(),
         notification_processing_timeout => 500,
@@ -320,6 +323,6 @@ notification_options() ->
         storage => mg_core_storage_memory
     }.
 
--spec handle_beat(_, mg_core_pulse:beat()) -> ok.
+-spec handle_beat(_, mpulse:beat()) -> ok.
 handle_beat(_, Beat) ->
     ct:pal("~p", [Beat]).

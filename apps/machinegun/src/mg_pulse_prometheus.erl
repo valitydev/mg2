@@ -1,5 +1,5 @@
 %%%
-%%% Copyright 2020 RBKmoney
+%%% Copyright 2024 Valitydev
 %%%
 %%% Licensed under the Apache License, Version 2.0 (the "License");
 %%% you may not use this file except in compliance with the License.
@@ -16,8 +16,8 @@
 
 -module(mg_pulse_prometheus).
 
+-include_lib("mg_scheduler/include/pulse.hrl").
 -include_lib("mg_core/include/pulse.hrl").
--include_lib("mg_woody/include/pulse.hrl").
 
 -export([setup/0]).
 -export([handle_beat/2]).
@@ -34,7 +34,8 @@
 
 -spec handle_beat(options(), beat()) -> ok.
 handle_beat(_Options, Beat) ->
-    ok = dispatch_metrics(Beat).
+    ok = dispatch_metrics(Beat),
+    ok.
 
 %%
 %% management API
@@ -194,67 +195,6 @@ setup() ->
         {duration_unit, seconds},
         {help, "Machinegun storage operation duration."}
     ]),
-    % Riak client operations
-    true = prometheus_counter:declare([
-        {name, mg_riak_client_operation_changes_total},
-        {registry, registry()},
-        {labels, [namespace, name, operation, change]},
-        {help, "Total number of Machinegun riak client operations."}
-    ]),
-    true = prometheus_histogram:declare([
-        {name, mg_riak_client_operation_duration_seconds},
-        {registry, registry()},
-        {labels, [namespace, name, operation]},
-        {buckets, duration_buckets()},
-        {duration_unit, seconds},
-        {help, "Machinegun riak client operation duration."}
-    ]),
-    %% Riak pool events
-    true = prometheus_counter:declare([
-        {name, mg_riak_pool_no_free_connection_errors_total},
-        {registry, registry()},
-        {labels, [namespace, name]},
-        {help, "Total number of no free connection errors in Machinegun riak pool."}
-    ]),
-    true = prometheus_counter:declare([
-        {name, mg_riak_pool_queue_limit_reached_errors_total},
-        {registry, registry()},
-        {labels, [namespace, name]},
-        {help, "Total number of queue limit reached errors in Machinegun riak pool."}
-    ]),
-    true = prometheus_counter:declare([
-        {name, mg_riak_pool_connect_timeout_errors_total},
-        {registry, registry()},
-        {labels, [namespace, name]},
-        {help, "Total number of connect timeout errors in Machinegun riak pool."}
-    ]),
-    true = prometheus_counter:declare([
-        {name, mg_riak_pool_killed_free_connections_total},
-        {registry, registry()},
-        {labels, [namespace, name]},
-        {help, "Total number of killed free Machinegun riak pool connections."}
-    ]),
-    true = prometheus_counter:declare([
-        {name, mg_riak_pool_killed_in_use_connections_total},
-        {registry, registry()},
-        {labels, [namespace, name]},
-        {help, "Total number of killed used Machinegun riak pool connections."}
-    ]),
-    %% Event sink / kafka
-    true = prometheus_counter:declare([
-        {name, mg_events_sink_produced_total},
-        {registry, registry()},
-        {labels, [namespace, name]},
-        {help, "Total number of Machinegun event sink events."}
-    ]),
-    true = prometheus_histogram:declare([
-        {name, mg_events_sink_kafka_produced_duration_seconds},
-        {registry, registry()},
-        {labels, [namespace, name, action]},
-        {buckets, duration_buckets()},
-        {duration_unit, seconds},
-        {help, "Machinegun event sink addition duration."}
-    ]),
     ok.
 
 %% Internals
@@ -311,34 +251,34 @@ dispatch_metrics(#mg_core_timer_process_finished{namespace = NS, queue = Queue, 
     ok = inc(mg_timer_processing_changes_total, [NS, Queue, finished]),
     ok = observe(mg_timer_processing_duration_seconds, [NS, Queue], Duration);
 % Scheduler
-dispatch_metrics(#mg_core_scheduler_search_success{
+dispatch_metrics(#mg_skd_search_success{
     scheduler_name = Name,
     namespace = NS,
-    delay = DelayMS,
+    delay = DelayMs,
     duration = Duration
 }) ->
     ok = inc(mg_scheduler_scan_changes_total, [NS, Name, success]),
-    ok = observe(mg_scheduler_scan_delay_seconds, [NS, Name], decode_delay(DelayMS)),
+    ok = observe(mg_scheduler_scan_delay_seconds, [NS, Name], decode_delay(DelayMs)),
     ok = observe(mg_scheduler_scan_duration_seconds, [NS, Name], Duration);
-dispatch_metrics(#mg_core_scheduler_search_error{scheduler_name = Name, namespace = NS}) ->
+dispatch_metrics(#mg_skd_search_error{scheduler_name = Name, namespace = NS}) ->
     ok = inc(mg_scheduler_scan_changes_total, [NS, Name, error]);
-dispatch_metrics(#mg_core_scheduler_task_error{scheduler_name = Name, namespace = NS}) ->
+dispatch_metrics(#mg_skd_task_error{scheduler_name = Name, namespace = NS}) ->
     ok = inc(mg_scheduler_task_changes_total, [NS, Name, error]);
-dispatch_metrics(#mg_core_scheduler_new_tasks{scheduler_name = Name, namespace = NS, new_tasks_count = Count}) ->
+dispatch_metrics(#mg_skd_new_tasks{scheduler_name = Name, namespace = NS, new_tasks_count = Count}) ->
     ok = inc(mg_scheduler_task_changes_total, [NS, Name, created], Count);
-dispatch_metrics(#mg_core_scheduler_task_started{scheduler_name = Name, namespace = NS, task_delay = DelayMS}) ->
+dispatch_metrics(#mg_skd_task_started{scheduler_name = Name, namespace = NS, task_delay = DelayMs}) ->
     ok = inc(mg_scheduler_task_changes_total, [NS, Name, started]),
-    ok = observe(mg_scheduler_task_processing_delay_seconds, [NS, Name], decode_delay(DelayMS));
-dispatch_metrics(#mg_core_scheduler_task_finished{} = Beat) ->
-    #mg_core_scheduler_task_finished{
+    ok = observe(mg_scheduler_task_processing_delay_seconds, [NS, Name], decode_delay(DelayMs));
+dispatch_metrics(#mg_skd_task_finished{} = Beat) ->
+    #mg_skd_task_finished{
         scheduler_name = Name,
         namespace = NS,
         process_duration = Duration
     } = Beat,
     ok = inc(mg_scheduler_task_changes_total, [NS, Name, finished]),
     ok = observe(mg_scheduler_task_processing_duration_seconds, [NS, Name], Duration);
-dispatch_metrics(#mg_core_scheduler_quota_reserved{} = Beat) ->
-    #mg_core_scheduler_quota_reserved{
+dispatch_metrics(#mg_skd_quota_reserved{} = Beat) ->
+    #mg_skd_quota_reserved{
         scheduler_name = Name,
         namespace = NS,
         active_tasks = Active,
@@ -378,54 +318,6 @@ dispatch_metrics(#mg_core_storage_delete_start{name = {NS, _Caller, Type}}) ->
 dispatch_metrics(#mg_core_storage_delete_finish{name = {NS, _Caller, Type}, duration = Duration}) ->
     ok = inc(mg_storage_operation_changes_total, [NS, Type, delete, finish]),
     ok = observe(mg_storage_operation_duration_seconds, [NS, Type, delete], Duration);
-% Riak client operations
-dispatch_metrics(#mg_core_riak_client_get_start{name = {NS, _Caller, Type}}) ->
-    ok = inc(mg_riak_client_operation_changes_total, [NS, Type, get, start]);
-dispatch_metrics(#mg_core_riak_client_get_finish{name = {NS, _Caller, Type}, duration = Duration}) ->
-    ok = inc(mg_riak_client_operation_changes_total, [NS, Type, get, finish]),
-    ok = observe(mg_riak_client_operation_duration_seconds, [NS, Type, get], Duration);
-dispatch_metrics(#mg_core_riak_client_put_start{name = {NS, _Caller, Type}}) ->
-    ok = inc(mg_riak_client_operation_changes_total, [NS, Type, put, start]);
-dispatch_metrics(#mg_core_riak_client_put_finish{name = {NS, _Caller, Type}, duration = Duration}) ->
-    ok = inc(mg_riak_client_operation_changes_total, [NS, Type, put, finish]),
-    ok = observe(mg_riak_client_operation_duration_seconds, [NS, Type, put], Duration);
-dispatch_metrics(#mg_core_riak_client_search_start{name = {NS, _Caller, Type}}) ->
-    ok = inc(mg_riak_client_operation_changes_total, [NS, Type, search, start]);
-dispatch_metrics(#mg_core_riak_client_search_finish{name = {NS, _Caller, Type}, duration = Duration}) ->
-    ok = inc(mg_riak_client_operation_changes_total, [NS, Type, search, finish]),
-    ok = observe(mg_riak_client_operation_duration_seconds, [NS, Type, search], Duration);
-dispatch_metrics(#mg_core_riak_client_delete_start{name = {NS, _Caller, Type}}) ->
-    ok = inc(mg_riak_client_operation_changes_total, [NS, Type, delete, start]);
-dispatch_metrics(#mg_core_riak_client_delete_finish{name = {NS, _Caller, Type}, duration = Duration}) ->
-    ok = inc(mg_riak_client_operation_changes_total, [NS, Type, delete, finish]),
-    ok = observe(mg_riak_client_operation_duration_seconds, [NS, Type, delete], Duration);
-% Riak pool events
-dispatch_metrics(#mg_core_riak_connection_pool_state_reached{
-    name = {NS, _Caller, Type},
-    state = no_free_connections
-}) ->
-    ok = inc(mg_riak_pool_no_free_connection_errors_total, [NS, Type]);
-dispatch_metrics(#mg_core_riak_connection_pool_state_reached{
-    name = {NS, _Caller, Type},
-    state = queue_limit_reached
-}) ->
-    ok = inc(mg_riak_pool_queue_limit_reached_errors_total, [NS, Type]);
-dispatch_metrics(#mg_core_riak_connection_pool_connection_killed{name = {NS, _Caller, Type}, state = free}) ->
-    ok = inc(mg_riak_pool_killed_free_connections_total, [NS, Type]);
-dispatch_metrics(#mg_core_riak_connection_pool_connection_killed{name = {NS, _Caller, Type}, state = in_use}) ->
-    ok = inc(mg_riak_pool_killed_in_use_connections_total, [NS, Type]);
-dispatch_metrics(#mg_core_riak_connection_pool_error{name = {NS, _Caller, Type}, reason = connect_timeout}) ->
-    ok = inc(mg_riak_pool_connect_timeout_errors_total, [NS, Type]);
-% Event sink operations
-dispatch_metrics(#mg_core_events_sink_kafka_sent{
-    name = Name,
-    namespace = NS,
-    encode_duration = EncodeDuration,
-    send_duration = SendDuration
-}) ->
-    ok = inc(mg_events_sink_produced_total, [NS, Name]),
-    ok = observe(mg_events_sink_kafka_produced_duration_seconds, [NS, Name, encode], EncodeDuration),
-    ok = observe(mg_events_sink_kafka_produced_duration_seconds, [NS, Name, send], SendDuration);
 % Unknown
 dispatch_metrics(_Beat) ->
     ok.

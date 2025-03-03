@@ -17,7 +17,6 @@
 -module(mg_core_events_modernizer_SUITE).
 -include_lib("common_test/include/ct.hrl").
 -include_lib("stdlib/include/assert.hrl").
--include_lib("mg_cth/include/mg_cth.hrl").
 
 %% tests descriptions
 -export([all/0]).
@@ -175,7 +174,7 @@ start_automaton(ProcessorOptions, NS) ->
 -spec start_automaton(mg_core_events_machine:options()) ->
     {pid(), mg_core_events_machine:options()}.
 start_automaton(Options) ->
-    {mg_core_utils:throw_if_error(mg_core_events_machine:start_link(Options)), Options}.
+    {mg_utils:throw_if_error(mg_core_events_machine:start_link(Options)), Options}.
 
 -spec stop_automaton(pid()) -> ok.
 stop_automaton(Pid) ->
@@ -195,7 +194,7 @@ events_machine_options(ProcessorOptions, NS) ->
             namespace => NS,
             storage => mg_cth:build_storage(NS, Storage),
             worker => #{
-                registry => mg_core_procreg_global
+                registry => mg_procreg_global
             },
             notification => #{
                 namespace => NS,
@@ -281,10 +280,10 @@ decode(Value) ->
 
 -include("pulse.hrl").
 
--spec handle_beat(_, mg_core_pulse:beat()) -> ok.
-handle_beat(_, Beat = #mg_core_machine_lifecycle_failed{}) ->
+-spec handle_beat(_, mpulse:beat()) -> ok.
+handle_beat(_, #mg_core_machine_lifecycle_failed{} = Beat) ->
     ct:pal("~p", [Beat]);
-handle_beat(_, Beat = #mg_core_machine_lifecycle_transient_error{}) ->
+handle_beat(_, #mg_core_machine_lifecycle_transient_error{} = Beat) ->
     ct:pal("~p", [Beat]);
 handle_beat(quiet, _Beat) ->
     ok;

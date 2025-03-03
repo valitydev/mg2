@@ -227,7 +227,7 @@ next_state(S, {start, _}, already_exist) ->
     S;
 next_state(not_exists, _, not_found) ->
     not_exists;
-next_state(State = not_exists, Action, Result) ->
+next_state(not_exists = State, Action, Result) ->
     erlang:error(bad_transition, [State, Action, Result]);
 %% failed / fail & rapair
 next_state(_, fail, ok) ->
@@ -240,7 +240,7 @@ next_state(failed, _, failed) ->
     failed;
 next_state(S, {repair, _}, already_working) ->
     S;
-next_state(State = failed, Action, Result) ->
+next_state(failed = State, Action, Result) ->
     erlang:error(bad_transition, [State, Action, Result]);
 %% sleeping / sleep
 next_state(sleeping, {call, sleep}, ok) ->
@@ -294,7 +294,7 @@ start() ->
 
 -spec start_automaton(mg_core_machine:options()) -> pid().
 start_automaton(Options) ->
-    mg_core_utils:throw_if_error(mg_core_machine:start_link(Options)).
+    mg_utils:throw_if_error(mg_core_machine:start_link(Options)).
 
 -spec stop_automaton(pid()) -> ok.
 stop_automaton(Pid) ->
@@ -310,7 +310,7 @@ automaton_options() ->
         storage => mg_core_storage_memory,
         worker => #{
             %% Use 'global' process registry
-            registry => mg_core_procreg_global
+            registry => mg_procreg_global
         },
         notification => #{
             namespace => NS,
@@ -324,7 +324,7 @@ automaton_options() ->
 lists_random(List) ->
     lists:nth(rand:uniform(length(List)), List).
 
--spec handle_beat(_, mg_core_pulse:beat()) -> ok.
+-spec handle_beat(_, mpulse:beat()) -> ok.
 handle_beat(Options, Beat) ->
     ok = mg_core_pulse_otel:handle_beat(Options, Beat),
     %% NOTE для отладки может понадобится
