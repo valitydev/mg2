@@ -127,7 +127,8 @@
     pulse => mpulse:handler(),
     event_sinks => [mg_core_event_sink:handler()],
     default_processing_timeout => timeout(),
-    event_stash_size => non_neg_integer()
+    event_stash_size => non_neg_integer(),
+    engine => machinegun | progressor
 }.
 % like mg_core_storage:options() except `name`
 -type storage_options() :: mg_utils:mod_opts(map()).

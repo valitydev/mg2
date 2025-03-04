@@ -30,9 +30,23 @@ services:
         condition: service_healthy
       kafka3:
         condition: service_healthy
+      postgres:
+        condition: service_healthy
+      test_neighbour:
+        condition: service_started
     ports:
       - "8022"
     command: /sbin/init
+
+  test_neighbour:
+    image: distrunner-test
+    hostname: ${SERVICE_NAME}-neighbour
+    build:
+      dockerfile: Dockerfile.neighbour
+      context: .
+      args:
+        OTP_VERSION: $OTP_VERSION
+        THRIFT_VERSION: $THRIFT_VERSION
 
   riakdb: &member-node
     image: docker.io/basho/riak-kv:${RIAK_VERSION}
@@ -96,6 +110,32 @@ services:
       KAFKA_ZOOKEEPER_CONNECT: 'zookeeper:2181'
       KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka3:9092
 
+  postgres:
+    image: postgres:15-bookworm
+    command: -c 'max_connections=300'
+    environment:
+      POSTGRES_DB: "progressor_db"
+      POSTGRES_USER: "progressor"
+      POSTGRES_PASSWORD: "progressor"
+      PGDATA: "/tmp/postgresql/data/pgdata"
+    volumes:
+      - progressor-data:/tmp/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U progressor -d progressor_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 4G
+
 volumes:
   schemas:
     external: false
+  progressor-data:
