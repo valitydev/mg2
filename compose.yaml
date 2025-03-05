@@ -47,6 +47,9 @@ services:
       args:
         OTP_VERSION: $OTP_VERSION
         THRIFT_VERSION: $THRIFT_VERSION
+    depends_on:
+      postgres:
+        condition: service_healthy
 
   riakdb: &member-node
     image: docker.io/basho/riak-kv:${RIAK_VERSION}
