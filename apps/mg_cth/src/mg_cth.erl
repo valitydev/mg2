@@ -69,9 +69,48 @@ kafka_client_config(Brokers) ->
         ]}
     ].
 
+-spec epg_connector_config() -> _.
+epg_connector_config() ->
+    [
+        {databases, #{
+            progressor_db => #{
+                host => "postgres",
+                port => 5432,
+                database => "progressor_db",
+                username => "progressor",
+                password => "progressor"
+            }
+        }},
+        {pools, #{
+            default_pool => #{
+                database => progressor_db,
+                size => 10
+            }
+        }}
+    ].
+
+-spec progressor_config() -> _.
+progressor_config() ->
+    [
+        {namespaces, #{
+            binary_to_atom(?NS) => #{
+                processor => #{client => null},
+                storage => #{
+                    client => prg_pg_backend,
+                    options => #{pool => default_pool}
+                },
+                worker_pool_size => 0
+            }
+        }}
+    ].
+
 -spec start_application(app()) -> _Deps :: [appname()].
 start_application(brod) ->
     genlib_app:start_application_with(brod, kafka_client_config(?BROKERS));
+start_application(epg_connector) ->
+    genlib_app:start_application_with(epg_connector, epg_connector_config());
+start_application(progressor) ->
+    genlib_app:start_application_with(progressor, progressor_config());
 start_application({AppName, Env}) ->
     genlib_app:start_application_with(AppName, Env);
 start_application(AppName) ->

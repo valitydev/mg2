@@ -99,7 +99,8 @@ events_machine_options(NS, NSs, Pulse) ->
         event_sinks => EventSinks,
         pulse => Pulse,
         default_processing_timeout => maps:get(default_processing_timeout, NSConfigs),
-        event_stash_size => maps:get(event_stash_size, NSConfigs, 0)
+        event_stash_size => maps:get(event_stash_size, NSConfigs, 0),
+        engine => maps:get(engine, NSConfigs, machinegun)
     }.
 
 -spec machine_options(mg_core:ns(), events_machines(), pulse()) -> mg_core_machine:options().

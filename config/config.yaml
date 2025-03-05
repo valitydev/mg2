@@ -156,6 +156,14 @@ logging:
             'debug': 'DEBUG'
 
 namespaces:
+    prg_test_ns:
+        timers: disabled
+        overseer: disabled
+        notification: disabled
+        engine: progressor
+        processor:
+            # never will be called
+            url: http://some.fake.url
     mg_test_ns:
         # only for testing, default 0
         # suicide_probability: 0.1
@@ -312,3 +320,38 @@ kafka:
             max_retries: 3
             # Time in milli-seconds to sleep before retry the failed produce request.
             retry_backoff: 500ms
+
+postgres:
+    databases:
+        # for example hellgate_db, fistful_db
+        some_processor_db:
+            host: postgres
+            port: 5432
+            database: some_processor_db_name
+            username: user
+            password: password
+        another_processor_db:
+            host: another_instanse_postgres
+            port: 5432
+            database: another_processor_db_name
+            username: user
+            password: password
+    pools:
+        some_processor_pool1:
+            database: some_processor_db
+            size: 10
+        some_processor_pool2:
+            database: some_processor_db
+            size: 10
+        another_processor_pool:
+            database: another_processor_db
+            size: 10
+
+## Progressor namespaces settings
+
+progressor:
+    prg_test_ns: some_processor_pool1
+
+canal:
+    url: http://vault
+    engine: kvv2

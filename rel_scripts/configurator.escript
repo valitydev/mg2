@@ -71,7 +71,10 @@ sys_config(YamlConfig) ->
         {snowflake, snowflake(YamlConfig)},
         {brod, brod(YamlConfig)},
         {hackney, hackney(YamlConfig)},
-        {machinegun, machinegun(YamlConfig)}
+        {machinegun, machinegun(YamlConfig)},
+        {epg_connector, epg_connector(YamlConfig)},
+        {progressor, progressor(YamlConfig)},
+        {canal, canal(YamlConfig)}
     ].
 
 os_mon(_YamlConfig) ->
@@ -387,6 +390,7 @@ namespace({Name, NSYamlConfig}, YamlConfig) ->
         maps:merge(
             #{
                 storage => storage(Name, YamlConfig),
+                engine => ?C:atom(?C:conf([engine], NSYamlConfig, <<"machinegun">>)),
                 processor => #{
                     url => ?C:conf([processor, url], NSYamlConfig),
                     transport_opts => #{
@@ -559,6 +563,89 @@ procreg(YamlConfig) ->
         YamlConfig,
         mg_procreg_gproc,
         fun(ProcRegYamlConfig) -> ?C:atom(?C:conf([module], ProcRegYamlConfig)) end
+    ).
+
+epg_connector(YamlConfig) ->
+    [
+        {databases, pg_databases(YamlConfig)},
+        {pools, pg_pools(YamlConfig)}
+    ].
+
+pg_databases(YamlConfig) ->
+    lists:foldl(
+        fun({DbKey, DbOpts}, Acc) ->
+            Acc#{?C:atom(DbKey) => pg_db_opts(DbOpts)}
+        end,
+        #{},
+        ?C:conf([postgres, databases], YamlConfig, [])
+    ).
+
+pg_db_opts(OptsList) ->
+    lists:foldl(
+        fun
+            ({Key, Value}, AccIn) when Key =:= <<"port">> ->
+                AccIn#{port => Value};
+            ({Key, Value}, AccIn) ->
+                AccIn#{?C:atom(Key) => unicode:characters_to_list(Value)}
+        end,
+        #{},
+        OptsList
+    ).
+
+pg_pools(YamlConfig) ->
+    lists:foldl(
+        fun({PoolKey, PoolOpts}, Acc) ->
+            Acc#{?C:atom(PoolKey) => pg_pool_opts(PoolOpts)}
+        end,
+        #{},
+        ?C:conf([postgres, pools], YamlConfig, [])
+    ).
+
+pg_pool_opts(PoolOpts) ->
+    lists:foldl(
+        fun
+            ({<<"database">>, Value}, Acc) ->
+                Acc#{database => ?C:atom(Value)};
+            ({<<"size">>, Value}, Acc) ->
+                Acc#{size => Value}
+        end,
+        #{},
+        PoolOpts
+    ).
+
+progressor(YamlConfig) ->
+    PrgNamespaces = lists:foldl(
+        fun({NsName, NsPgPool}, Acc) ->
+            Acc#{?C:atom(NsName) => prg_namespace(?C:atom(NsPgPool))}
+        end,
+        #{},
+        ?C:conf([progressor], YamlConfig, [])
+    ),
+    [{namespaces, PrgNamespaces}].
+
+prg_namespace(NsPgPool) ->
+    #{
+        storage => #{
+            client => prg_pg_backend,
+            options => #{pool => NsPgPool}
+        },
+        processor => #{
+            %% Never will be called
+            client => null
+        },
+        worker_pool_size => 0
+    }.
+
+canal(YamlConfig) ->
+    lists:foldl(
+        fun
+            ({<<"url">>, Url}, Acc) ->
+                [{url, unicode:characters_to_list(Url)} | Acc];
+            ({<<"engine">>, Value}, Acc) ->
+                [{engine, ?C:atom(Value)} | Acc]
+        end,
+        [],
+        ?C:conf([canal], YamlConfig, [])
     ).
 
 %%

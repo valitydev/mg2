@@ -1,0 +1,15 @@
+{application, mg_cth_neighbour, [
+    {description, "An OTP application"},
+    {vsn, "0.1.0"},
+    {registered, []},
+    {mod, {mg_cth_neighbour_app, []}},
+    {applications, [
+        kernel,
+        stdlib,
+        progressor
+    ]},
+    {env, []},
+    {modules, []},
+    {licenses, ["Apache-2.0"]},
+    {links, []}
+ ]}.
