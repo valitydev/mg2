@@ -57,9 +57,10 @@ handler(Options) ->
 -spec handle_function(woody:func(), woody:args(), woody_context:ctx(), options()) ->
     {ok, _Result} | no_return().
 handle_function(Fun, Args, WoodyContext, Options) ->
-    case maps:to_list(Options) of
-        [{_NS, #{machine := #{engine := progressor}}} | _] ->
-            {NS, ID} = parse_args(Args),
+    {NS, ID} = parse_args(Args),
+    NsOpts = maps:get(NS, Options, #{}),
+    case NsOpts of
+        #{machine := #{engine := progressor}} ->
             ReqCtx = to_request_context(otel_ctx:get_current(), WoodyContext),
             Deadline = get_deadline(NS, WoodyContext, Options),
             {ok, _} =
