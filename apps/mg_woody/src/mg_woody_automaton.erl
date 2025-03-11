@@ -74,10 +74,8 @@ handle_function(Fun, Args, WoodyContext, Options) ->
                     fun() -> mg_progressor:handle_function(Fun, Args, ReqCtx) end,
                     pulse(NS, Options)
                 ),
-            logger:info("route automaton request ~p to progressor with result: ~p", [Fun, Result]),
             Result;
         _ ->
-            logger:info("route automaton request ~p to mg_core with options: ~p", [Fun, Options]),
             handle_function_(Fun, Args, WoodyContext, Options)
     end.
 
