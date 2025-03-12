@@ -57,7 +57,7 @@ handler(Options) ->
 -spec handle_function(woody:func(), woody:args(), woody_context:ctx(), options()) ->
     {ok, _Result} | no_return().
 handle_function(Fun, Args, WoodyContext, Options) ->
-    {NS, ID} = parse_args(Args),
+    {NS, ID} = parse_args(Fun, Args),
     NsOpts = maps:get(NS, Options, #{}),
     case NsOpts of
         #{machine := #{engine := progressor}} ->
@@ -79,16 +79,26 @@ handle_function(Fun, Args, WoodyContext, Options) ->
             handle_function_(Fun, Args, WoodyContext, Options)
     end.
 
-parse_args({NS, IDIn, _Args}) ->
+parse_args('Start', {NS, IDIn, _Args}) ->
     ID = mg_woody_packer:unpack(id, IDIn),
     {NS, ID};
-parse_args({MachineDesc, _Args}) when is_tuple(MachineDesc) ->
+parse_args(Fun, {MachineDesc, _Args}) when
+    Fun =:= 'Repair';
+    Fun =:= 'Call';
+    Fun =:= 'Notify'
+->
     {NS, ID, _Range} = mg_woody_packer:unpack(machine_descriptor, MachineDesc),
     {NS, ID};
-parse_args({NS, RefIn}) when is_binary(NS) ->
+parse_args('SimpleRepair', {NS, RefIn}) ->
     ID = mg_woody_packer:unpack(ref, RefIn),
     {NS, ID};
-parse_args({MachineDesc}) ->
+parse_args('Remove', {NS, IDIn}) ->
+    ID = mg_woody_packer:unpack(id, IDIn),
+    {NS, ID};
+parse_args(Fun, {MachineDesc}) when
+    Fun =:= 'GetMachine';
+    Fun =:= 'Modernize'
+->
     {NS, ID, _Range} = mg_woody_packer:unpack(machine_descriptor, MachineDesc),
     {NS, ID}.
 
