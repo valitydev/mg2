@@ -108,6 +108,8 @@ handle_error({error, <<"process is running">>}) ->
     erlang:throw({logic, machine_already_working});
 handle_error({error, <<"process is error">>}) ->
     erlang:throw({logic, machine_failed});
+handle_error({error, {exception, _, _}}) ->
+    erlang:throw({logic, machine_failed});
 handle_error(UnknownError) ->
     erlang:throw(UnknownError).
 
