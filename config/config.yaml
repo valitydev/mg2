@@ -346,14 +346,18 @@ postgres:
         another_processor_pool:
             database: another_processor_db
             size: 10
-    vault_token_path: /var/run/secrets/kubernetes.io/serviceaccount/token
-    vault_role: machinegun
+    # Optional fields
+    # needs when canal configured to read postgres creds 
+    #vault_token_path: /var/run/secrets/kubernetes.io/serviceaccount/token
+    #vault_role: machinegun
 
 ## Progressor namespaces settings
 
 progressor:
     prg_test_ns: some_processor_pool1
 
+# Optional section
+# if not defined then canal will not be started
 canal:
     url: http://vault
     engine: kvv2
