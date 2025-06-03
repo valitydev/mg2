@@ -347,9 +347,9 @@ postgres:
             database: another_processor_db
             size: 10
     # Optional fields
-    # needs when canal configured to read postgres creds 
-    #vault_token_path: /var/run/secrets/kubernetes.io/serviceaccount/token
-    #vault_role: machinegun
+    # needs when canal configured to read postgres creds
+    vault_token_path: /var/run/secrets/kubernetes.io/serviceaccount/token
+    vault_role: machinegun
 
 ## Progressor namespaces settings
 
