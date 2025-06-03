@@ -346,6 +346,8 @@ postgres:
         another_processor_pool:
             database: another_processor_db
             size: 10
+    vault_token_path: /var/run/secrets/kubernetes.io/serviceaccount/token
+    vault_role: machinegun
 
 ## Progressor namespaces settings
 
