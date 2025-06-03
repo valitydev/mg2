@@ -566,10 +566,23 @@ procreg(YamlConfig) ->
     ).
 
 epg_connector(YamlConfig) ->
-    [
+    Required = [
         {databases, pg_databases(YamlConfig)},
         {pools, pg_pools(YamlConfig)}
-    ].
+    ],
+    WithOptional = add_optional(
+        Required,
+        {vault_token_path, to_string(?C:conf([postgres, vault_token_path], YamlConfig, undefined))}
+    ),
+    add_optional(
+        WithOptional,
+        {vault_role, to_string(?C:conf([postgres, vault_role], YamlConfig, undefined))}
+    ).
+
+add_optional(Conf, {_Key, undefined}) ->
+    Conf;
+add_optional(Conf, Pair) ->
+    [Pair | Conf].
 
 pg_databases(YamlConfig) ->
     lists:foldl(
@@ -799,3 +812,8 @@ log_level_tuple_to_atom({<<"debug">>, NewLevel}) when is_binary(NewLevel) ->
     {debug, binary_to_atom(NewLevel)};
 log_level_tuple_to_atom({Level, _NewLevel}) ->
     throw("Not supported logger level '" ++ binary_to_list(Level) ++ "'").
+
+to_string(undefined) ->
+    undefined;
+to_string(V) when is_binary(V) ->
+    unicode:characters_to_list(V).
