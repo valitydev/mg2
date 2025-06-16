@@ -650,15 +650,48 @@ prg_namespace(NsPgPool) ->
     }.
 
 canal(YamlConfig) ->
+    Default = [
+        {httpc_options, [{ssl, [{verify, verify_none}]}]},
+        {kvv2_secret_mount_path, "/secret/data/"}
+    ],
     lists:foldl(
         fun
             ({<<"url">>, Url}, Acc) ->
                 [{url, unicode:characters_to_list(Url)} | Acc];
             ({<<"engine">>, Value}, Acc) ->
-                [{engine, ?C:atom(Value)} | Acc]
+                [{engine, ?C:atom(Value)} | Acc];
+            ({<<"httpc_options">>, Value}, Acc) ->
+                [{httpc_options, canal_httpc_options(Value)} | Acc];
+            ({<<"kvv2_secret_mount_path">>, Value}, Acc) ->
+                [{kvv2_secret_mount_path, unicode:characters_to_list(Value)} | Acc]
+        end,
+        Default,
+        ?C:conf([canal], YamlConfig, [])
+    ).
+
+canal_httpc_options(Value) ->
+    lists:foldl(
+        fun
+            ({<<"ssl">>, SslOpts}, Acc) ->
+                [{ssl, ssl_opts(SslOpts)} | Acc];
+            (_, Acc) ->
+                Acc
         end,
         [],
-        ?C:conf([canal], YamlConfig, [])
+        Value
+    ).
+
+ssl_opts(Opts) ->
+    Default = [{ssl, [{verify, verify_none}]}],
+    lists:foldl(
+        fun
+            ({<<"verify">>, Value}, Acc) ->
+                [{verify, ?C:atom(Value)} | Acc];
+            (_, Acc) ->
+                Acc
+        end,
+        Default,
+        Opts
     ).
 
 %%
