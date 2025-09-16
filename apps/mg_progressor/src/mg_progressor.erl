@@ -201,7 +201,7 @@ to_msgpack(Float) when is_float(Float) ->
 to_msgpack(Array) when is_list(Array) ->
     #mg_stateproc_Content{data = {arr, lists:map(fun to_msgpack/1, Array)}};
 to_msgpack(Object) when is_map(Object) ->
-    Data =  {
+    Data = {
         obj,
         maps:fold(
             fun(K, V, Acc) ->
