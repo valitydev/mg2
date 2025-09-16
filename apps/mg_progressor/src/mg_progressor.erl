@@ -121,12 +121,9 @@ maybe_unmarshal(Type, Value) ->
 unmarshal(term, Value) ->
     erlang:term_to_binary(Value).
 
+maybe_marshal(_Type, undefined) ->
+    undefined;
 maybe_marshal(Type, Value) ->
-    maybe_marshal(Type, Value, undefined).
-
-maybe_marshal(_Type, undefined, Default) ->
-    Default;
-maybe_marshal(Type, Value, _Default) ->
     marshal(Type, Value).
 
 marshal(process, Process) ->
@@ -136,10 +133,8 @@ marshal(process, Process) ->
         history = maybe_marshal(history, maps:get(history, Process)),
         history_range = marshal(history_range, maps:get(history_range, Process)),
         status = marshal(status, {maps:get(status, Process), maps:get(detail, Process, undefined)}),
-        aux_state = maybe_marshal(aux_state, maps:get(aux_state, Process, undefined), {bin, <<>>})
+        aux_state = to_content(maybe_marshal(term, maps:get(aux_state, Process, undefined)))
     };
-marshal(aux_state, AuxState) ->
-    #mg_stateproc_Content{data = maybe_marshal(term, AuxState)};
 marshal(history, History) ->
     lists:map(fun(Ev) -> marshal(event, Ev) end, History);
 marshal(event, Event) ->
@@ -174,3 +169,46 @@ format_version(#{<<"format_version">> := Version}) ->
     Version;
 format_version(_) ->
     undefined.
+
+to_content(undefined) ->
+    undefined;
+to_content(#mg_stateproc_Content{} = Content) ->
+    Content;
+to_content({T, _V} = MsgPackValue) when
+    T =:= nl;
+    T =:= b;
+    T =:= i;
+    T =:= flt;
+    T =:= str;
+    T =:= bin;
+    T =:= arr;
+    T =:= obj
+->
+    #mg_stateproc_Content{data = MsgPackValue};
+to_content(Data) ->
+    #mg_stateproc_Content{data = to_msgpack(Data)}.
+
+to_msgpack(undefined) ->
+    {nl, #mg_msgpack_Nil{}};
+to_msgpack(Binary) when is_binary(Binary) ->
+    #mg_stateproc_Content{data = {bin, Binary}};
+to_msgpack(Boolean) when is_boolean(Boolean) ->
+    #mg_stateproc_Content{data = {b, Boolean}};
+to_msgpack(Integer) when is_integer(Integer) ->
+    #mg_stateproc_Content{data = {i, Integer}};
+to_msgpack(Float) when is_float(Float) ->
+    #mg_stateproc_Content{data = {flt, Float}};
+to_msgpack(Array) when is_list(Array) ->
+    #mg_stateproc_Content{data = {arr, lists:map(fun to_msgpack/1, Array)}};
+to_msgpack(Object) when is_map(Object) ->
+    Data =  {
+        obj,
+        maps:fold(
+            fun(K, V, Acc) ->
+                maps:put(to_msgpack(K), to_msgpack(V), Acc)
+            end,
+            #{},
+            Object
+        )
+    },
+    #mg_stateproc_Content{data = Data}.
