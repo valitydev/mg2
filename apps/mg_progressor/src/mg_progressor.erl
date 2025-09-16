@@ -191,15 +191,15 @@ to_content(Data) ->
 to_msgpack(undefined) ->
     {nl, #mg_msgpack_Nil{}};
 to_msgpack(Binary) when is_binary(Binary) ->
-    #mg_stateproc_Content{data = {bin, Binary}};
+    {bin, Binary};
 to_msgpack(Boolean) when is_boolean(Boolean) ->
-    #mg_stateproc_Content{data = {b, Boolean}};
+    {b, Boolean};
 to_msgpack(Integer) when is_integer(Integer) ->
-    #mg_stateproc_Content{data = {i, Integer}};
+    {i, Integer};
 to_msgpack(Float) when is_float(Float) ->
-    #mg_stateproc_Content{data = {flt, Float}};
+    {flt, Float};
 to_msgpack(Array) when is_list(Array) ->
-    #mg_stateproc_Content{data = {arr, lists:map(fun to_msgpack/1, Array)}};
+    {arr, lists:map(fun to_msgpack/1, Array)};
 to_msgpack(Object) when is_map(Object) ->
     try
         maps:fold(
@@ -211,10 +211,10 @@ to_msgpack(Object) when is_map(Object) ->
         )
     of
         Data ->
-            #mg_stateproc_Content{data = {obj, Data}}
+            {obj, Data}
     catch
         _:_ ->
-            #mg_stateproc_Content{data = {bin, erlang:term_to_binary(Object)}}
+            {bin, erlang:term_to_binary(Object)}
     end;
 to_msgpack(Term) ->
-    #mg_stateproc_Content{data = {bin, erlang:term_to_binary(Term)}}.
+    {bin, erlang:term_to_binary(Term)}.
