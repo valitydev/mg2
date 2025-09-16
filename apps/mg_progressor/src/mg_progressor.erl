@@ -201,8 +201,7 @@ to_msgpack(Float) when is_float(Float) ->
 to_msgpack(Array) when is_list(Array) ->
     #mg_stateproc_Content{data = {arr, lists:map(fun to_msgpack/1, Array)}};
 to_msgpack(Object) when is_map(Object) ->
-    Data = {
-        obj,
+    try
         maps:fold(
             fun(K, V, Acc) ->
                 maps:put(to_msgpack(K), to_msgpack(V), Acc)
@@ -210,5 +209,12 @@ to_msgpack(Object) when is_map(Object) ->
             #{},
             Object
         )
-    },
-    #mg_stateproc_Content{data = Data}.
+    of
+        Data ->
+            #mg_stateproc_Content{data = {obj, Data}}
+    catch
+        _:_ ->
+            #mg_stateproc_Content{data = {bin, erlang:term_to_binary(Object)}}
+    end;
+to_msgpack(Term) ->
+    #mg_stateproc_Content{data = {bin, erlang:term_to_binary(Term)}}.
