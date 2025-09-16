@@ -121,9 +121,12 @@ maybe_unmarshal(Type, Value) ->
 unmarshal(term, Value) ->
     erlang:term_to_binary(Value).
 
-maybe_marshal(_Type, undefined) ->
-    undefined;
 maybe_marshal(Type, Value) ->
+    maybe_marshal(Type, Value, undefined).
+
+maybe_marshal(_Type, undefined, Default) ->
+    Default;
+maybe_marshal(Type, Value, _Default) ->
     marshal(Type, Value).
 
 marshal(process, Process) ->
@@ -133,8 +136,10 @@ marshal(process, Process) ->
         history = maybe_marshal(history, maps:get(history, Process)),
         history_range = marshal(history_range, maps:get(history_range, Process)),
         status = marshal(status, {maps:get(status, Process), maps:get(detail, Process, undefined)}),
-        aux_state = maybe_marshal(term, maps:get(aux_state, Process, undefined))
+        aux_state = maybe_marshal(aux_state, maps:get(aux_state, Process, undefined), {bin, <<>>})
     };
+marshal(aux_state, AuxState) ->
+    #mg_stateproc_Content{data = maybe_marshal(term, AuxState)};
 marshal(history, History) ->
     lists:map(fun(Ev) -> marshal(event, Ev) end, History);
 marshal(event, Event) ->
