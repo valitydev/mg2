@@ -1566,11 +1566,9 @@ attach_otel_ctx(ReqCtx) ->
     mg_core_otel:maybe_attach_otel_ctx(request_context_to_otel_context(ReqCtx)).
 
 -spec request_context_to_otel_context(mg_core_events_machine:request_context()) -> otel_ctx:t().
-request_context_to_otel_context(#{<<"otel">> := OpaqueOtelCtx}) ->
-    OtelCtx0 = otel_ctx:get_current(),
-    mg_core_otel:restore_otel_stub(OtelCtx0, OpaqueOtelCtx);
-request_context_to_otel_context(_Other) ->
-    otel_ctx:get_current().
+request_context_to_otel_context(Ctx) ->
+    {_WoodyContext, OtelContext} = woody_rpc_helper:decode_rpc_context(Ctx),
+    OtelContext.
 
 %%
 %% retrying

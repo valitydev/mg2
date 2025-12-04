@@ -321,7 +321,4 @@ simplify_machine_status(_) ->
 
 -spec to_request_context(otel_ctx:t(), woody_context:ctx()) -> mg_core:request_context().
 to_request_context(OtelContext, WoodyContext) ->
-    #{
-        <<"otel">> => mg_core_otel:pack_otel_stub(OtelContext),
-        <<"woody">> => mg_woody_utils:woody_context_to_opaque(WoodyContext)
-    }.
+    woody_rpc_helper:encode_rpc_context(WoodyContext, OtelContext).

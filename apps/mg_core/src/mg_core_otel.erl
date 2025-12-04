@@ -2,8 +2,6 @@
 
 -include_lib("opentelemetry_api/include/opentelemetry.hrl").
 
--export([pack_otel_stub/1]).
--export([restore_otel_stub/2]).
 -export([maybe_attach_otel_ctx/1]).
 
 -export([span_start/3]).
@@ -26,38 +24,6 @@
 -define(SPANS_STACK, 'spans_ctx_stack').
 
 %%
-
-%% @doc Packs OTEL context for storage.
--spec pack_otel_stub(otel_ctx:t()) -> packed_otel_stub().
-pack_otel_stub(Ctx) ->
-    case otel_tracer:current_span_ctx(Ctx) of
-        undefined ->
-            [];
-        #span_ctx{trace_id = TraceID, span_id = SpanID, trace_flags = TraceFlags} ->
-            [trace_id_to_binary(TraceID), span_id_to_binary(SpanID), TraceFlags]
-    end.
-
-%% @doc Restores OTEL context with current span. Restored span context
-%% status is nor actual nor have according data in OTEL storage
-%% backend. Its only purpose is to preserve ability to start new child
-%% spans in compliance with OTEL tracer API.
-%%
-%% Restored otel span can be unfinished if machine is interrupted
-%% with node stop, thus span data is lost anyway.
-%%
-%% We can't get around this issue without implementing our own
-%% tracer with distributed storage with write order guarantee.
-%%
-%% However we can start new span for 'resumption' signal. And set
-%% original machine start call as its parent. Same goes for 'timeouts'
-%% and 'retries' signals.
--spec restore_otel_stub(otel_ctx:t(), packed_otel_stub()) -> otel_ctx:t().
-restore_otel_stub(Ctx, [TraceID, SpanID, TraceFlags]) ->
-    SpanCtx = otel_tracer:from_remote_span(binary_to_id(TraceID), binary_to_id(SpanID), TraceFlags),
-    %% NOTE Thus restored span context is considered being remote and not recording.
-    otel_tracer:set_current_span(Ctx, SpanCtx);
-restore_otel_stub(Ctx, _Other) ->
-    Ctx.
 
 -spec maybe_attach_otel_ctx(otel_ctx:t()) -> ok.
 maybe_attach_otel_ctx(NewCtx) when map_size(NewCtx) =:= 0 ->
@@ -166,20 +132,6 @@ span_id(#span_ctx{span_id = SpanID}) ->
     SpanID;
 span_id(_) ->
     undefined.
-
--spec trace_id_to_binary(opentelemetry:trace_id()) -> binary().
-trace_id_to_binary(TraceID) ->
-    {ok, EncodedTraceID} = otel_utils:format_binary_string("~32.16.0b", [TraceID]),
-    EncodedTraceID.
-
--spec span_id_to_binary(opentelemetry:span_id()) -> binary().
-span_id_to_binary(SpanID) ->
-    {ok, EncodedSpanID} = otel_utils:format_binary_string("~16.16.0b", [SpanID]),
-    EncodedSpanID.
-
--spec binary_to_id(binary()) -> non_neg_integer().
-binary_to_id(Opaque) when is_binary(Opaque) ->
-    binary_to_integer(Opaque, 16).
 
 -ifdef(TEST).
 -include_lib("eunit/include/eunit.hrl").
