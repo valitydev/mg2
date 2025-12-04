@@ -1563,7 +1563,7 @@ try_suicide(#{}, _) ->
 
 -spec attach_otel_ctx(mg_core_events_machine:request_context()) -> ok.
 attach_otel_ctx(ReqCtx) ->
-    mg_core_otel:maybe_attach_otel_ctx(request_context_to_otel_context(ReqCtx)).
+    woody_rpc_helper:attach_otel_context(request_context_to_otel_context(ReqCtx)).
 
 -spec request_context_to_otel_context(mg_core_events_machine:request_context()) -> otel_ctx:t().
 request_context_to_otel_context(Ctx) ->
