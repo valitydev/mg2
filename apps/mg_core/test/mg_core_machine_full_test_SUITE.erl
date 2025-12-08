@@ -202,10 +202,10 @@ do_action(Options, ID, Seq, Action) ->
 
 -spec req_ctx(id(), seq()) -> mg_core:request_context().
 req_ctx(ID, Seq) ->
-    #{
+    Ctx = woody_rpc_helper:encode_rpc_context(woody_context:new(), otel_ctx:get_current()),
+    Ctx#{
         <<"id">> => ID,
-        <<"seq">> => Seq,
-        <<"otel">> => mg_core_otel:pack_otel_stub(otel_ctx:get_current())
+        <<"seq">> => Seq
     }.
 
 -spec id(id()) -> mg_core:id().
