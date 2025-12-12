@@ -355,24 +355,24 @@ postgres:
 
 progressor:
     prg_test_ns_2:
-      # required
-      storage:
+        # required
+        storage:
+            # optional
+            client: prg_pg_backend
+            # required
+            options:
+                # required
+                pool: another_processor_pool
         # optional
-        client: prg_pg_backend
-        # required
-        options:
-          # required
-          pool: another_processor_pool
-      # optional
-      notifier:
-        # required
-        client: default_kafka_client
-        # required
-        options:
-          # required
-          topic: eventsink_topic
-          # required
-          lifecycle_topic: lifecycle_topic
+        notifier:
+            # required
+            client: default_kafka_client
+            # required
+            options:
+                # required
+                topic: eventsink_topic
+                # required
+                lifecycle_topic: lifecycle_topic
 
 # Optional section
 # if not defined then canal will not be started
