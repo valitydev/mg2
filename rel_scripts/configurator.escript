@@ -628,25 +628,49 @@ pg_pool_opts(PoolOpts) ->
 
 progressor(YamlConfig) ->
     PrgNamespaces = lists:foldl(
-        fun({NsName, NsPgPool}, Acc) ->
-            Acc#{?C:atom(NsName) => prg_namespace(?C:atom(NsPgPool))}
+        fun({NsName, NsOpts}, Acc) ->
+            Acc#{?C:atom(NsName) => prg_namespace(NsOpts)}
         end,
         #{},
         ?C:conf([progressor], YamlConfig, [])
     ),
     [{namespaces, PrgNamespaces}].
 
-prg_namespace(NsPgPool) ->
-    #{
-        storage => #{
-            client => prg_pg_backend,
-            options => #{pool => NsPgPool}
-        },
-        processor => #{
-            %% Never will be called
-            client => null
-        },
+prg_namespace(NsOptsList) ->
+    InitAcc = #{
+        processor => #{client => null},
         worker_pool_size => 0
+    },
+    lists:foldl(
+        fun
+            ({<<"storage">>, StorageOpts}, Acc) -> Acc#{storage => prg_storage_opts(StorageOpts)};
+            ({<<"notifier">>, NotifierOpts}, Acc) -> Acc#{notifier => prg_notifier_opts(NotifierOpts)};
+            (_, Acc) -> Acc
+        end,
+        InitAcc,
+        NsOptsList
+    ).
+
+prg_storage_opts(StorageOpts) ->
+    Client = ?C:atom(?C:conf([client], StorageOpts, <<"prg_pg_backend">>)),
+    OptsList = ?C:conf([options], StorageOpts),
+    #{
+        client => Client,
+        options => prg_storage_handler_opts(Client, OptsList)
+    }.
+
+prg_storage_handler_opts(prg_pg_backend, OptsList) ->
+    #{pool => ?C:atom(?C:conf([pool], OptsList))}.
+
+prg_notifier_opts(NotifierOpts) ->
+    Client = ?C:atom(?C:conf([client], NotifierOpts)),
+    OptsList = ?C:conf([options], NotifierOpts),
+    #{
+        client => Client,
+        options => #{
+            topic => ?C:conf([topic], OptsList),
+            lifecycle_topic => ?C:conf([lifecycle_topic], OptsList)
+        }
     }.
 
 canal(YamlConfig) ->
