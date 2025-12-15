@@ -628,37 +628,94 @@ pg_pool_opts(PoolOpts) ->
 
 progressor(YamlConfig) ->
     PrgNamespaces = lists:foldl(
-        fun({NsName, NsPgPool}, Acc) ->
-            Acc#{?C:atom(NsName) => prg_namespace(?C:atom(NsPgPool))}
+        fun({NsName, NsOpts}, Acc) ->
+            Acc#{?C:atom(NsName) => prg_namespace(NsOpts)}
         end,
         #{},
         ?C:conf([progressor], YamlConfig, [])
     ),
-    [{namespaces, PrgNamespaces}].
+    [{namespaces, PrgNamespaces}, {migration_enabled, false}].
 
-prg_namespace(NsPgPool) ->
-    #{
-        storage => #{
-            client => prg_pg_backend,
-            options => #{pool => NsPgPool}
-        },
-        processor => #{
-            %% Never will be called
-            client => null
-        },
+prg_namespace(NsOptsList) ->
+    InitAcc = #{
+        processor => #{client => null},
         worker_pool_size => 0
+    },
+    lists:foldl(
+        fun
+            ({<<"storage">>, StorageOpts}, Acc) -> Acc#{storage => prg_storage_opts(StorageOpts)};
+            ({<<"notifier">>, NotifierOpts}, Acc) -> Acc#{notifier => prg_notifier_opts(NotifierOpts)};
+            (_, Acc) -> Acc
+        end,
+        InitAcc,
+        NsOptsList
+    ).
+
+prg_storage_opts(StorageOpts) ->
+    Client = ?C:atom(?C:conf([client], StorageOpts, <<"prg_pg_backend">>)),
+    OptsList = ?C:conf([options], StorageOpts),
+    #{
+        client => Client,
+        options => prg_storage_handler_opts(Client, OptsList)
+    }.
+
+prg_storage_handler_opts(prg_pg_backend, OptsList) ->
+    #{pool => ?C:atom(?C:conf([pool], OptsList))}.
+
+prg_notifier_opts(NotifierOpts) ->
+    Client = ?C:atom(?C:conf([client], NotifierOpts)),
+    OptsList = ?C:conf([options], NotifierOpts),
+    #{
+        client => Client,
+        options => #{
+            topic => ?C:conf([topic], OptsList),
+            lifecycle_topic => ?C:conf([lifecycle_topic], OptsList)
+        }
     }.
 
 canal(YamlConfig) ->
+    Default = [
+        {httpc_options, [{ssl, [{verify, verify_none}]}]},
+        {kvv2_secret_mount_path, "/secret/data/"}
+    ],
     lists:foldl(
         fun
             ({<<"url">>, Url}, Acc) ->
                 [{url, unicode:characters_to_list(Url)} | Acc];
             ({<<"engine">>, Value}, Acc) ->
-                [{engine, ?C:atom(Value)} | Acc]
+                [{engine, ?C:atom(Value)} | Acc];
+            ({<<"httpc_options">>, Value}, Acc) ->
+                [{httpc_options, canal_httpc_options(Value)} | Acc];
+            ({<<"kvv2_secret_mount_path">>, Value}, Acc) ->
+                [{kvv2_secret_mount_path, unicode:characters_to_list(Value)} | Acc]
+        end,
+        Default,
+        ?C:conf([canal], YamlConfig, [])
+    ).
+
+canal_httpc_options(Value) ->
+    lists:foldl(
+        fun
+            ({<<"ssl">>, SslOpts}, Acc) ->
+                [{ssl, ssl_opts(SslOpts)} | Acc];
+            (_, Acc) ->
+                Acc
         end,
         [],
-        ?C:conf([canal], YamlConfig, [])
+        Value
+    ).
+
+ssl_opts(Opts) ->
+    Default = [{ssl, [{verify, verify_none}]}],
+    lists:foldl(
+        fun
+            ({<<"verify">>, Value}, Acc) ->
+                [{verify, ?C:atom(Value)} | Acc];
+            (_, Acc) ->
+                Acc
+        end,
+        Default,
+        Opts
     ).
 
 %%

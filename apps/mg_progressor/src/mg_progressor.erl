@@ -133,7 +133,7 @@ marshal(process, Process) ->
         history = maybe_marshal(history, maps:get(history, Process)),
         history_range = marshal(history_range, maps:get(history_range, Process)),
         status = marshal(status, {maps:get(status, Process), maps:get(detail, Process, undefined)}),
-        aux_state = maybe_marshal(term, maps:get(aux_state, Process, undefined))
+        aux_state = to_content(maybe_marshal(term, maps:get(aux_state, Process, undefined)))
     };
 marshal(history, History) ->
     lists:map(fun(Ev) -> marshal(event, Ev) end, History);
@@ -169,3 +169,52 @@ format_version(#{<<"format_version">> := Version}) ->
     Version;
 format_version(_) ->
     undefined.
+
+to_content(undefined) ->
+    undefined;
+to_content(#mg_stateproc_Content{} = Content) ->
+    Content;
+to_content({T, _V} = MsgPackValue) when
+    T =:= nl;
+    T =:= b;
+    T =:= i;
+    T =:= flt;
+    T =:= str;
+    T =:= bin;
+    T =:= arr;
+    T =:= obj
+->
+    #mg_stateproc_Content{data = MsgPackValue};
+to_content(Data) ->
+    #mg_stateproc_Content{data = to_msgpack(Data)}.
+
+to_msgpack(undefined) ->
+    {nl, #mg_msgpack_Nil{}};
+to_msgpack(Binary) when is_binary(Binary) ->
+    {bin, Binary};
+to_msgpack(Boolean) when is_boolean(Boolean) ->
+    {b, Boolean};
+to_msgpack(Integer) when is_integer(Integer) ->
+    {i, Integer};
+to_msgpack(Float) when is_float(Float) ->
+    {flt, Float};
+to_msgpack(Array) when is_list(Array) ->
+    {arr, lists:map(fun to_msgpack/1, Array)};
+to_msgpack(Object) when is_map(Object) ->
+    try
+        maps:fold(
+            fun(K, V, Acc) ->
+                maps:put(to_msgpack(K), to_msgpack(V), Acc)
+            end,
+            #{},
+            Object
+        )
+    of
+        Data ->
+            {obj, Data}
+    catch
+        _:_ ->
+            {bin, erlang:term_to_binary(Object)}
+    end;
+to_msgpack(Term) ->
+    {bin, erlang:term_to_binary(Term)}.
