@@ -634,7 +634,7 @@ progressor(YamlConfig) ->
         #{},
         ?C:conf([progressor], YamlConfig, [])
     ),
-    [{namespaces, PrgNamespaces}].
+    [{namespaces, PrgNamespaces}, {migration_enabled, false}].
 
 prg_namespace(NsOptsList) ->
     InitAcc = #{
