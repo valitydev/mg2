@@ -160,6 +160,8 @@ marshal(history_range, Range) ->
         limit = maps:get(limit, Range, undefined),
         direction = maps:get(direction, Range, undefined)
     };
+marshal(status, {<<"init">>, _Detail}) ->
+    {'working', #mg_stateproc_MachineStatusWorking{}};
 marshal(status, {<<"running">>, _Detail}) ->
     {'working', #mg_stateproc_MachineStatusWorking{}};
 marshal(status, {<<"error">>, Detail}) ->
