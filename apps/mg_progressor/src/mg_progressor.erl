@@ -61,6 +61,8 @@ handle_function('Repair', {MachineDesc, PackedArgs}, Context) ->
             {ok, mg_woody_packer:pack(repair_response, marshal(term, RawResponse))};
         {error, <<"process is running">>} = Error ->
             handle_error(Error);
+        {error, <<"process is init">>} ->
+            handle_error({error, <<"process not found">>});
         {error, <<"process not found">>} = Error ->
             handle_error(Error);
         {error, <<"namespace not found">>} = Error ->
@@ -101,6 +103,8 @@ handle_result({error, _Reason} = Error) ->
 handle_error({error, <<"process already exists">>}) ->
     erlang:throw({logic, machine_already_exist});
 handle_error({error, <<"process not found">>}) ->
+    erlang:throw({logic, machine_not_found});
+handle_error({error, <<"process is init">>}) ->
     erlang:throw({logic, machine_not_found});
 handle_error({error, <<"namespace not found">>}) ->
     erlang:throw({logic, namespace_not_found});
