@@ -155,7 +155,7 @@ marshal(event, Event) ->
         data = marshal(term, Payload)
     };
 marshal(timestamp, Timestamp) ->
-    unicode:characters_to_binary(calendar:system_time_to_rfc3339(Timestamp, [{offset, "Z"}]));
+    unicode:characters_to_binary(calendar:system_time_to_rfc3339(Timestamp, [{offset, "Z"}, {unit, microsecond}]));
 marshal(term, Term) ->
     binary_to_term(Term);
 marshal(history_range, Range) ->
